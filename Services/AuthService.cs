@@ -25,7 +25,7 @@ namespace RentMate.Api.Services
         // =========================
         // REGISTER
         // =========================
-        public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
+        public async Task RegisterAsync(RegisterDto dto)
         {
             var existingUser =
                 await _userManager.FindByEmailAsync(dto.Email);
@@ -59,8 +59,6 @@ namespace RentMate.Api.Services
 
                 throw new ArgumentException(errors);
             }
-
-            return GenerateAuthResponse(user);
         }
 
         // =========================

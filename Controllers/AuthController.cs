@@ -22,10 +22,10 @@ namespace RentMate.Api.Controllers
         {
             try
             {
-                var result =
-                    await _authService.RegisterAsync(dto);
+                await _authService.RegisterAsync(dto);
 
-                return Ok(result);
+                // Token is only issued on login
+                return Ok(new { message = "Registered successfully. Please login." });
             }
             catch (ArgumentException ex)
             {
