@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using RentMate.Api.DTOs.Categories;
 using RentMate.Api.Services.Interfaces;
 
@@ -35,6 +36,7 @@ namespace RentMate.Api.Controllers
             return Ok(category);
         }
 
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> Create(
             CreateCategoryDto dto)
