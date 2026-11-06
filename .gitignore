@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 appsettings.json
 appsettings.Development.json
+
+# Ảnh người dùng tải lên lúc chạy app
+RentMate.AdminSite/wwwroot/uploads/

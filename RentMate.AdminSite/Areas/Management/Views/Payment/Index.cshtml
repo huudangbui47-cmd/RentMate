@@ -1,0 +1,98 @@
+@model PaymentListViewModel
+
+@{
+    ViewData["Title"] = "Thanh toán";
+}
+
+<div class="page-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <h3>Thanh toán</h3>
+        <span class="text-muted">Đã thu: <strong>@Model.TotalPaidAmount.ToString("N0") đ</strong></span>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="admin-toolbar">
+    <div class="admin-filterbar">
+        <select name="status" class="form-select">
+            <option value="">Tất cả trạng thái</option>
+            <option value="@PaymentStatus.Pending" selected="@(Model.Status == PaymentStatus.Pending)">Chờ thanh toán</option>
+            <option value="@PaymentStatus.Paid" selected="@(Model.Status == PaymentStatus.Paid)">Đã thanh toán</option>
+            <option value="@PaymentStatus.Failed" selected="@(Model.Status == PaymentStatus.Failed)">Thất bại</option>
+            <option value="@PaymentStatus.Refunded" selected="@(Model.Status == PaymentStatus.Refunded)">Đã hoàn tiền</option>
+        </select>
+        <select name="paymentType" class="form-select">
+            <option value="">Tất cả loại</option>
+            <option value="@PaymentType.RentalFee" selected="@(Model.PaymentType == PaymentType.RentalFee)">Phí thuê</option>
+            <option value="@PaymentType.Deposit" selected="@(Model.PaymentType == PaymentType.Deposit)">Tiền cọc</option>
+            <option value="@PaymentType.DepositRefund" selected="@(Model.PaymentType == PaymentType.DepositRefund)">Hoàn cọc</option>
+            <option value="@PaymentType.Compensation" selected="@(Model.PaymentType == PaymentType.Compensation)">Bồi thường</option>
+        </select>
+        <input asp-for="FromDate" name="fromDate" type="date" class="form-control" title="Từ ngày" />
+        <input asp-for="ToDate" name="toDate" type="date" class="form-control" title="Đến ngày" />
+        <button type="submit" class="btn btn-outline-primary">Lọc</button>
+        @if (Model.Status.HasValue || Model.PaymentType.HasValue || Model.FromDate.HasValue || Model.ToDate.HasValue)
+        {
+            <a asp-action="Index" class="admin-clear-link">Xóa lọc</a>
+        }
+    </div>
+</form>
+
+<div class="card admin-table-card">
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Đơn thuê</th>
+                    <th>Người thuê</th>
+                    <th>Loại</th>
+                    <th>Phương thức</th>
+                    <th class="text-end">Số tiền</th>
+                    <th>Mã giao dịch</th>
+                    <th>Thời điểm</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Payments.Count == 0)
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-4">Không có giao dịch phù hợp.</td></tr>
+                }
+                @foreach (var payment in Model.Payments)
+                {
+                    string badgeClass = payment.Status switch
+                    {
+                        PaymentStatus.Paid => "admin-badge-success",
+                        PaymentStatus.Pending => "admin-badge-warning",
+                        PaymentStatus.Failed => "admin-badge-danger",
+                        PaymentStatus.Refunded => "admin-badge-info",
+                        _ => "admin-badge-muted"
+                    };
+                    <tr>
+                        <td>
+                            <a asp-controller="Rental" asp-action="Details" asp-route-id="@payment.RentalId" class="fw-semibold">#@payment.RentalId</a>
+                            <div><small class="text-muted">@payment.ItemName</small></div>
+                        </td>
+                        <td>@payment.RenterName</td>
+                        <td>@payment.TypeText</td>
+                        <td>@payment.MethodText</td>
+                        <td class="text-end fw-semibold">@payment.Amount.ToString("N0") đ</td>
+                        <td><code>@payment.TransactionCode</code></td>
+                        <td class="text-muted">@((payment.PaidAt ?? payment.CreatedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</td>
+                        <td><span class="admin-badge @badgeClass">@payment.StatusText</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Phân trang" class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <a asp-action="Index" asp-route-page="@i" asp-route-status="@Model.Status" asp-route-paymentType="@Model.PaymentType" asp-route-fromDate="@(Model.FromDate?.ToString("yyyy-MM-dd"))" asp-route-toDate="@(Model.ToDate?.ToString("yyyy-MM-dd"))"
+               class="btn @(Model.Page == i ? "btn-primary" : "btn-outline-primary")" aria-current="@(Model.Page == i ? "page" : null)">@i</a>
+        }
+    </nav>
+}

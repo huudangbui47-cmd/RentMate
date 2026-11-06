@@ -1,0 +1,109 @@
+<div class="modal fade" id="accountProfileModal" tabindex="-1" aria-labelledby="accountProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content account-profile-modal">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="accountProfileModalLabel">Thông tin tài khoản</h5>
+                    <div class="text-muted small">Cập nhật thông tin cá nhân và mật khẩu.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+
+            <div class="modal-body">
+                <ul class="nav nav-tabs account-profile-tabs mb-4" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#profileInfoTab" type="button" role="tab">Thông tin</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#profilePasswordTab" type="button" role="tab">Mật khẩu</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="profileInfoTab" role="tabpanel">
+                        <div id="profileMessage"></div>
+
+                        <div class="rm-profile-avatar-row mb-4">
+                            <span class="rm-profile-avatar" id="profileAvatarPreview"></span>
+                            <div>
+                                <form id="accountAvatarForm" class="d-flex flex-wrap gap-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="file" id="profileAvatarInput" name="avatar" accept=".jpg,.jpeg,.png" class="d-none" />
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="profileAvatarChoose">Đổi ảnh</button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="profileAvatarRemove">Gỡ ảnh</button>
+                                </form>
+                                <div class="form-text">Ảnh JPG hoặc PNG, tối đa 2MB.</div>
+                            </div>
+                        </div>
+
+                        <form id="accountProfileForm">
+                            @Html.AntiForgeryToken()
+
+                            <div class="mb-3">
+                                <label for="profileFullName" class="form-label">Họ tên</label>
+                                <input type="text" id="profileFullName" name="FullName" maxlength="100" class="form-control" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="profilePhone" class="form-label">Số điện thoại</label>
+                                <input type="tel" id="profilePhone" name="PhoneNumber" maxlength="20" class="form-control" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="profileEmail" class="form-label">Email</label>
+                                <input type="email" id="profileEmail" name="Email" maxlength="100" class="form-control" autocomplete="email" />
+                                <div class="form-text">Đổi email thì lần đăng nhập sau phải dùng email mới.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="profileRole" class="form-label">Vai trò</label>
+                                <input type="text" id="profileRole" class="form-control" readonly />
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="profilePasswordTab" role="tabpanel">
+                        <div id="passwordMessage"></div>
+
+                        <form id="accountPasswordForm">
+                            @Html.AntiForgeryToken()
+
+                            <div class="mb-3">
+                                <label for="oldPassword" class="form-label">Mật khẩu hiện tại</label>
+                                <div class="rm-password-field">
+                                    <input type="password" id="oldPassword" name="OldPassword" class="form-control" autocomplete="current-password" />
+                                    <partial name="_PasswordToggle" />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="newPassword" class="form-label">Mật khẩu mới</label>
+                                <div class="rm-password-field">
+                                    <input type="password" id="newPassword" name="NewPassword" class="form-control" autocomplete="new-password" />
+                                    <partial name="_PasswordToggle" />
+                                </div>
+                                <div class="form-text">Ít nhất 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="confirmPassword" class="form-label">Xác nhận mật khẩu mới</label>
+                                <div class="rm-password-field">
+                                    <input type="password" id="confirmPassword" name="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                                    <partial name="_PasswordToggle" />
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary">Đổi mật khẩu</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,610 @@
+/* Mazer custom layer - giữ nguyên nghiệp vụ, chỉ đổi giao diện */
+
+:root {
+    --brand-primary: #206bc4;
+    --brand-accent: #4299e1;
+}
+
+body {
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.mazer-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: inherit;
+    text-decoration: none;
+}
+
+    .mazer-brand:hover {
+        color: inherit;
+    }
+
+.mazer-brand-mark {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #206bc4;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.mazer-brand span:last-child {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.mazer-brand strong {
+    font-size: 15px;
+}
+
+.mazer-brand small {
+    margin-top: 4px;
+    color: #8a8da0;
+    font-size: 11px;
+}
+
+.mazer-menu-icon {
+    display: inline-flex;
+    width: 26px;
+    align-items: center;
+    justify-content: center;
+    color: #7c8db5;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.sidebar-item.active .mazer-menu-icon {
+    color: #fff;
+}
+
+.mazer-avatar {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(32, 107, 196, .12);
+    color: #206bc4;
+    font-weight: 800;
+}
+
+.mazer-content > h1:first-child,
+.mazer-content > h2:first-child,
+.mazer-content > h3:first-child {
+    margin-bottom: 1.25rem;
+    font-weight: 700;
+}
+
+/* CRUD dùng chung */
+.mazer-content > form[method="get"] {
+    margin-bottom: 1.25rem;
+    padding: 1rem;
+    border-radius: 12px;
+    background: var(--bs-body-bg);
+    box-shadow: 0 2px 14px rgba(24, 36, 72, .04);
+}
+
+.mazer-content .form-control,
+.mazer-content .form-select {
+    min-height: 40px;
+    border-radius: 8px;
+}
+
+.mazer-content .btn {
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.mazer-content > table.table,
+.mazer-content .table-responsive {
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.mazer-content .table {
+    margin-bottom: 0;
+}
+
+    .mazer-content .table thead th {
+        font-size: .78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .mazer-content .table td,
+    .mazer-content .table th {
+        vertical-align: middle;
+    }
+
+        .mazer-content .table td:last-child {
+            white-space: nowrap;
+        }
+
+.mazer-content .card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+.mazer-content .card-header {
+    border-bottom: 0;
+    background: transparent;
+}
+
+/* Dashboard */
+.dashboard-stat {
+    min-height: 108px;
+}
+
+    .dashboard-stat::after {
+        display: none;
+    }
+
+.dashboard-stat-label {
+    color: #667085;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+.dashboard-stat-value {
+    margin-top: .45rem;
+    font-size: 1.65rem;
+    font-weight: 750;
+}
+
+/* Login */
+.admin-login-page {
+    min-height: 100vh;
+    background: #f4f6f8;
+}
+
+.admin-login-wrap {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 32px 16px;
+}
+
+.admin-login-card {
+    width: min(420px, 100%);
+    padding: 32px;
+    border: 1px solid #dfe3e8;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(24, 36, 72, .06);
+}
+
+.admin-login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #edf0f2;
+}
+
+    .admin-login-brand > div {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.15;
+    }
+
+    .admin-login-brand strong {
+        font-size: 15px;
+    }
+
+    .admin-login-brand small {
+        margin-top: 4px;
+        color: #8a8da0;
+        font-size: 12px;
+    }
+
+.admin-login-heading {
+    margin: 28px 0 24px;
+}
+
+    .admin-login-heading h1 {
+        margin: 0 0 6px;
+        font-size: 1.65rem;
+        font-weight: 750;
+    }
+
+    .admin-login-heading p {
+        margin: 0;
+        color: #667085;
+    }
+
+.admin-login-card .form-control {
+    min-height: 44px;
+    border-radius: 8px;
+}
+
+.admin-login-card .btn {
+    min-height: 44px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.admin-login-theme {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    z-index: 5;
+}
+
+.account-profile-modal {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+}
+
+    .account-profile-modal .modal-header {
+        padding: 20px 22px;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .account-profile-modal .modal-body {
+        padding: 22px;
+    }
+
+.account-profile-tabs .nav-link {
+    font-weight: 600;
+}
+
+/* Dark polish */
+body.theme-dark body.theme-dark .mazer-avatar {
+    background: rgba(66, 153, 225, .15);
+    color: #8cc4ff;
+}
+
+body.theme-dark .mazer-content > form[method="get"] {
+    background: #1e1e2d;
+}
+
+body.theme-dark .admin-login-page {
+    background: #151521;
+}
+
+body.theme-dark .admin-login-card {
+    background: #1e1e2d;
+    border-color: #303043;
+}
+
+@media (max-width: 991.98px) {
+    .admin-login-card {
+        padding: 28px 24px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .mazer-content .table td:last-child {
+        white-space: normal;
+    }
+}
+
+/* Đồng bộ typography giữa Light / Dark */
+html {
+    font-size: 16px !important;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+    font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+    font-size: 1rem;
+}
+
+    body,
+    body.theme-dark {
+        line-height: 1.5;
+    }
+
+.mazer-content {
+    font-size: 1rem;
+}
+
+    .mazer-content h1,
+    .mazer-content h2,
+    .mazer-content h3,
+    .mazer-content h4,
+    .mazer-content h5,
+    .mazer-content h6 {
+        font-family: inherit !important;
+    }
+
+.mazer-brand strong {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+}
+
+.mazer-brand small {
+    margin-top: 4px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+}
+
+#sidebar .sidebar-link {
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    line-height: 1.3 !important;
+}
+
+#sidebar .sidebar-title {
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+}
+
+.mazer-topbar h5 {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+}
+
+.mazer-user strong {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+}
+
+.mazer-user small {
+    font-size: 0.75rem !important;
+}
+
+/* Customer */
+.customer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+    .customer-actions form {
+        margin: 0;
+    }
+
+    .customer-actions .btn {
+        min-width: 58px;
+    }
+
+/* CRUD consistency */
+.crud-filter {
+    margin: 0;
+}
+
+    .crud-filter .form-label {
+        margin-bottom: 0.35rem;
+    }
+
+.crud-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+    .crud-actions form {
+        margin: 0;
+    }
+
+    .crud-actions .btn {
+        min-width: 58px;
+    }
+
+.mazer-content .card > .table-responsive {
+    border-radius: inherit;
+}
+
+.mazer-content .table thead th {
+    white-space: nowrap;
+}
+
+.mazer-content .table tbody td {
+    border-color: rgba(120, 130, 160, 0.12);
+}
+
+body.theme-dark .mazer-content .table tbody td {
+    border-color: rgba(255, 255, 255, 0.07);
+}
+
+body.theme-dark .mazer-content .table thead th {
+    color: #a8adc1;
+}
+
+body.theme-dark .mazer-content .text-muted {
+    color: #9aa0b5 !important;
+}
+
+/* Final form/detail polish */
+.form-card {
+    max-width: 920px;
+}
+
+    .form-card .card-body {
+        padding: 1.5rem;
+    }
+
+.product-preview {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+}
+
+.error-card {
+    width: min(520px, 100%);
+    border: 0;
+    border-radius: 18px;
+}
+
+.error-code {
+    margin-bottom: .75rem;
+    color: #435ebe;
+    font-size: clamp(3.5rem, 10vw, 6rem);
+    font-weight: 800;
+    line-height: 1;
+}
+
+body.theme-dark .error-card {
+    background: #1e1e2d;
+}
+
+
+.order-create-card {
+    max-width: none;
+}
+
+.detail-label {
+    margin-bottom: .25rem;
+    color: #8a8da0;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+.detail-value {
+    font-weight: 600;
+}
+
+.payment-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .7rem 0;
+    border-bottom: 1px solid rgba(120, 130, 160, .12);
+}
+
+.payment-summary-total {
+    margin-top: .2rem;
+    padding-top: .9rem;
+    border-bottom: 0;
+    font-size: 1.05rem;
+}
+
+body.theme-dark .payment-summary-row {
+    border-bottom-color: rgba(255, 255, 255, .07);
+}
+/* =========================
+   DARK MODE - TEXT CONTRAST
+========================= */
+
+body.theme-dark,
+html[data-bs-theme="dark"] body {
+    color: #f4f6f8;
+}
+
+    body.theme-dark .admin-login-card,
+    html[data-bs-theme="dark"] .admin-login-card {
+        background: #1e2230;
+        border-color: #343a46;
+        color: #f4f6f8;
+    }
+
+        body.theme-dark .admin-login-card h1,
+        body.theme-dark .admin-login-card strong,
+        body.theme-dark .admin-login-card .form-label,
+        html[data-bs-theme="dark"] .admin-login-card h1,
+        html[data-bs-theme="dark"] .admin-login-card strong,
+        html[data-bs-theme="dark"] .admin-login-card .form-label {
+            color: #f7f8fa !important;
+        }
+
+        body.theme-dark .admin-login-card p,
+        body.theme-dark .admin-login-card small,
+        body.theme-dark .admin-login-card .form-text,
+        body.theme-dark .admin-login-card .form-check-label,
+        html[data-bs-theme="dark"] .admin-login-card p,
+        html[data-bs-theme="dark"] .admin-login-card small,
+        html[data-bs-theme="dark"] .admin-login-card .form-text,
+        html[data-bs-theme="dark"] .admin-login-card .form-check-label {
+            color: #c7ccd6 !important;
+        }
+
+        body.theme-dark .admin-login-card .form-control,
+        html[data-bs-theme="dark"] .admin-login-card .form-control {
+            background: #171b24;
+            border-color: #414957;
+            color: #ffffff;
+        }
+
+            body.theme-dark .admin-login-card .form-control::placeholder,
+            html[data-bs-theme="dark"] .admin-login-card .form-control::placeholder {
+                color: #9299a6;
+            }
+
+/* =========================================
+   LOGIN - SAME SIZE IN LIGHT / DARK
+========================================= */
+
+.admin-login-card {
+    width: 420px;
+    padding: 32px;
+}
+
+.admin-login-brand strong {
+    font-size: 15px !important;
+    line-height: 18px !important;
+    font-weight: 700;
+}
+
+.admin-login-brand small {
+    font-size: 12px !important;
+    line-height: 16px !important;
+}
+
+.admin-login-heading h1 {
+    font-size: 28px !important;
+    line-height: 34px !important;
+    font-weight: 700 !important;
+    margin-bottom: 6px;
+}
+
+.admin-login-heading p {
+    font-size: 16px !important;
+    line-height: 24px !important;
+}
+
+.admin-login-card .form-label {
+    font-size: 16px !important;
+    line-height: 22px !important;
+    font-weight: 500 !important;
+}
+
+.admin-login-card .form-control {
+    height: 48px !important;
+    min-height: 48px !important;
+    font-size: 16px !important;
+    line-height: 24px !important;
+    padding: 10px 12px !important;
+}
+
+.admin-login-card .form-check-label {
+    font-size: 15px !important;
+    line-height: 22px !important;
+}
+
+.admin-login-card .btn {
+    height: 48px !important;
+    min-height: 48px !important;
+    font-size: 16px !important;
+    line-height: 24px !important;
+    font-weight: 600 !important;
+}
+
+.admin-login-card .form-text,
+.admin-login-card .text-danger {
+    font-size: 13px !important;
+    line-height: 18px !important;
+}

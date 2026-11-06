@@ -1,0 +1,251 @@
+@using System.Text.Json
+@model DashboardViewModel
+
+@{
+    ViewData["Title"] = "Tổng quan";
+}
+
+<div class="page-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+            <h3>Tổng quan</h3>
+        </div>
+
+        <a asp-controller="Rental" asp-action="Index" asp-route-status="@RentalStatus.Pending" class="btn btn-primary">
+            Đơn chờ duyệt (@Model.PendingRentals)
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl">
+        <div class="card dashboard-stat">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Người dùng</div>
+                <div class="dashboard-stat-value">@Model.TotalUsers</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl">
+        <div class="card dashboard-stat">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Đồ cho thuê</div>
+                <div class="dashboard-stat-value">@Model.TotalItems</div>
+                <div class="rm-stat-sub">@Model.AvailableItems đang sẵn sàng</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl">
+        <div class="card dashboard-stat">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Đơn đang hoạt động</div>
+                <div class="dashboard-stat-value">@Model.ActiveRentals</div>
+                <div class="rm-stat-sub">@Model.PendingRentals chờ duyệt</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl">
+        <div class="card dashboard-stat">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Quá hạn trả</div>
+                <div class="dashboard-stat-value">@Model.OverdueRentals</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl">
+        <div class="card dashboard-stat">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Doanh thu</div>
+                <div class="dashboard-stat-value">@Model.TotalRevenue.ToString("N0") đ</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <div>
+                    <h4 class="mb-1">Doanh thu theo tháng</h4>
+                </div>
+            </div>
+            <div class="card-body">
+                <div style="height:320px">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <div>
+                    <h4 class="mb-1">Đồ theo danh mục</h4>
+                </div>
+            </div>
+            <div class="table-responsive admin-table-responsive">
+                <table class="table admin-table">
+                    <thead>
+                        <tr>
+                            <th>Danh mục</th>
+                            <th class="text-end">Số đồ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.CategoryStats.Any())
+                        {
+                            @foreach (var item in Model.CategoryStats)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@item.CategoryName</td>
+                                    <td class="text-end">@item.ItemCount</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="2" class="text-center text-muted py-4">Chưa có danh mục.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1">5 đơn thuê mới nhất</h4>
+        </div>
+        <a asp-controller="Rental" asp-action="Index" class="btn btn-outline-primary btn-sm">Xem tất cả</a>
+    </div>
+
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Mã đơn</th>
+                    <th>Đồ thuê</th>
+                    <th>Người thuê</th>
+                    <th>Ngày tạo</th>
+                    <th class="text-end">Tổng tiền</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.LatestRentals.Any())
+                {
+                    @foreach (var rental in Model.LatestRentals)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-controller="Rental" asp-action="Details" asp-route-id="@rental.Id" class="fw-semibold">
+                                    #@rental.Id
+                                </a>
+                            </td>
+                            <td>@rental.ItemName</td>
+                            <td>@rental.RenterName</td>
+                            <td class="text-muted">@rental.RequestedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end fw-semibold">@rental.TotalPrice.ToString("N0") đ</td>
+                            <td><span class="badge bg-primary">@rental.StatusText</span></td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Chưa có đơn thuê.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h4 class="mb-1">Đồ được thuê nhiều nhất</h4>
+        </div>
+    </div>
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Đồ cho thuê</th>
+                    <th>Chủ đồ</th>
+                    <th class="text-end">Lượt thuê</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.TopItems.Any())
+                {
+                    @foreach (var item in Model.TopItems)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@item.ItemName</td>
+                            <td>@item.OwnerName</td>
+                            <td class="text-end">@item.RentalCount</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-4">Chưa có dữ liệu thuê.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/chartjs/chart.umd.min.js"></script>
+    <script>
+        const labels = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyRevenue.Select(x => x.Label)));
+        const revenues = @Html.Raw(JsonSerializer.Serialize(Model.MonthlyRevenue.Select(x => x.Revenue)));
+        const context = document.getElementById("revenueChart").getContext("2d");
+
+        new Chart(context, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Doanh thu",
+                    data: revenues,
+                    backgroundColor: "rgba(32, 107, 196, 0.55)",
+                    borderColor: "#206bc4",
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return new Intl.NumberFormat("vi-VN").format(value) + " đ";
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+}

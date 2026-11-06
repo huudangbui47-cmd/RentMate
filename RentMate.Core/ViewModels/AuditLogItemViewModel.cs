@@ -1,0 +1,49 @@
+namespace RentMate.Core.ViewModels
+{
+    public class AuditLogItemViewModel
+    {
+        public int Id { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
+        public string EntityName { get; set; } = string.Empty;
+        public string? EntityId { get; set; }
+        public string? Description { get; set; }
+        public string IpAddress { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+
+        public string ActionText => Action switch
+        {
+            "LoginSuccess" => "Đăng nhập thành công",
+            "LoginFailed" => "Đăng nhập thất bại",
+            "LockUser" => "Khóa tài khoản",
+            "UnlockUser" => "Mở khóa tài khoản",
+            "RoleChanged" => "Thay đổi vai trò",
+            "UpdateProfile" => "Cập nhật hồ sơ",
+            "UpdateAvatar" => "Cập nhật ảnh đại diện",
+            "ChangePassword" => "Đổi mật khẩu",
+            "CreateUser" => "Thêm tài khoản quản lý",
+            "UpdateUser" => "Cập nhật tài khoản quản lý",
+            "DeleteUser" => "Xóa tài khoản quản lý",
+            "CreateCustomer" => "Thêm khách hàng",
+            "UpdateCustomer" => "Cập nhật khách hàng",
+            "ResetPassword" => "Đặt lại mật khẩu",
+            "CreateCategory" => "Thêm danh mục",
+            "UpdateCategory" => "Cập nhật danh mục",
+            "ToggleCategory" => "Bật/tắt danh mục",
+            "DeleteCategory" => "Xóa danh mục",
+            "UpdateItemStatus" => "Cập nhật trạng thái đồ",
+            _ => Action
+        };
+
+        public string EntityNameText => EntityName switch
+        {
+            "ApplicationUser" => "Tài khoản",
+            "Customer" => "Khách hàng",
+            "Category" => "Danh mục",
+            "Item" => "Đồ cho thuê",
+            "Rental" => "Đơn thuê",
+            "Payment" => "Thanh toán",
+            _ => EntityName
+        };
+    }
+}

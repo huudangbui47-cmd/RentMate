@@ -1,0 +1,31 @@
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lỗi hệ thống</title>
+    <link rel="stylesheet" href="~/lib/mazer/css/app.css" />
+    <link rel="stylesheet" href="~/lib/mazer/css/app-dark.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script>
+        if (!localStorage.getItem("theme")) localStorage.setItem("theme", "dark");
+    </script>
+</head>
+<body>
+    <script src="~/lib/mazer/js/initTheme.js"></script>
+    <div class="min-vh-100 d-flex align-items-center justify-content-center p-3">
+        <div class="card error-card text-center">
+            <div class="card-body p-5">
+                <div class="error-code">500</div>
+                <h2 class="mb-3">Lỗi hệ thống</h2>
+                <p class="text-muted mb-4">Không thể hoàn thành yêu cầu. Vui lòng thử lại sau.</p>
+                <a asp-area="Management" asp-controller="Dashboard" asp-action="Index" class="btn btn-primary">Quay lại hệ thống</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

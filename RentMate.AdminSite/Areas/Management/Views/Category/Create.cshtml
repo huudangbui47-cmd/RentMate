@@ -1,0 +1,26 @@
+@model CategoryViewModel
+
+@{
+    ViewData["Title"] = "Thêm danh mục";
+}
+
+<div class="page-heading mb-4">
+    <h3 class="mb-1">Thêm danh mục</h3>
+</div>
+
+<div class="card form-card">
+    <div class="card-body">
+        <form asp-action="Create" method="post">
+            <partial name="_Form" model="Model" />
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Lưu</button>
+                <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

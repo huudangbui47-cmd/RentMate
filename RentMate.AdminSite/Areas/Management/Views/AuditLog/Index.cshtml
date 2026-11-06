@@ -1,0 +1,73 @@
+@model AuditLogListViewModel
+
+@{
+    ViewData["Title"] = "Nhật ký hệ thống";
+}
+
+<div class="page-heading">
+    <h3>Nhật ký hệ thống</h3>
+</div>
+
+<form method="get" asp-action="Index" class="admin-toolbar">
+    <div class="admin-filterbar">
+        <select asp-for="UserId" name="userId" class="form-select">
+            <option value="">Tất cả người dùng</option>
+            @foreach (var user in Model.Users)
+            {
+                <option value="@user.Id">@user.FullName</option>
+            }
+        </select>
+        <input asp-for="FromDate" name="fromDate" type="date" class="form-control" title="Từ ngày" />
+        <input asp-for="ToDate" name="toDate" type="date" class="form-control" title="Đến ngày" />
+        <button type="submit" class="btn btn-outline-primary">Lọc</button>
+        @if (!string.IsNullOrEmpty(Model.UserId) || Model.FromDate.HasValue || Model.ToDate.HasValue)
+        {
+            <a asp-action="Index" class="admin-clear-link">Xóa lọc</a>
+        }
+    </div>
+</form>
+
+<div class="card admin-table-card">
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Thời điểm</th>
+                    <th>Người thực hiện</th>
+                    <th>Hành động</th>
+                    <th>Đối tượng</th>
+                    <th>Mô tả</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Logs.Count == 0)
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có nhật ký phù hợp.</td></tr>
+                }
+                @foreach (var item in Model.Logs)
+                {
+                    <tr>
+                        <td class="text-muted">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="fw-semibold">@item.UserName</td>
+                        <td><span class="admin-badge admin-badge-primary">@item.ActionText</span></td>
+                        <td>@item.EntityNameText</td>
+                        <td>@item.Description</td>
+                        <td><code>@item.IpAddress</code></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Phân trang" class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <a asp-action="Index" asp-route-page="@i" asp-route-userId="@Model.UserId" asp-route-fromDate="@(Model.FromDate?.ToString("yyyy-MM-dd"))" asp-route-toDate="@(Model.ToDate?.ToString("yyyy-MM-dd"))"
+               class="btn @(Model.Page == i ? "btn-primary" : "btn-outline-primary")" aria-current="@(Model.Page == i ? "page" : null)">@i</a>
+        }
+    </nav>
+}

@@ -1,0 +1,190 @@
+@using System.Security.Claims
+@using System.Text.Json
+@model UserListViewModel
+
+@{
+    ViewData["Title"] = "Tài khoản quản lý";
+    string currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+}
+
+<div class="page-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <h3>Tài khoản quản lý</h3>
+        <a asp-action="Create" class="btn btn-primary admin-btn-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            Thêm quản lý
+        </a>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="admin-toolbar">
+    <div class="admin-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input asp-for="SearchTerm" name="searchTerm" class="form-control" placeholder="Tìm tên, email hoặc số điện thoại..." autocomplete="off" />
+    </div>
+    <div class="admin-filterbar">
+        <select name="isActive" class="form-select">
+            <option value="">Tất cả trạng thái</option>
+            <option value="true" selected="@(Model.IsActive == true)">Hoạt động</option>
+            <option value="false" selected="@(Model.IsActive == false)">Đã khóa</option>
+        </select>
+        <button type="submit" class="btn btn-outline-primary">Tìm kiếm</button>
+        @if (!string.IsNullOrWhiteSpace(Model.SearchTerm) || Model.IsActive.HasValue)
+        {
+            <a asp-action="Index" class="admin-clear-link">Xóa lọc</a>
+        }
+    </div>
+</form>
+
+<div class="card admin-table-card">
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Liên hệ</th>
+                    <th>Vai trò</th>
+                    <th>Ngày tạo</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Users.Count == 0)
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">Không tìm thấy tài khoản.</td></tr>
+                }
+                @foreach (var item in Model.Users)
+                {
+                    bool isCurrentUser = item.Id == currentUserId;
+                    <tr>
+                        <td class="fw-semibold">
+                            @item.FullName
+                            @if (isCurrentUser)
+                            {
+                                <small class="text-muted">(bạn)</small>
+                            }
+                        </td>
+                        <td>
+                            <div>@item.Email</div>
+                            <small class="text-muted">@item.PhoneNumber</small>
+                        </td>
+                        <td>
+                            <span class="admin-badge @(item.RoleName == "Admin" ? "admin-badge-primary" : "admin-badge-muted")">@item.RoleDisplayName</span>
+                        </td>
+                        <td class="text-muted">@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                <span class="admin-badge admin-badge-success">Hoạt động</span>
+                            }
+                            else
+                            {
+                                <span class="admin-badge admin-badge-danger">Đã khóa</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (item.RoleName == "Manager")
+                            {
+                                string editValues = JsonSerializer.Serialize(new
+                                {
+                                    Id = item.Id,
+                                    FullName = item.FullName,
+                                    Email = item.Email,
+                                    PhoneNumber = item.PhoneNumber
+                                });
+                                string lockTitle = item.IsActive ? "Khóa tài khoản" : "Mở khóa tài khoản";
+
+                                <div class="admin-row-actions">
+                                    <button type="button" class="btn admin-row-primary" data-edit-modal="#userEditModal" data-edit-values="@editValues">Sửa</button>
+
+                                    <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
+                                          onsubmit="return confirm('@(item.IsActive ? "Khóa tài khoản này?" : "Mở khóa tài khoản này?")');">
+                                        <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@lockTitle" aria-label="@lockTitle">
+                                            <partial name="_LockIcon" model="item.IsActive" />
+                                        </button>
+                                    </form>
+
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
+                                          onsubmit="return confirm('Xóa tài khoản này? Chỉ xóa được tài khoản chưa từng thao tác trên hệ thống.');">
+                                        <button type="submit" class="rm-icon-button rm-icon-danger" title="Xóa tài khoản" aria-label="Xóa tài khoản">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Phân trang" class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <a asp-action="Index" asp-route-page="@i" asp-route-searchTerm="@Model.SearchTerm" asp-route-isActive="@Model.IsActive"
+               class="btn @(Model.Page == i ? "btn-primary" : "btn-outline-primary")" aria-current="@(Model.Page == i ? "page" : null)">@i</a>
+        }
+    </nav>
+}
+
+<div class="modal fade" id="userEditModal" tabindex="-1" aria-labelledby="userEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="Edit" method="post" data-edit-form>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userEditModalLabel">Sửa tài khoản quản lý</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div data-edit-message></div>
+
+                    <input type="hidden" name="Id" />
+
+                    <div class="mb-3">
+                        <label for="userEditFullName" class="form-label">Họ tên</label>
+                        <input type="text" id="userEditFullName" name="FullName" maxlength="100" class="form-control" autocomplete="off" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="userEditEmail" class="form-label">Email</label>
+                        <input type="email" id="userEditEmail" name="Email" maxlength="100" class="form-control" autocomplete="off" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="userEditPhone" class="form-label">Số điện thoại</label>
+                        <input type="tel" id="userEditPhone" name="PhoneNumber" maxlength="10" class="form-control" autocomplete="off" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="userEditNewPassword" class="form-label">Mật khẩu mới (không bắt buộc)</label>
+                        <div class="rm-password-field">
+                            <input type="password" id="userEditNewPassword" name="NewPassword" class="form-control" autocomplete="new-password" />
+                            <partial name="_PasswordToggle" />
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="userEditConfirmPassword" class="form-label">Xác nhận mật khẩu mới</label>
+                        <div class="rm-password-field">
+                            <input type="password" id="userEditConfirmPassword" name="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                            <partial name="_PasswordToggle" />
+                        </div>
+                    </div>
+
+                    <div class="form-text">Để trống cả hai ô mật khẩu nếu chỉ muốn sửa thông tin.</div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

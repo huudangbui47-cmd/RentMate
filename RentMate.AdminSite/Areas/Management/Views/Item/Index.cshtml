@@ -1,0 +1,137 @@
+@model ItemListViewModel
+
+@{
+    ViewData["Title"] = "Đồ cho thuê";
+
+    // Admin chỉ được đặt các trạng thái này; "Đang cho thuê" do luồng đơn thuê quyết định
+    var manualStatuses = new[]
+    {
+        (Status: ItemStatus.Available, Text: "Sẵn sàng"),
+        (Status: ItemStatus.Unavailable, Text: "Tạm ngưng"),
+        (Status: ItemStatus.Hidden, Text: "Ẩn khỏi app")
+    };
+}
+
+<div class="page-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <h3>Đồ cho thuê</h3>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="admin-toolbar">
+    <div class="admin-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input asp-for="SearchTerm" name="searchTerm" class="form-control" placeholder="Tìm tên đồ hoặc chủ đồ..." autocomplete="off" />
+    </div>
+    <div class="admin-filterbar">
+        <select name="categoryId" class="form-select">
+            <option value="">Tất cả danh mục</option>
+            @foreach (var category in Model.Categories)
+            {
+                <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.CategoryName</option>
+            }
+        </select>
+        <select name="status" class="form-select">
+            <option value="">Tất cả trạng thái</option>
+            <option value="@ItemStatus.Available" selected="@(Model.Status == ItemStatus.Available)">Sẵn sàng</option>
+            <option value="@ItemStatus.Rented" selected="@(Model.Status == ItemStatus.Rented)">Đang cho thuê</option>
+            <option value="@ItemStatus.Unavailable" selected="@(Model.Status == ItemStatus.Unavailable)">Tạm ngưng</option>
+            <option value="@ItemStatus.Hidden" selected="@(Model.Status == ItemStatus.Hidden)">Đã ẩn</option>
+        </select>
+        <button type="submit" class="btn btn-outline-primary">Lọc</button>
+        @if (!string.IsNullOrWhiteSpace(Model.SearchTerm) || Model.CategoryId.HasValue || Model.Status.HasValue)
+        {
+            <a asp-action="Index" class="admin-clear-link">Xóa lọc</a>
+        }
+    </div>
+</form>
+
+<div class="card admin-table-card">
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Đồ cho thuê</th>
+                    <th>Chủ đồ</th>
+                    <th class="text-end">Giá/ngày</th>
+                    <th class="text-end">Tiền cọc</th>
+                    <th>Tình trạng</th>
+                    <th class="text-center">Lượt thuê</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-4">Không tìm thấy đồ cho thuê.</td></tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    string badgeClass = item.Status switch
+                    {
+                        ItemStatus.Available => "admin-badge-success",
+                        ItemStatus.Rented => "admin-badge-primary",
+                        ItemStatus.Unavailable => "admin-badge-warning",
+                        _ => "admin-badge-muted"
+                    };
+
+                    // Ảnh do người dùng app gửi lên: chỉ nhận link http(s) để tránh chèn "javascript:"
+                    bool hasSafeImage = Uri.TryCreate(item.ImageUrl, UriKind.Absolute, out var imageUri)
+                        && (imageUri.Scheme == Uri.UriSchemeHttp || imageUri.Scheme == Uri.UriSchemeHttps);
+
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                @if (hasSafeImage)
+                                {
+                                    <img src="@item.ImageUrl" alt="" class="admin-product-thumb" />
+                                }
+                                <div>
+                                    <div class="fw-semibold">@item.ItemName</div>
+                                    <small class="text-muted">@item.CategoryName · @item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>@item.OwnerName</div>
+                            <small class="text-muted">@item.OwnerEmail</small>
+                        </td>
+                        <td class="text-end fw-semibold">@item.PricePerDay.ToString("N0") đ</td>
+                        <td class="text-end">@item.DepositAmount.ToString("N0") đ</td>
+                        <td>@item.ConditionText</td>
+                        <td class="text-center">@item.RentalCount</td>
+                        <td><span class="admin-badge @badgeClass">@item.StatusText</span></td>
+                        <td class="text-end">
+                            @if (item.Status != ItemStatus.Rented)
+                            {
+                                <div class="dropdown d-inline-block">
+                                    <button type="button" class="admin-more-button" data-bs-toggle="dropdown" aria-expanded="false">⋯</button>
+                                    <div class="dropdown-menu dropdown-menu-end admin-action-menu">
+                                        @foreach (var option in manualStatuses.Where(s => s.Status != item.Status))
+                                        {
+                                            <form asp-action="UpdateStatus" asp-route-id="@item.Id" asp-route-status="@option.Status" method="post">
+                                                <button type="submit" class="dropdown-item @(option.Status == ItemStatus.Hidden ? "text-danger" : "")">@option.Text</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Phân trang" class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <a asp-action="Index" asp-route-page="@i" asp-route-searchTerm="@Model.SearchTerm" asp-route-categoryId="@Model.CategoryId" asp-route-status="@Model.Status"
+               class="btn @(Model.Page == i ? "btn-primary" : "btn-outline-primary")" aria-current="@(Model.Page == i ? "page" : null)">@i</a>
+        }
+    </nav>
+}

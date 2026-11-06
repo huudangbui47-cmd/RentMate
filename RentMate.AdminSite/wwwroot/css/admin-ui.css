@@ -1,0 +1,1581 @@
+:root {
+    --admin-bg: #f6f7fb;
+    --admin-surface: #ffffff;
+    --admin-surface-soft: #f9fafb;
+    --admin-border: #e3e7ee;
+    --admin-text: #202632;
+    --admin-muted: #70798a;
+    --admin-primary: #2f6fdf;
+    --admin-primary-soft: #eef4ff;
+    --admin-danger: #dc3545;
+    --admin-success: #198754;
+    --admin-shadow: 0 1px 2px rgba(17, 24, 39, .03);
+}
+
+html[data-bs-theme="dark"],
+body.theme-dark {
+    --admin-bg: #141622;
+    --admin-surface: #1d2030;
+    --admin-surface-soft: #24283a;
+    --admin-border: #34394f;
+    --admin-text: #f6f7fb;
+    --admin-muted: #b8c0d1;
+    --admin-primary-soft: #26345a;
+    --admin-shadow: none;
+}
+
+body {
+    background: var(--admin-bg);
+    color: var(--admin-text);
+}
+
+/* Sidebar */
+.admin-sidebar-wrapper {
+    display: flex;
+    height: 100vh;
+    flex-direction: column;
+    background: var(--admin-surface);
+}
+
+.admin-sidebar-menu {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 92px;
+}
+
+#sidebar .sidebar-header {
+    padding-top: 1.2rem;
+    padding-bottom: .85rem;
+}
+
+#sidebar .sidebar-title {
+    margin-top: 1rem;
+    margin-bottom: .35rem;
+    color: var(--admin-muted);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+#sidebar .sidebar-link {
+    min-height: 42px;
+    margin: 2px 10px;
+    padding: .65rem .8rem;
+    border-radius: 8px;
+    color: var(--admin-text);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+    #sidebar .sidebar-link:hover {
+        background: var(--admin-surface-soft);
+    }
+
+#sidebar .sidebar-item.active > .sidebar-link {
+    background: var(--admin-primary-soft);
+    color: var(--admin-primary);
+}
+
+#sidebar .submenu {
+    margin: .15rem 0 .4rem 0;
+    padding-left: 3.4rem;
+}
+
+#sidebar .submenu-item a {
+    display: block;
+    padding: .5rem .65rem;
+    border-radius: 7px;
+    color: var(--admin-muted);
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+    #sidebar .submenu-item a:hover,
+    #sidebar .submenu-item.active a {
+        background: var(--admin-surface-soft);
+        color: var(--admin-primary);
+    }
+
+.mazer-menu-icon {
+    width: 22px;
+    margin-right: .45rem;
+}
+
+    .mazer-menu-icon svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+.sidebar-item.active .mazer-menu-icon {
+    color: var(--admin-primary);
+}
+
+.sidebar-account {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    z-index: 15;
+}
+
+.sidebar-account-button {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: .6rem;
+    padding: .55rem .6rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    text-align: left;
+    box-shadow: var(--admin-shadow);
+}
+
+    .sidebar-account-button:hover {
+        background: var(--admin-surface-soft);
+    }
+
+.sidebar-account-line {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: .35rem;
+    white-space: nowrap;
+}
+
+    .sidebar-account-line strong {
+        min-width: 0;
+        overflow: hidden;
+        font-size: .9rem;
+        text-overflow: ellipsis;
+    }
+
+    .sidebar-account-line small {
+        flex: 0 0 auto;
+        color: var(--admin-muted);
+        font-size: .78rem;
+    }
+
+.sidebar-account-dot,
+.sidebar-account-chevron {
+    color: var(--admin-muted);
+}
+
+.sidebar-account-menu {
+    width: 100%;
+    min-width: 220px;
+}
+
+/* Main shell */
+.admin-main {
+    position: relative;
+    min-height: 100vh;
+}
+
+.admin-main-content {
+    padding-top: .45rem;
+}
+
+.admin-theme-control {
+    position: fixed;
+    top: 18px;
+    right: 24px;
+    z-index: 1040;
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .42rem .62rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+    background: var(--admin-surface);
+    box-shadow: 0 3px 14px rgba(17, 24, 39, .08);
+}
+
+    .admin-theme-control .form-check-input {
+        cursor: pointer;
+    }
+
+.admin-theme-icon {
+    color: var(--admin-muted);
+    font-size: .9rem;
+}
+
+.admin-mobile-burger {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 1041;
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    font-size: 1.2rem;
+    line-height: 38px;
+    text-align: center;
+    box-shadow: 0 3px 14px rgba(17, 24, 39, .08);
+}
+
+.admin-error-toast {
+    position: fixed;
+    top: 70px;
+    right: 24px;
+    z-index: 1090;
+    max-width: 430px;
+    font-weight: 600;
+}
+
+/* Headings */
+.page-heading,
+.admin-page-header {
+    margin-bottom: 1.25rem !important;
+    padding-right: 82px;
+}
+
+    .page-heading h1,
+    .page-heading h2,
+    .page-heading h3,
+    .admin-page-title {
+        margin: 0;
+        color: var(--admin-text);
+        font-size: 1.7rem;
+        font-weight: 760;
+        letter-spacing: -.02em;
+    }
+
+    .page-heading > p.text-muted,
+    .page-heading div > p.text-muted {
+        margin-top: .35rem;
+    }
+
+/* Generic toolbar */
+.admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .65rem;
+    margin-bottom: 1rem;
+}
+
+.admin-search {
+    position: relative;
+    width: min(360px, 100%);
+}
+
+    .admin-search svg {
+        position: absolute;
+        top: 50%;
+        left: .8rem;
+        width: 17px;
+        height: 17px;
+        transform: translateY(-50%);
+        fill: none;
+        stroke: var(--admin-muted);
+        stroke-width: 2;
+        stroke-linecap: round;
+    }
+
+    .admin-search .form-control {
+        min-height: 40px;
+        padding-left: 2.35rem;
+        border: 1px solid var(--admin-border);
+        border-radius: 8px;
+        background: var(--admin-surface);
+        color: var(--admin-text);
+        font-size: 1rem;
+    }
+
+.admin-filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+
+    .admin-filterbar .form-select,
+    .admin-filterbar .form-control {
+        width: auto;
+        min-width: 150px;
+        min-height: 40px;
+        border-color: var(--admin-border);
+        border-radius: 8px;
+        background-color: var(--admin-surface);
+        color: var(--admin-text);
+        font-size: .96rem;
+    }
+
+    .admin-filterbar input[type="date"] {
+        min-width: 148px;
+    }
+
+.admin-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-left: auto;
+}
+
+.admin-btn,
+.admin-main-content .btn {
+    border-radius: 8px;
+    font-weight: 650;
+}
+
+.admin-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: .42rem;
+}
+
+    .admin-btn-icon svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+.admin-clear-link {
+    color: var(--admin-muted);
+    font-size: .9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+    .admin-clear-link:hover {
+        color: var(--admin-primary);
+    }
+
+/* Tables */
+.admin-table-card {
+    border: 1px solid var(--admin-border) !important;
+    border-radius: 10px !important;
+    background: var(--admin-surface) !important;
+    box-shadow: var(--admin-shadow) !important;
+}
+
+.admin-table-responsive {
+    overflow: visible;
+}
+
+.admin-table {
+    margin-bottom: 0;
+    color: var(--admin-text);
+}
+
+    .admin-table thead th {
+        padding: .76rem .85rem;
+        border-bottom: 1px solid var(--admin-border);
+        background: var(--admin-surface-soft);
+        color: var(--admin-text);
+        font-size: .76rem;
+        font-weight: 800;
+        letter-spacing: .025em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .admin-table tbody td {
+        padding: .78rem .85rem;
+        border-color: var(--admin-border);
+        color: var(--admin-text);
+        font-size: 1rem;
+    }
+
+    .admin-table tbody tr:hover td {
+        background: rgba(47, 111, 223, .035);
+    }
+
+    .admin-table .text-muted {
+        color: var(--admin-muted) !important;
+    }
+
+.admin-product-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 7px;
+    object-fit: cover;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .35rem;
+}
+
+.admin-row-primary {
+    min-height: 32px;
+    padding: .3rem .65rem;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    font-size: .84rem;
+}
+
+    .admin-row-primary:hover {
+        border-color: #b8c3d6;
+        background: var(--admin-surface-soft);
+        color: var(--admin-primary);
+    }
+
+.admin-more-button {
+    display: inline-flex;
+    width: 34px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--admin-muted);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+    .admin-more-button:hover {
+        border-color: var(--admin-border);
+        background: var(--admin-surface-soft);
+        color: var(--admin-text);
+    }
+
+.admin-action-menu {
+    min-width: 180px;
+    padding: .4rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 9px;
+    background: var(--admin-surface);
+}
+
+    .admin-action-menu .dropdown-item {
+        border-radius: 6px;
+        color: var(--admin-text);
+        font-size: .9rem;
+    }
+
+        .admin-action-menu .dropdown-item:hover {
+            background: var(--admin-surface-soft);
+        }
+
+    .admin-action-menu form {
+        margin: 0;
+    }
+
+        .admin-action-menu form .dropdown-item {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            text-align: left;
+        }
+
+/* Badges */
+.admin-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 25px;
+    padding: .2rem .52rem;
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 700;
+}
+
+.admin-badge-success {
+    background: #e7f6ee;
+    color: #19704c;
+}
+
+.admin-badge-muted {
+    background: #eef0f4;
+    color: #687184;
+}
+
+.admin-badge-primary {
+    background: #eaf0ff;
+    color: #3657a7;
+}
+
+.admin-badge-warning {
+    background: #fff3d8;
+    color: #8a5b00;
+}
+
+.admin-badge-danger {
+    background: #fde8ea;
+    color: #a52a37;
+}
+
+.admin-badge-info {
+    background: #e7f5fb;
+    color: #23718e;
+}
+
+html[data-bs-theme="dark"] .admin-badge-success,
+body.theme-dark .admin-badge-success {
+    background: #24483b;
+    color: #d9fff0;
+}
+
+html[data-bs-theme="dark"] .admin-badge-muted,
+body.theme-dark .admin-badge-muted {
+    background: #303549;
+    color: #e8ebf2;
+}
+
+html[data-bs-theme="dark"] .admin-badge-primary,
+body.theme-dark .admin-badge-primary {
+    background: #2b3a62;
+    color: #e6edff;
+}
+
+html[data-bs-theme="dark"] .admin-badge-warning,
+body.theme-dark .admin-badge-warning {
+    background: #4b3b1d;
+    color: #ffe8a6;
+}
+
+html[data-bs-theme="dark"] .admin-badge-danger,
+body.theme-dark .admin-badge-danger {
+    background: #4d2830;
+    color: #ffdce1;
+}
+
+html[data-bs-theme="dark"] .admin-badge-info,
+body.theme-dark .admin-badge-info {
+    background: #233f4d;
+    color: #d9f4ff;
+}
+
+/* Cards and forms */
+.admin-main-content .card,
+.admin-main-content .form-card,
+.admin-main-content .order-create-card {
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+    box-shadow: var(--admin-shadow);
+}
+
+.admin-main-content .card-header {
+    border-color: var(--admin-border);
+    background: transparent;
+}
+
+.admin-main-content .form-control,
+.admin-main-content .form-select {
+    border-color: var(--admin-border);
+    background-color: var(--admin-surface);
+    color: var(--admin-text);
+    font-size: 1rem;
+}
+
+    .admin-main-content .form-control:focus,
+    .admin-main-content .form-select:focus {
+        border-color: #9eb8ef;
+        box-shadow: 0 0 0 .18rem rgba(47, 111, 223, .1);
+    }
+
+.admin-main-content .form-label {
+    color: var(--admin-text);
+    font-size: .94rem;
+    font-weight: 650;
+}
+
+.admin-main-content .form-text,
+.admin-main-content small.text-muted,
+.admin-main-content .text-muted {
+    color: var(--admin-muted) !important;
+}
+
+.admin-main-content hr {
+    border-color: var(--admin-border);
+}
+
+/* Modal cleanup */
+.modal-content {
+    border: 1px solid var(--admin-border);
+    border-radius: 11px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--admin-border);
+}
+
+.modal-title {
+    color: var(--admin-text);
+    font-weight: 750;
+}
+
+/* Attribute values: no large outer boxes around each row */
+.attribute-value-list {
+    gap: .45rem !important;
+}
+
+.attribute-value-item {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+.attribute-value-input {
+    min-height: 42px !important;
+    border-radius: 7px !important;
+}
+
+.btn-ghost-danger,
+.attribute-value-item .btn-danger {
+    min-width: auto !important;
+    padding: .42rem .55rem !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--admin-danger) !important;
+    box-shadow: none !important;
+}
+
+    .btn-ghost-danger:hover,
+    .attribute-value-item .btn-danger:hover {
+        background: rgba(220, 53, 69, .08) !important;
+    }
+
+/* Category polish */
+.category-column-browser {
+    border-color: var(--admin-border) !important;
+    border-radius: 10px !important;
+    background: var(--admin-surface) !important;
+    box-shadow: var(--admin-shadow) !important;
+}
+
+.category-browser-search,
+.attribute-search {
+    width: min(360px, 100%) !important;
+}
+
+    .category-browser-search .form-control,
+    .attribute-search .form-control {
+        min-height: 40px !important;
+        border: 1px solid var(--admin-border) !important;
+        border-radius: 8px !important;
+        background: var(--admin-surface) !important;
+        color: var(--admin-text) !important;
+    }
+
+html[data-bs-theme="dark"] .category-browser-search .form-control,
+body.theme-dark .category-browser-search .form-control,
+html[data-bs-theme="dark"] .attribute-search .form-control,
+body.theme-dark .attribute-search .form-control {
+    background: var(--admin-surface) !important;
+    color: var(--admin-text) !important;
+    border-color: var(--admin-border) !important;
+}
+
+/* Dashboard */
+.dashboard-stat {
+    min-height: 104px;
+}
+
+.dashboard-stat-label {
+    color: var(--admin-muted);
+    font-size: .76rem;
+}
+
+.dashboard-stat-value {
+    color: var(--admin-text);
+    font-size: 1.65rem;
+}
+
+/* Client filter visibility */
+.admin-filter-hidden {
+    display: none !important;
+}
+
+/* Dark mode hardening */
+html[data-bs-theme="dark"] .admin-table,
+html[data-bs-theme="dark"] .admin-table tbody td,
+body.theme-dark .admin-table,
+body.theme-dark .admin-table tbody td,
+html[data-bs-theme="dark"] .page-heading h1,
+html[data-bs-theme="dark"] .page-heading h2,
+html[data-bs-theme="dark"] .page-heading h3,
+body.theme-dark .page-heading h1,
+body.theme-dark .page-heading h2,
+body.theme-dark .page-heading h3 {
+    color: var(--admin-text) !important;
+}
+
+html[data-bs-theme="dark"] .dropdown-menu,
+body.theme-dark .dropdown-menu {
+    border-color: var(--admin-border);
+    background: var(--admin-surface);
+}
+
+html[data-bs-theme="dark"] .dropdown-item,
+body.theme-dark .dropdown-item {
+    color: var(--admin-text);
+}
+
+@media (max-width: 1199.98px) {
+    .admin-main-content {
+        padding-top: 3.6rem;
+    }
+
+    .page-heading,
+    .admin-page-header {
+        padding-right: 0;
+    }
+
+    .admin-table-responsive {
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .admin-theme-control {
+        top: 14px;
+        right: 14px;
+    }
+
+    .admin-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-search,
+    .admin-filterbar,
+    .admin-filterbar .form-control,
+    .admin-filterbar .form-select,
+    .admin-toolbar-actions {
+        width: 100%;
+    }
+
+        .admin-filterbar .form-control,
+        .admin-filterbar .form-select {
+            flex: 1 1 150px;
+        }
+
+    .admin-toolbar-actions {
+        margin-left: 0;
+    }
+}
+
+/* Keep secondary/detail pages visually consistent without rewriting their business markup. */
+.admin-main-content .table:not(.admin-table) {
+    margin-bottom: 0;
+    color: var(--admin-text);
+}
+
+    .admin-main-content .table:not(.admin-table) thead th {
+        padding: .76rem .85rem;
+        border-color: var(--admin-border);
+        background: var(--admin-surface-soft);
+        color: var(--admin-text);
+        font-size: .76rem;
+        font-weight: 800;
+        letter-spacing: .025em;
+        text-transform: uppercase;
+    }
+
+    .admin-main-content .table:not(.admin-table) tbody td {
+        padding: .78rem .85rem;
+        border-color: var(--admin-border);
+        color: var(--admin-text);
+    }
+
+.admin-main-content .btn-secondary,
+.admin-main-content .btn-light-secondary {
+    border-color: var(--admin-border);
+    background: var(--admin-surface-soft);
+    color: var(--admin-text);
+}
+
+.admin-main-content .btn-warning {
+    border-color: #e5b000;
+    background: #f5c518;
+    color: #302600;
+}
+
+/* Undo the old global GET-form card wrapper for the new compact toolbars. */
+.mazer-content > form.admin-toolbar {
+    margin-bottom: 1rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.mazer-content .admin-table-responsive {
+    overflow: visible;
+    border-radius: 10px;
+}
+
+@media (max-width: 1199.98px) {
+    .mazer-content .admin-table-responsive {
+        overflow-x: auto;
+    }
+}
+
+/* =========================================================
+   UI HOTFIX 2026-10-12
+   1) Keep search icon and placeholder separated in both themes.
+   2) Make active sidebar items high-contrast in light/dark mode.
+   ========================================================= */
+
+/* Search: reserve a fixed icon lane so Mazer/theme rules cannot collapse padding. */
+.admin-search {
+    position: relative;
+}
+
+    .admin-search > svg {
+        position: absolute !important;
+        top: 50% !important;
+        left: .9rem !important;
+        z-index: 2 !important;
+        width: 17px !important;
+        height: 17px !important;
+        transform: translateY(-50%) !important;
+        pointer-events: none !important;
+        fill: none !important;
+        stroke: var(--admin-muted) !important;
+    }
+
+    .admin-search > .form-control,
+    .admin-search input.form-control {
+        position: relative;
+        z-index: 1;
+        padding-left: 2.75rem !important;
+        padding-right: .9rem !important;
+        background: var(--admin-surface) !important;
+        color: var(--admin-text) !important;
+    }
+
+        .admin-search > .form-control::placeholder,
+        .admin-search input.form-control::placeholder {
+            color: var(--admin-muted) !important;
+            opacity: .9;
+        }
+
+html[data-bs-theme="dark"] .admin-search > .form-control,
+body.theme-dark .admin-search > .form-control,
+html[data-bs-theme="dark"] .admin-search input.form-control,
+body.theme-dark .admin-search input.form-control {
+    border-color: #3b415a !important;
+    background: #1d2030 !important;
+    color: #f6f7fb !important;
+}
+
+html[data-bs-theme="dark"] .admin-search > svg,
+body.theme-dark .admin-search > svg {
+    stroke: #b8c0d1 !important;
+}
+
+/* Sidebar: selected main menu must be obvious, not pale-on-white. */
+#sidebar .sidebar-item.active > .sidebar-link,
+#sidebar .sidebar-item.has-sub.active > .sidebar-link {
+    background: #435ebe !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(67, 94, 190, .16);
+}
+
+    #sidebar .sidebar-item.active > .sidebar-link .mazer-menu-icon,
+    #sidebar .sidebar-item.has-sub.active > .sidebar-link .mazer-menu-icon,
+    #sidebar .sidebar-item.active > .sidebar-link svg,
+    #sidebar .sidebar-item.has-sub.active > .sidebar-link svg {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+    }
+
+    #sidebar .sidebar-item.active > .sidebar-link:hover,
+    #sidebar .sidebar-item.has-sub.active > .sidebar-link:hover {
+        background: #3952ad !important;
+        color: #ffffff !important;
+    }
+
+/* Product submenu: visible current child without competing with the main blue parent. */
+#sidebar .submenu-item.active > a {
+    background: #e8edff !important;
+    color: #304eae !important;
+    font-weight: 700 !important;
+}
+
+html[data-bs-theme="dark"] #sidebar .submenu-item.active > a,
+body.theme-dark #sidebar .submenu-item.active > a {
+    background: #2a3150 !important;
+    color: #dce5ff !important;
+}
+
+/* Hover contrast stays consistent in both themes. */
+html:not([data-bs-theme="dark"]) #sidebar .sidebar-item:not(.active) > .sidebar-link:hover,
+body:not(.theme-dark) #sidebar .sidebar-item:not(.active) > .sidebar-link:hover {
+    background: #f0f3fb !important;
+    color: #24345f !important;
+}
+
+html[data-bs-theme="dark"] #sidebar .sidebar-item:not(.active) > .sidebar-link:hover,
+body.theme-dark #sidebar .sidebar-item:not(.active) > .sidebar-link:hover {
+    background: #25293a !important;
+    color: #ffffff !important;
+}
+
+/* =========================================================
+   UI HOTFIX V2 - stable filters + sidebar account footer
+   ========================================================= */
+
+/* Sidebar footer must never cover Admin/Manager/Staff menu items. */
+.admin-sidebar-wrapper {
+    display: flex !important;
+    height: 100vh !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.admin-sidebar-menu {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding-bottom: .5rem !important;
+    scrollbar-width: thin;
+    scrollbar-color: #aab3c5 transparent;
+}
+
+html[data-bs-theme="dark"] .admin-sidebar-menu,
+body.theme-dark .admin-sidebar-menu {
+    scrollbar-color: #555d78 transparent;
+}
+
+.sidebar-account {
+    position: relative !important;
+    inset: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 20 !important;
+    flex: 0 0 auto !important;
+    margin: .65rem .75rem .75rem !important;
+}
+
+.sidebar-account-button {
+    min-height: 54px;
+}
+
+#sidebar .sidebar-link {
+    display: flex !important;
+    align-items: center !important;
+}
+
+    #sidebar .sidebar-link > span:last-child,
+    #sidebar .submenu-item > a {
+        white-space: nowrap;
+    }
+
+#sidebar .submenu {
+    padding-left: 2.85rem !important;
+}
+
+/* Desktop filter rows stay on one line in both light and dark themes. */
+@media (min-width: 1200px) {
+    .admin-toolbar {
+        display: flex !important;
+        flex-flow: row nowrap !important;
+        align-items: center !important;
+        gap: .65rem !important;
+    }
+
+    .admin-search {
+        flex: 0 1 390px !important;
+        width: min(390px, 31vw) !important;
+        min-width: 300px !important;
+    }
+
+    .admin-filterbar {
+        display: flex !important;
+        flex: 0 1 auto !important;
+        flex-flow: row nowrap !important;
+        align-items: center !important;
+        gap: .5rem !important;
+        width: auto !important;
+        min-width: 0 !important;
+        white-space: nowrap;
+    }
+
+        .admin-filterbar .form-select,
+        .admin-filterbar .form-control {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+        }
+
+        .admin-filterbar .form-select {
+            width: 180px !important;
+        }
+
+        .admin-filterbar input[type="date"] {
+            width: 174px !important;
+            min-width: 174px !important;
+        }
+
+        .admin-filterbar .btn,
+        .admin-filterbar .admin-clear-link {
+            flex: 0 0 auto !important;
+        }
+}
+
+/* Medium screens may wrap as a compact row, but never as giant full-width controls. */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+    .admin-toolbar {
+        align-items: center !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+    }
+
+    .admin-search {
+        flex: 1 1 320px !important;
+        width: auto !important;
+    }
+
+    .admin-filterbar {
+        display: flex !important;
+        flex: 1 1 auto !important;
+        flex-wrap: wrap !important;
+        width: auto !important;
+    }
+
+        .admin-filterbar .form-select {
+            flex: 0 0 180px !important;
+            width: 180px !important;
+        }
+
+        .admin-filterbar input[type="date"] {
+            flex: 0 0 170px !important;
+            width: 170px !important;
+        }
+}
+
+/* Keep theme-specific form colors consistent without changing layout sizing. */
+html[data-bs-theme="dark"] .admin-filterbar .form-control,
+html[data-bs-theme="dark"] .admin-filterbar .form-select,
+body.theme-dark .admin-filterbar .form-control,
+body.theme-dark .admin-filterbar .form-select {
+    border-color: #3b415a !important;
+    background-color: #1d2030 !important;
+    color: #f6f7fb !important;
+}
+
+/* Account footer contrast. */
+html:not([data-bs-theme="dark"]) .sidebar-account-button,
+body:not(.theme-dark) .sidebar-account-button {
+    background: #ffffff !important;
+    border-color: #d9dfeb !important;
+    color: #172033 !important;
+}
+
+html[data-bs-theme="dark"] .sidebar-account-button,
+body.theme-dark .sidebar-account-button {
+    background: #1d2030 !important;
+    border-color: #34394f !important;
+    color: #f6f7fb !important;
+}
+
+/* =========================================================
+   UI HOTFIX V3 - submenu hierarchy/alignment
+   Parent = strong blue, children = softer secondary level.
+   ========================================================= */
+
+/* Pull child items closer to the parent instead of pushing them too far right. */
+#sidebar .sidebar-item.has-sub > .submenu {
+    margin: .28rem 10px .55rem 2.55rem !important;
+    padding: .2rem 0 .2rem .55rem !important;
+    border-left: 1px solid #d8dfec;
+    background: transparent !important;
+}
+
+#sidebar .submenu-item {
+    margin: 2px 0 !important;
+}
+
+    #sidebar .submenu-item > a {
+        display: flex !important;
+        min-height: 38px;
+        align-items: center;
+        padding: .5rem .72rem !important;
+        border-radius: 7px !important;
+        background: transparent !important;
+        color: #59657a !important;
+        font-size: .92rem !important;
+        font-weight: 600 !important;
+        line-height: 1.25;
+        white-space: nowrap;
+    }
+
+        /* Child hover is intentionally lighter than the parent item. */
+        #sidebar .submenu-item > a:hover {
+            background: #f1f4fa !important;
+            color: #2f4fa6 !important;
+        }
+
+    /* Active child: secondary level, not another full blue primary button. */
+    #sidebar .submenu-item.active > a,
+    #sidebar .submenu-item.active > a:hover {
+        background: #e8eefb !important;
+        color: #3153b4 !important;
+        box-shadow: inset 3px 0 0 #5b76cf;
+    }
+
+/* The large Product parent remains the primary blue level. */
+html:not([data-bs-theme="dark"]) #sidebar .sidebar-item.has-sub.active > .sidebar-link,
+body:not(.theme-dark) #sidebar .sidebar-item.has-sub.active > .sidebar-link {
+    background: #435ebe !important;
+    color: #ffffff !important;
+}
+
+    html:not([data-bs-theme="dark"]) #sidebar .sidebar-item.has-sub.active > .sidebar-link .mazer-menu-icon,
+    body:not(.theme-dark) #sidebar .sidebar-item.has-sub.active > .sidebar-link .mazer-menu-icon {
+        color: #ffffff !important;
+    }
+
+/* Dark submenu gets its own dark secondary surface. */
+html[data-bs-theme="dark"] #sidebar .sidebar-item.has-sub > .submenu,
+body.theme-dark #sidebar .sidebar-item.has-sub > .submenu {
+    border-left-color: #394057;
+}
+
+html[data-bs-theme="dark"] #sidebar .submenu-item > a,
+body.theme-dark #sidebar .submenu-item > a {
+    color: #b9c2da !important;
+}
+
+    html[data-bs-theme="dark"] #sidebar .submenu-item > a:hover,
+    body.theme-dark #sidebar .submenu-item > a:hover {
+        background: #252a3d !important;
+        color: #ffffff !important;
+    }
+
+html[data-bs-theme="dark"] #sidebar .submenu-item.active > a,
+html[data-bs-theme="dark"] #sidebar .submenu-item.active > a:hover,
+body.theme-dark #sidebar .submenu-item.active > a,
+body.theme-dark #sidebar .submenu-item.active > a:hover {
+    background: #2a3048 !important;
+    color: #dbe4ff !important;
+    box-shadow: inset 3px 0 0 #6d86e5;
+}
+
+html[data-bs-theme="dark"] #sidebar .sidebar-item.has-sub.active > .sidebar-link,
+body.theme-dark #sidebar .sidebar-item.has-sub.active > .sidebar-link {
+    background: #435ebe !important;
+    color: #ffffff !important;
+}
+
+    html[data-bs-theme="dark"] #sidebar .sidebar-item.has-sub.active > .sidebar-link .mazer-menu-icon,
+    body.theme-dark #sidebar .sidebar-item.has-sub.active > .sidebar-link .mazer-menu-icon {
+        color: #ffffff !important;
+    }
+
+/* Keep the submenu visually compact on narrower desktop sidebars. */
+@media (max-width: 1399.98px) {
+    #sidebar .sidebar-item.has-sub > .submenu {
+        margin-left: 2.15rem !important;
+    }
+
+    #sidebar .submenu-item > a {
+        font-size: .9rem !important;
+    }
+}
+
+/* =========================================================
+   UI HOTFIX V4 - product submenu final alignment
+   - No empty gap when collapsed.
+   - No vertical guide line.
+   - Child rows use the same outer width/height as the parent.
+   - Active child uses a softer/lighter secondary state.
+   ========================================================= */
+
+/* When closed, submenu must consume zero layout space. */
+#sidebar .sidebar-item.has-sub > .submenu:not(.submenu-open):not(.active) {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+/* Expanded submenu aligns to the same outer width as normal sidebar items. */
+#sidebar .sidebar-item.has-sub > .submenu {
+    margin: .15rem 0 .35rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+#sidebar .submenu-item {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+    /* Same box width and height as the parent link. Text is aligned with the parent's label. */
+    #sidebar .submenu-item > a {
+        display: flex !important;
+        min-height: 42px !important;
+        align-items: center !important;
+        margin: 2px 10px !important;
+        padding: .65rem .8rem .65rem 3.45rem !important;
+        border: 0 !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        color: #667085 !important;
+        font-size: .96rem !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+    }
+
+        #sidebar .submenu-item > a:hover {
+            background: #f1f4fa !important;
+            color: #304fa6 !important;
+        }
+
+    /* Active child is a secondary, lighter state than the strong blue parent. */
+    #sidebar .submenu-item.active > a,
+    #sidebar .submenu-item.active > a:hover {
+        background: #e8eefb !important;
+        color: #3153b4 !important;
+        box-shadow: none !important;
+    }
+
+/* Keep the parent as the strong primary state while any product child is open. */
+html:not([data-bs-theme="dark"]) #sidebar .sidebar-item.has-sub.active > .sidebar-link,
+body:not(.theme-dark) #sidebar .sidebar-item.has-sub.active > .sidebar-link,
+html[data-bs-theme="dark"] #sidebar .sidebar-item.has-sub.active > .sidebar-link,
+body.theme-dark #sidebar .sidebar-item.has-sub.active > .sidebar-link {
+    background: #435ebe !important;
+    color: #ffffff !important;
+}
+
+/* Dark mode: secondary children remain visually separate from the parent. */
+html[data-bs-theme="dark"] #sidebar .submenu-item > a,
+body.theme-dark #sidebar .submenu-item > a {
+    background: transparent !important;
+    color: #bcc5dc !important;
+}
+
+    html[data-bs-theme="dark"] #sidebar .submenu-item > a:hover,
+    body.theme-dark #sidebar .submenu-item > a:hover {
+        background: #24293b !important;
+        color: #ffffff !important;
+    }
+
+html[data-bs-theme="dark"] #sidebar .submenu-item.active > a,
+html[data-bs-theme="dark"] #sidebar .submenu-item.active > a:hover,
+body.theme-dark #sidebar .submenu-item.active > a,
+body.theme-dark #sidebar .submenu-item.active > a:hover {
+    background: #2c334d !important;
+    color: #e8edff !important;
+    box-shadow: none !important;
+}
+
+/* Do not re-indent submenu on narrower desktop widths. */
+@media (max-width: 1399.98px) {
+    #sidebar .sidebar-item.has-sub > .submenu {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    #sidebar .submenu-item > a {
+        margin-left: 10px !important;
+        margin-right: 10px !important;
+        padding-left: 3.45rem !important;
+        font-size: .94rem !important;
+    }
+}
+
+/* UI consistency: one geometry in both light/dark themes.
+   Theme changes palette only; it must not resize the controls. */
+.admin-theme-control {
+    top: 12px;
+    right: 24px;
+    z-index: 1020;
+    width: 84px;
+    height: 30px;
+    gap: 6px;
+    padding: 0 8px;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+    background: var(--admin-surface);
+    box-shadow: 0 2px 8px rgba(17, 24, 39, .08);
+}
+
+    .admin-theme-control .admin-theme-icon {
+        flex: 0 0 auto;
+        font-size: 12px;
+        line-height: 1;
+        color: var(--admin-muted);
+    }
+
+    .admin-theme-control .form-check {
+        display: flex;
+        align-items: center;
+        flex: 0 0 30px;
+        width: 30px;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    .admin-theme-control #toggle-dark.form-check-input {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        position: relative;
+        display: block;
+        flex: 0 0 30px;
+        width: 30px !important;
+        height: 16px !important;
+        margin: 0 !important;
+        border: 1px solid #c8ceda !important;
+        border-radius: 999px !important;
+        background: #e9edf4 !important;
+        background-image: none !important;
+        box-shadow: none !important;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+
+        .admin-theme-control #toggle-dark.form-check-input::before {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+            transition: transform .15s ease;
+        }
+
+        .admin-theme-control #toggle-dark.form-check-input:checked {
+            border-color: #435ebe !important;
+            background: #435ebe !important;
+        }
+
+            .admin-theme-control #toggle-dark.form-check-input:checked::before {
+                transform: translateX(14px);
+            }
+
+        .admin-theme-control #toggle-dark.form-check-input:focus-visible {
+            outline: 2px solid #7e9afb;
+            outline-offset: 2px;
+        }
+
+html[data-bs-theme="dark"] .admin-theme-control,
+body.theme-dark .admin-theme-control {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+}
+
+/* Footer account: Mazer dark selectors must not square off the box. */
+#sidebar .admin-sidebar-wrapper .sidebar-account {
+    border-radius: 10px !important;
+}
+
+    #sidebar .admin-sidebar-wrapper .sidebar-account .sidebar-account-button {
+        width: 100%;
+        min-height: 54px;
+        border: 1px solid var(--admin-border) !important;
+        border-radius: 10px !important;
+        background: var(--admin-surface) !important;
+        color: var(--admin-text) !important;
+        box-shadow: none !important;
+    }
+
+        #sidebar .admin-sidebar-wrapper .sidebar-account .sidebar-account-button:hover {
+            background: var(--admin-surface-soft) !important;
+        }
+
+/* Consistent button / form shapes in all management views and modals. */
+.admin-main-content .btn,
+.admin-main-content .btn-sm,
+.admin-main-content .btn-lg,
+.modal .btn {
+    border-radius: 8px !important;
+    font-family: inherit;
+    font-weight: 650;
+}
+
+    .admin-main-content .btn:not(.btn-sm):not(.btn-lg):not(.admin-more-button):not(.btn-icon),
+    .modal .btn:not(.btn-sm):not(.btn-lg):not(.btn-close):not(.btn-icon) {
+        min-height: 40px;
+        font-size: .95rem;
+    }
+
+.admin-main-content .form-control,
+.admin-main-content .form-select,
+.modal .form-control,
+.modal .form-select {
+    border-radius: 8px;
+    font-size: .95rem;
+}
+
+.admin-main-content input.form-control:not([type="file"]),
+.admin-main-content .form-select,
+.modal input.form-control:not([type="file"]),
+.modal .form-select {
+    min-height: 40px;
+}
+
+/* Keep grouped inputs joined rather than creating double-rounded edges. */
+.admin-main-content .input-group > .form-control:not(:first-child),
+.admin-main-content .input-group > .form-select:not(:first-child),
+.modal .input-group > .form-control:not(:first-child),
+.modal .input-group > .form-select:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.admin-main-content .input-group > .form-control:not(:last-child),
+.admin-main-content .input-group > .form-select:not(:last-child),
+.modal .input-group > .form-control:not(:last-child),
+.modal .input-group > .form-select:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.admin-main-content .admin-row-actions .btn,
+.admin-main-content .admin-table .btn-sm,
+.admin-main-content .admin-table .admin-more-button {
+    min-height: 32px;
+    font-size: .88rem;
+}
+
+/* Status chips in page headers align vertically with Back/Edit actions. */
+.admin-order-header-actions .admin-order-status {
+    display: inline-flex;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 .8rem;
+    border-radius: 8px !important;
+    font-size: .92rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.admin-order-header-actions > .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+}
+
+@media (max-width: 767.98px) {
+    .admin-theme-control {
+        top: 10px;
+        right: 16px;
+    }
+}
+
+/* Theme switch alignment: equal geometry across both palettes. */
+.admin-theme-control .form-check.form-switch {
+    padding-left: 0 !important;
+}
+
+.admin-theme-control .form-check-input {
+    float: none !important;
+    margin-left: 0 !important;
+}
+
+/* Theme parity: geometry is shared; only palette changes. */
+.admin-main-content .admin-row-actions .btn.admin-row-primary,
+.admin-main-content .admin-table .btn.admin-row-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: .3rem .65rem;
+    border: 1px solid var(--admin-border) !important;
+    border-radius: 8px !important;
+    background-color: var(--admin-surface) !important;
+    color: var(--admin-text) !important;
+    box-shadow: none !important;
+    text-decoration: none;
+}
+
+    .admin-main-content .admin-row-actions .btn.admin-row-primary:hover,
+    .admin-main-content .admin-table .btn.admin-row-primary:hover {
+        background-color: var(--admin-surface-soft) !important;
+        border-color: var(--admin-primary) !important;
+        color: var(--admin-text) !important;
+    }
+/* The small three-dot action has identical bounds in both themes. */
+.admin-main-content .admin-more-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    min-width: 34px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background-color: transparent;
+    color: var(--admin-muted);
+}
+
+    .admin-main-content .admin-more-button:hover {
+        border-color: var(--admin-border);
+        background-color: var(--admin-surface-soft);
+        color: var(--admin-text);
+    }
+/* Fixed switch dimensions: no spacing changes between light and dark. */
+.admin-theme-control {
+    width: 90px;
+    min-width: 90px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0 9px;
+    gap: 6px;
+    border-radius: 999px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--admin-surface);
+    border-color: var(--admin-border);
+}
+
+    .admin-theme-control .form-check.form-switch {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 16px;
+        min-height: 16px;
+        flex: 0 0 30px;
+        margin: 0;
+        padding: 0 !important;
+    }
+
+    .admin-theme-control .admin-theme-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 12px;
+        height: 16px;
+        font-size: 12px;
+        line-height: 1;
+    }
