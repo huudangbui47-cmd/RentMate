@@ -1,0 +1,64 @@
+@* Layout chung cho các trang chưa đăng nhập: Đăng nhập, Quên mật khẩu, Đặt lại mật khẩu *@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - RentMate Admin</title>
+    <link rel="icon" href="~/favicon.ico" />
+
+    <link rel="stylesheet" href="~/lib/mazer/css/app.css" />
+    <link rel="stylesheet" href="~/lib/mazer/css/app-dark.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/rentmate.css" asp-append-version="true" />
+
+    <script>
+        if (!localStorage.getItem("theme")) localStorage.setItem("theme", "light");
+    </script>
+</head>
+
+<body class="admin-login-page">
+    <script src="~/lib/mazer/js/initTheme.js"></script>
+
+    <div class="admin-login-theme">
+        <div class="theme-toggle d-flex gap-2 align-items-center">
+            <span>☀</span>
+            <div class="form-check form-switch fs-6 mb-0">
+                <input class="form-check-input me-0" type="checkbox" id="toggle-dark" style="cursor:pointer" aria-label="Chuyển chế độ sáng hoặc tối" />
+            </div>
+            <span>☾</span>
+        </div>
+    </div>
+
+    @* site.js chuyển 2 thẻ này thành toast nổi góc phải *@
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger admin-error-toast admin-toast show" role="alert">@TempData["Error"]</div>
+    }
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success admin-error-toast admin-toast show" role="status">@TempData["Success"]</div>
+    }
+
+    <main class="admin-login-wrap">
+        <section class="admin-login-card">
+            <div class="admin-login-brand">
+                <span class="mazer-brand-mark">RM</span>
+                <div>
+                    <strong>RentMate</strong>
+                    <small>Trang quản trị</small>
+                </div>
+            </div>
+
+            @RenderBody()
+        </section>
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/lib/mazer/js/dark.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/password-toggle.js" asp-append-version="true"></script>
+</body>
+</html>

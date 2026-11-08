@@ -7,6 +7,8 @@ namespace RentMate.Service.Interfaces
     {
         Task RegisterAsync(RegisterDto dto);
 
-        Task<LoginResult> LoginAsync(string email, string password, string ipAddress);
+        // allowedRoles = null: mọi role đều được đăng nhập (API cho khách).
+        // Trang quản trị truyền { "Admin", "Manager" }.
+        Task<LoginResult> LoginAsync(string email, string password, string ipAddress, string[]? allowedRoles = null);
     }
 }

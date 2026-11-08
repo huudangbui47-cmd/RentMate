@@ -27,9 +27,11 @@ namespace RentMate.Core.ViewModels
             "CreateCustomer" => "Thêm khách hàng",
             "UpdateCustomer" => "Cập nhật khách hàng",
             "ResetPassword" => "Đặt lại mật khẩu",
+            "RequestPasswordReset" => "Yêu cầu đặt lại mật khẩu",
+            "ResetPasswordByEmail" => "Đặt lại mật khẩu qua email",
             "CreateCategory" => "Thêm danh mục",
             "UpdateCategory" => "Cập nhật danh mục",
-            "ToggleCategory" => "Bật/tắt danh mục",
+            "ToggleCategory" => "Đổi trạng thái danh mục",
             "DeleteCategory" => "Xóa danh mục",
             "UpdateItemStatus" => "Cập nhật trạng thái đồ",
             _ => Action

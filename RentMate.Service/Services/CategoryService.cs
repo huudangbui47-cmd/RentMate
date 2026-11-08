@@ -100,21 +100,6 @@ namespace RentMate.Service.Services
                 .ToListAsync();
         }
 
-        public async Task<CategoryViewModel?> GetForEditAsync(int id)
-        {
-            return await _unitOfWork.Categories
-                .BuildQuery(c => c.Id == id)
-                .Select(c => new CategoryViewModel
-                {
-                    Id = c.Id,
-                    CategoryName = c.CategoryName,
-                    Description = c.Description,
-                    IsActive = c.IsActive,
-                    ItemCount = c.Items.Count
-                })
-                .FirstOrDefaultAsync();
-        }
-
         public async Task CreateAsync(CategoryViewModel model, string actorUserId, string ipAddress)
         {
             if (string.IsNullOrWhiteSpace(model.CategoryName))
@@ -179,9 +164,6 @@ namespace RentMate.Service.Services
             if (category.Description != description)
                 changes.Add("Thay đổi mô tả.");
 
-            if (category.IsActive != model.IsActive)
-                changes.Add(model.IsActive ? "Bật danh mục." : "Tắt danh mục.");
-
             if (changes.Count == 0)
                 return;
 
@@ -189,7 +171,6 @@ namespace RentMate.Service.Services
 
             category.CategoryName = name;
             category.Description = description;
-            category.IsActive = model.IsActive;
 
             await _auditLogService.RecordAsync(
                 "UpdateCategory",
@@ -216,7 +197,7 @@ namespace RentMate.Service.Services
                 "ToggleCategory",
                 "Category",
                 category.Id.ToString(),
-                $"{(category.IsActive ? "Bật" : "Tắt")} danh mục: {category.CategoryName}",
+                $"{(category.IsActive ? "Mở lại hoạt động" : "Ngừng hoạt động")} danh mục: {category.CategoryName}",
                 ipAddress,
                 actorUserId);
 

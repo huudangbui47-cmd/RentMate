@@ -12,7 +12,6 @@ namespace RentMate.Service.Interfaces
 
         // Trang quản trị
         Task<List<CategoryViewModel>> GetAllForManagementAsync();
-        Task<CategoryViewModel?> GetForEditAsync(int id);
         Task CreateAsync(CategoryViewModel model, string actorUserId, string ipAddress);
         Task UpdateAsync(CategoryViewModel model, string actorUserId, string ipAddress);
         Task ToggleActiveAsync(int id, string actorUserId, string ipAddress);

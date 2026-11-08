@@ -52,23 +52,14 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> Edit(int id)
-        {
-            var model = await _categoryService.GetForEditAsync(id);
-
-            if (model == null)
-                return NotFound();
-
-            return View(model);
-        }
-
+        // Sửa bằng modal trên trang danh sách: trả JSON để modal giữ nguyên dữ liệu khi có lỗi.
+        // Trạng thái hoạt động đổi bằng nút ổ khóa, không sửa ở đây.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(CategoryViewModel model)
         {
             if (!ModelState.IsValid)
-                return View(model);
+                return BadRequest(new { message = GetFirstModelError() });
 
             try
             {
@@ -76,13 +67,11 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
                 TempData["Success"] = "Cập nhật danh mục thành công.";
 
-                return RedirectToAction(nameof(Index));
+                return Ok();
             }
             catch (InvalidOperationException ex)
             {
-                ModelState.AddModelError(string.Empty, ex.Message);
-
-                return View(model);
+                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -120,6 +109,11 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        private string GetFirstModelError()
+        {
+            return ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault(message => !string.IsNullOrWhiteSpace(message)) ?? "Dữ liệu không hợp lệ.";
         }
     }
 }

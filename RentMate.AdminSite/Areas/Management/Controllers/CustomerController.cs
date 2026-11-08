@@ -33,6 +33,9 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CustomerViewModel model)
         {
+            // Khách mới chưa có Id; Id là string không null nên MVC tự coi là bắt buộc
+            ModelState.Remove(nameof(CustomerViewModel.Id));
+
             if (!ModelState.IsValid)
                 return View(model);
 

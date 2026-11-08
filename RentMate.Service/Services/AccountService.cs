@@ -4,6 +4,7 @@ using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
 using RentMate.Core.ViewModels;
 using RentMate.Service.Interfaces;
+using System.Net;
 
 namespace RentMate.Service.Services
 {
@@ -13,12 +14,16 @@ namespace RentMate.Service.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAuditLogService _auditLogService;
+        private readonly IEmailService _emailService;
 
-        public AccountService(UserManager<ApplicationUser> userManager, IUnitOfWork unitOfWork, IAuditLogService auditLogService)
+        private const string InvalidResetLinkMessage = "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu link mới.";
+
+        public AccountService(UserManager<ApplicationUser> userManager, IUnitOfWork unitOfWork, IAuditLogService auditLogService, IEmailService emailService)
         {
             _userManager = userManager;
             _unitOfWork = unitOfWork;
             _auditLogService = auditLogService;
+            _emailService = emailService;
         }
 
         public async Task<UserListViewModel> SearchAsync(string? searchTerm, bool? isActive, int page = 1)
@@ -148,8 +153,17 @@ namespace RentMate.Service.Services
             string? phoneNumber = string.IsNullOrWhiteSpace(model.PhoneNumber) ? null : model.PhoneNumber.Trim();
             bool hasNewPassword = !string.IsNullOrWhiteSpace(model.NewPassword);
 
-            if (hasNewPassword && model.NewPassword != model.ConfirmPassword)
-                throw new InvalidOperationException("Mật khẩu xác nhận không khớp.");
+            if (hasNewPassword)
+            {
+                if (model.NewPassword != model.ConfirmPassword)
+                    throw new InvalidOperationException("Mật khẩu xác nhận không khớp.");
+
+                // Admin không biết mật khẩu cũ của Manager nên so bằng hash đang lưu
+                if (await _userManager.CheckPasswordAsync(user, model.NewPassword!))
+                    throw new InvalidOperationException("Mật khẩu mới phải khác mật khẩu hiện tại của tài khoản.");
+
+                await EnsurePasswordValidAsync(user, model.NewPassword!);
+            }
 
             var existingEmailUser = await _userManager.FindByEmailAsync(email);
 
@@ -300,19 +314,132 @@ namespace RentMate.Service.Services
             if (user == null)
                 throw new InvalidOperationException("Tài khoản không tồn tại.");
 
+            // Kiểm tra mật khẩu hiện tại trước để báo đúng lỗi khi người dùng gõ sai
+            if (!await _userManager.CheckPasswordAsync(user, oldPassword))
+                throw new InvalidOperationException("Mật khẩu hiện tại không đúng.");
+
+            if (oldPassword == newPassword)
+                throw new InvalidOperationException("Mật khẩu mới phải khác mật khẩu hiện tại.");
+
             var result = await _userManager.ChangePasswordAsync(user, oldPassword, newPassword);
 
             if (!result.Succeeded)
-            {
-                if (result.Errors.Any(e => e.Code == "PasswordMismatch"))
-                    throw new InvalidOperationException("Mật khẩu hiện tại không đúng.");
-
                 throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
-            }
 
             await _auditLogService.RecordAsync("ChangePassword", "ApplicationUser", user.Id, "Tự đổi mật khẩu.", ipAddress, user.Id);
 
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        // ===== QUÊN MẬT KHẨU (trang quản trị) =====
+
+        // Không báo cho người nhập biết email có tồn tại hay không (tránh bị dò tài khoản quản trị):
+        // chỉ âm thầm gửi link khi email thuộc Admin/Manager đang hoạt động.
+        public async Task RequestPasswordResetAsync(string email, string resetPageUrl, string ipAddress)
+        {
+            var user = await _userManager.FindByEmailAsync(email.Trim());
+
+            if (user == null || !user.IsActive || !await IsStaffAsync(user))
+                return;
+
+            // Chống spam hộp thư: mỗi tài khoản tối đa 1 email mỗi phút
+            DateTime oneMinuteAgo = DateTime.UtcNow.AddMinutes(-1);
+
+            bool sentRecently = await _unitOfWork.AuditLogs
+                .BuildQuery(log => log.Action == "RequestPasswordReset" && log.EntityId == user.Id && log.CreatedAt >= oneMinuteAgo)
+                .AnyAsync();
+
+            if (sentRecently)
+                return;
+
+            // Token của Identity hết hạn theo TokenLifespan (cấu hình trong Program.cs)
+            // và mất hiệu lực ngay khi mật khẩu đổi, nên link chỉ dùng được 1 lần
+            string token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            string resetLink = $"{resetPageUrl}?userId={Uri.EscapeDataString(user.Id)}&token={Uri.EscapeDataString(token)}";
+
+            string body =
+                $"<p>Xin chào {WebUtility.HtmlEncode(user.FullName)},</p>" +
+                "<p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản quản trị RentMate của bạn.</p>" +
+                $"<p><a href=\"{WebUtility.HtmlEncode(resetLink)}\">Bấm vào đây để đặt mật khẩu mới</a></p>" +
+                "<p>Link có hiệu lực trong 30 phút và chỉ dùng được một lần.</p>" +
+                "<p>Nếu bạn không yêu cầu, hãy bỏ qua email này. Mật khẩu hiện tại của bạn vẫn giữ nguyên.</p>";
+
+            await _emailService.SendAsync(user.Email!, "[RentMate] Đặt lại mật khẩu", body);
+
+            await _auditLogService.RecordAsync("RequestPasswordReset", "ApplicationUser", user.Id, "Yêu cầu đặt lại mật khẩu qua email.", ipAddress, user.Id);
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<bool> IsPasswordResetLinkValidAsync(string userId, string token)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            return user != null && await IsResetTokenValidAsync(user, token);
+        }
+
+        public async Task ResetPasswordAsync(string userId, string token, string newPassword, string ipAddress)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            // Kiểm tra link trước mọi thứ khác: không cho người không có link dò mật khẩu hiện tại
+            if (user == null || !await IsResetTokenValidAsync(user, token))
+                throw new InvalidOperationException(InvalidResetLinkMessage);
+
+            if (await _userManager.CheckPasswordAsync(user, newPassword))
+                throw new InvalidOperationException("Mật khẩu mới phải khác mật khẩu hiện tại.");
+
+            var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+
+            if (!result.Succeeded)
+            {
+                if (result.Errors.Any(e => e.Code == "InvalidToken"))
+                    throw new InvalidOperationException(InvalidResetLinkMessage);
+
+                throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+            }
+
+            await _userManager.ResetAccessFailedCountAsync(user);
+            await _userManager.SetLockoutEndDateAsync(user, null);
+
+            await _auditLogService.RecordAsync("ResetPasswordByEmail", "ApplicationUser", user.Id, "Đặt lại mật khẩu qua link email.", ipAddress, user.Id);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            // Báo cho chủ tài khoản biết, phòng khi không phải họ thực hiện.
+            // Mật khẩu đã đổi xong nên gửi thất bại cũng không báo lỗi cho người dùng.
+            try
+            {
+                string body =
+                    $"<p>Xin chào {WebUtility.HtmlEncode(user.FullName)},</p>" +
+                    $"<p>Mật khẩu tài khoản quản trị RentMate của bạn vừa được đặt lại lúc {DateTime.Now:HH:mm dd/MM/yyyy}.</p>" +
+                    "<p>Nếu không phải bạn thực hiện, hãy liên hệ quản trị viên ngay.</p>";
+
+                await _emailService.SendAsync(user.Email!, "[RentMate] Mật khẩu của bạn đã được thay đổi", body);
+            }
+            catch (InvalidOperationException)
+            {
+                // Lỗi gửi mail đã được ghi log trong SmtpEmailService
+            }
+        }
+
+        private async Task<bool> IsResetTokenValidAsync(ApplicationUser user, string token)
+        {
+            if (string.IsNullOrWhiteSpace(token) || !user.IsActive || !await IsStaffAsync(user))
+                return false;
+
+            return await _userManager.VerifyUserTokenAsync(
+                user,
+                _userManager.Options.Tokens.PasswordResetTokenProvider,
+                UserManager<ApplicationUser>.ResetPasswordTokenPurpose,
+                token);
+        }
+
+        private async Task<bool> IsStaffAsync(ApplicationUser user)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return roles.Contains("Admin") || roles.Contains("Manager");
         }
 
         private async Task<ApplicationUser> FindManagerAsync(string id)
@@ -343,6 +470,9 @@ namespace RentMate.Service.Services
 
         private async Task SetPasswordAsync(ApplicationUser user, string newPassword)
         {
+            // Kiểm tra trước để không rơi vào cảnh đã gỡ mật khẩu cũ mà mật khẩu mới lại bị từ chối
+            await EnsurePasswordValidAsync(user, newPassword);
+
             var removeResult = await _userManager.RemovePasswordAsync(user);
 
             if (!removeResult.Succeeded)
@@ -355,6 +485,22 @@ namespace RentMate.Service.Services
 
             await _userManager.ResetAccessFailedCountAsync(user);
             await _userManager.SetLockoutEndDateAsync(user, null);
+        }
+
+        private async Task EnsurePasswordValidAsync(ApplicationUser user, string password)
+        {
+            var errors = new List<string>();
+
+            foreach (var validator in _userManager.PasswordValidators)
+            {
+                var result = await validator.ValidateAsync(_userManager, user, password);
+
+                if (!result.Succeeded)
+                    errors.AddRange(result.Errors.Select(e => e.Description));
+            }
+
+            if (errors.Count > 0)
+                throw new InvalidOperationException(string.Join(" ", errors));
         }
 
         private async Task EnsurePhoneNumberAvailableAsync(string? phoneNumber, string? excludeUserId)

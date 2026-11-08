@@ -47,7 +47,8 @@ namespace RentMate.AdminSite.Controllers
 
             string ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Không xác định";
 
-            var result = await _authService.LoginAsync(model.Email, model.Password, ipAddress);
+            // Trang quản trị chỉ dành cho Admin và Manager (kiểm tra trong AuthService)
+            var result = await _authService.LoginAsync(model.Email, model.Password, ipAddress, new[] { "Admin", "Manager" });
 
             if (result.Status == LoginStatus.InvalidCredentials)
             {
@@ -59,6 +60,13 @@ namespace RentMate.AdminSite.Controllers
             if (result.Status == LoginStatus.Inactive)
             {
                 ModelState.AddModelError(string.Empty, "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+
+                return View(model);
+            }
+
+            if (result.Status == LoginStatus.AccessDenied)
+            {
+                ModelState.AddModelError(string.Empty, "Tài khoản không có quyền truy cập trang quản trị.");
 
                 return View(model);
             }
@@ -86,14 +94,6 @@ namespace RentMate.AdminSite.Controllers
 
             var user = result.User;
 
-            // Trang quản trị chỉ dành cho Admin và Manager
-            if (user.RoleName != "Admin" && user.RoleName != "Manager")
-            {
-                ModelState.AddModelError(string.Empty, "Tài khoản không có quyền truy cập trang quản trị.");
-
-                return View(model);
-            }
-
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
@@ -115,10 +115,10 @@ namespace RentMate.AdminSite.Controllers
             var principal = new ClaimsPrincipal(identity);
 
             var authenticationProperties = new AuthenticationProperties
-                {
-                    IsPersistent = model.RememberMe,
-                    AllowRefresh = true
-                };
+            {
+                IsPersistent = model.RememberMe,
+                AllowRefresh = true
+            };
 
             if (model.RememberMe)
             {
@@ -142,9 +142,88 @@ namespace RentMate.AdminSite.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public IActionResult AccessDenied()
+        public IActionResult ForgotPassword()
         {
-            return View();
+            return View(new ForgotPasswordViewModel());
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            string ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Không xác định";
+
+            // Địa chỉ trang đặt lại mật khẩu (có https://domain), service gắn thêm userId và token
+            string resetPageUrl = Url.Action(nameof(ResetPassword), "Account", null, Request.Scheme)!;
+
+            try
+            {
+                await _accountService.RequestPasswordResetAsync(model.Email, resetPageUrl, ipAddress);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+
+                return View(model);
+            }
+
+            // Luôn báo cùng một câu dù email có tồn tại hay không
+            TempData["Success"] = "Nếu email thuộc một tài khoản quản trị, chúng tôi đã gửi link đặt lại mật khẩu. Vui lòng kiểm tra hộp thư (kể cả mục Spam).";
+
+            return RedirectToAction(nameof(Login));
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword(string? userId, string? token)
+        {
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token) ||
+                !await _accountService.IsPasswordResetLinkValidAsync(userId, token))
+            {
+                TempData["Error"] = "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu link mới.";
+
+                return RedirectToAction(nameof(ForgotPassword));
+            }
+
+            return View(new ResetPasswordViewModel
+            {
+                UserId = userId,
+                Token = token
+            });
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            string ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Không xác định";
+
+            try
+            {
+                await _accountService.ResetPasswordAsync(model.UserId, model.Token, model.NewPassword, ipAddress);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+
+                return View(model);
+            }
+
+            TempData["Success"] = "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.";
+
+            return RedirectToAction(nameof(Login));
         }
 
         [HttpGet]

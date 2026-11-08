@@ -46,18 +46,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     function showError(form, message) {
-        const box = form.querySelector("[data-edit-message]");
-        if (!box) return;
-
-        const alert = document.createElement("div");
-        alert.className = "alert alert-danger py-2";
-        alert.setAttribute("role", "alert");
-        alert.textContent = message;
-        box.replaceChildren(alert);
-        if (window.autoDismissAlert) window.autoDismissAlert(alert);
+        window.showToast(message, "error");
     }
 
     function clearMessage(form) {
-        form.querySelector("[data-edit-message]")?.replaceChildren();
+        // Thông báo hiện bằng toast nên không có gì trong form cần xóa
     }
 });

@@ -5,6 +5,7 @@ namespace RentMate.Core.Enums
         Success = 1,
         InvalidCredentials = 2,
         Inactive = 3,
-        TemporarilyLocked = 4
+        TemporarilyLocked = 4,
+        AccessDenied = 5
     }
 }

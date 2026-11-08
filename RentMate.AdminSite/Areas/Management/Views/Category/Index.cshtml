@@ -1,3 +1,4 @@
+@using System.Text.Json
 @model IEnumerable<CategoryViewModel>
 
 @{
@@ -23,7 +24,7 @@
         <select class="form-select" data-client-filter="categories" data-field="status">
             <option value="">Tất cả trạng thái</option>
             <option value="active">Đang hoạt động</option>
-            <option value="inactive">Đã tắt</option>
+            <option value="inactive">Ngừng hoạt động</option>
         </select>
     </div>
 </div>
@@ -58,39 +59,85 @@
                             }
                             else
                             {
-                                <span class="admin-badge admin-badge-muted">Đã tắt</span>
+                                <span class="admin-badge admin-badge-muted">Ngừng hoạt động</span>
                             }
                         </td>
                         <td class="text-end">
                             <div class="admin-row-actions">
-                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn admin-row-primary">Sửa</a>
-                                <div class="dropdown">
-                                    <button type="button" class="admin-more-button" data-bs-toggle="dropdown" aria-expanded="false">⋯</button>
-                                    <div class="dropdown-menu dropdown-menu-end admin-action-menu">
-                                        <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post">
-                                            <button type="submit" class="dropdown-item @(item.IsActive ? "text-danger" : "")">
-                                                @(item.IsActive ? "Tắt danh mục" : "Bật lại danh mục")
-                                            </button>
-                                        </form>
-                                        <div class="dropdown-divider"></div>
-                                        @if (item.ItemCount == 0)
-                                        {
-                                            <form asp-action="Delete" asp-route-id="@item.Id" method="post"
-                                                  onsubmit="return confirm('Xóa danh mục này?');">
-                                                <button type="submit" class="dropdown-item text-danger">Xóa danh mục</button>
-                                            </form>
-                                        }
-                                        else
-                                        {
-                                            <span class="dropdown-item disabled" title="Danh mục đang có đồ cho thuê">Không thể xóa (đang có đồ)</span>
-                                        }
-                                    </div>
-                                </div>
+                                @{
+                                    string editValues = JsonSerializer.Serialize(new
+                                    {
+                                        Id = item.Id,
+                                        CategoryName = item.CategoryName,
+                                        Description = item.Description
+                                    });
+                                    string toggleTitle = item.IsActive ? "Ngừng hoạt động danh mục" : "Mở lại hoạt động danh mục";
+                                }
+                                <button type="button" class="btn admin-row-primary" data-edit-modal="#categoryEditModal" data-edit-values="@editValues">Sửa</button>
+
+                                <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
+                                      onsubmit="return confirm('@(item.IsActive ? "Ngừng hoạt động danh mục này?" : "Mở lại hoạt động danh mục này?")');">
+                                    <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@toggleTitle" aria-label="@toggleTitle">
+                                        <partial name="_LockIcon" model="item.IsActive" />
+                                    </button>
+                                </form>
+
+                                @if (item.ItemCount == 0)
+                                {
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
+                                          onsubmit="return confirm('Xóa danh mục này?');">
+                                        <button type="submit" class="rm-icon-button rm-icon-danger" title="Xóa danh mục" aria-label="Xóa danh mục">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    @* span bọc ngoài để tooltip vẫn hiện khi nút bị vô hiệu *@
+                                    <span class="rm-row-action-form" title="Danh mục đang có @item.ItemCount đồ cho thuê nên không thể xóa">
+                                        <button type="button" class="rm-icon-button" disabled aria-label="Không thể xóa danh mục đang có đồ">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+                                        </button>
+                                    </span>
+                                }
                             </div>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
+    </div>
+</div>
+
+<div class="modal fade" id="categoryEditModal" tabindex="-1" aria-labelledby="categoryEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="Edit" method="post" data-edit-form>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryEditModalLabel">Sửa danh mục</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" name="Id" />
+
+                    <div class="mb-3">
+                        <label for="categoryEditName" class="form-label">Tên danh mục</label>
+                        <input type="text" id="categoryEditName" name="CategoryName" maxlength="100" class="form-control" autocomplete="off" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="categoryEditDescription" class="form-label">Mô tả</label>
+                        <textarea id="categoryEditDescription" name="Description" rows="3" maxlength="500" class="form-control"></textarea>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>

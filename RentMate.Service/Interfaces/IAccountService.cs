@@ -20,6 +20,12 @@ namespace RentMate.Service.Interfaces
 
         Task<string?> UpdateAvatarAsync(string userId, string? avatarUrl, string ipAddress);
 
+        Task RequestPasswordResetAsync(string email, string resetPageUrl, string ipAddress);
+
+        Task<bool> IsPasswordResetLinkValidAsync(string userId, string token);
+
+        Task ResetPasswordAsync(string userId, string token, string newPassword, string ipAddress);
+
         Task ChangePasswordAsync(string userId, string oldPassword, string newPassword, string ipAddress);
     }
 }

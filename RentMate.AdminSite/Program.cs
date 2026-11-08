@@ -7,6 +7,7 @@ using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
 using RentMate.Data.Context;
 using RentMate.Data.UnitOfWork;
+using RentMate.Service.DTOs;
 using RentMate.Service.Interfaces;
 using RentMate.Service.Services;
 using System.Globalization;
@@ -33,11 +34,19 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     })
     .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders(); // sinh token cho link "Quên mật khẩu"
+
+// Link đặt lại mật khẩu gửi qua email hết hạn sau 30 phút
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromMinutes(30));
+
+// Cấu hình gửi email (mục "Smtp" trong appsettings)
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();

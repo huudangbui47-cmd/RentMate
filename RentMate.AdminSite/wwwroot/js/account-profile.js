@@ -9,8 +9,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const avatarChooseButton = document.getElementById("profileAvatarChoose");
     const avatarRemoveButton = document.getElementById("profileAvatarRemove");
     const avatarPreview = document.getElementById("profileAvatarPreview");
-    const profileMessage = document.getElementById("profileMessage");
-    const passwordMessage = document.getElementById("passwordMessage");
+    const profileMessage = null;
+    const passwordMessage = null;
 
     let currentFullName = "";
     let currentAvatarUrl = null;
@@ -156,17 +156,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function showMessage(element, alertClass, role, message) {
-        const alert = document.createElement("div");
-        alert.className = `alert ${alertClass} py-2`;
-        alert.setAttribute("role", role);
-        alert.textContent = message;
-        element.replaceChildren(alert);
-
-        if (window.autoDismissAlert) window.autoDismissAlert(alert);
+        window.showToast(message, alertClass === "alert-success" ? "success" : "error");
     }
 
     function clearMessage(element) {
-        element.replaceChildren();
+        // Thông báo hiện bằng toast nên không có gì trong modal cần xóa
     }
 
     function setButtonLoading(button, loading) {

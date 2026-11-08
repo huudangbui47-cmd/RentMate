@@ -1,90 +1,40 @@
 @model LoginViewModel
 
 @{
-    Layout = null;
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Đăng nhập";
 }
 
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Đăng nhập - RentMate Admin</title>
-    <link rel="icon" href="~/favicon.ico" />
+<div class="admin-login-heading">
+    <h1>Đăng nhập</h1>
+    <p>Dành cho tài khoản Quản trị viên và Quản lý.</p>
+</div>
 
-    <link rel="stylesheet" href="~/lib/mazer/css/app.css" />
-    <link rel="stylesheet" href="~/lib/mazer/css/app-dark.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/rentmate.css" asp-append-version="true" />
+<form asp-controller="Account" asp-action="Login" method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
 
-    <script>
-        if (!localStorage.getItem("theme")) localStorage.setItem("theme", "light");
-    </script>
-</head>
-
-<body class="admin-login-page">
-    <script src="~/lib/mazer/js/initTheme.js"></script>
-
-    <div class="admin-login-theme">
-        <div class="theme-toggle d-flex gap-2 align-items-center">
-            <span>☀</span>
-            <div class="form-check form-switch fs-6 mb-0">
-                <input class="form-check-input me-0" type="checkbox" id="toggle-dark" style="cursor:pointer" aria-label="Chuyển chế độ sáng hoặc tối" />
-            </div>
-            <span>☾</span>
-        </div>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" placeholder="Nhập email" autocomplete="email" autofocus />
+        <span asp-validation-for="Email" class="text-danger small"></span>
     </div>
 
-    <main class="admin-login-wrap">
-        <section class="admin-login-card">
-            <div class="admin-login-brand">
-                <span class="mazer-brand-mark">RM</span>
-                <div>
-                    <strong>RentMate</strong>
-                    <small>Trang quản trị</small>
-                </div>
-            </div>
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <div class="rm-password-field">
+            <input asp-for="Password" class="form-control" placeholder="Nhập mật khẩu" autocomplete="current-password" />
+            <partial name="_PasswordToggle" />
+        </div>
+        <span asp-validation-for="Password" class="text-danger small"></span>
+    </div>
 
-            <div class="admin-login-heading">
-                <h1>Đăng nhập</h1>
-                <p>Dành cho tài khoản Quản trị viên và Quản lý.</p>
-            </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <label class="form-check mb-0">
+            <input asp-for="RememberMe" class="form-check-input" />
+            <span class="form-check-label">Giữ đăng nhập trong 7 ngày</span>
+        </label>
+        <a asp-action="ForgotPassword" class="small">Quên mật khẩu?</a>
+    </div>
 
-            <form asp-controller="Account" asp-action="Login" method="post">
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
-
-                <div class="mb-3">
-                    <label asp-for="Email" class="form-label"></label>
-                    <input asp-for="Email" class="form-control" placeholder="Nhập email" autocomplete="email" autofocus />
-                    <span asp-validation-for="Email" class="text-danger small"></span>
-                </div>
-
-                <div class="mb-3">
-                    <label asp-for="Password" class="form-label"></label>
-                    <div class="rm-password-field">
-                        <input asp-for="Password" class="form-control" placeholder="Nhập mật khẩu" autocomplete="current-password" />
-                        <partial name="_PasswordToggle" />
-                    </div>
-                    <span asp-validation-for="Password" class="text-danger small"></span>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-check">
-                        <input asp-for="RememberMe" class="form-check-input" />
-                        <span class="form-check-label">Giữ đăng nhập trong 7 ngày</span>
-                    </label>
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
-            </form>
-        </section>
-    </main>
-
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
-    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
-    <script src="~/lib/mazer/js/dark.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="~/js/password-toggle.js" asp-append-version="true"></script>
-</body>
-</html>
+    <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
+</form>

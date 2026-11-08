@@ -87,7 +87,7 @@ namespace RentMate.Service.Services
         // =========================
         // LOGIN
         // =========================
-        public async Task<LoginResult> LoginAsync(string email, string password, string ipAddress)
+        public async Task<LoginResult> LoginAsync(string email, string password, string ipAddress, string[]? allowedRoles = null)
         {
             string normalizedEmail = email.Trim();
 
@@ -150,11 +150,22 @@ namespace RentMate.Service.Services
                 };
             }
 
-            // 4. Đăng nhập thành công
+            // 4. Đúng mật khẩu nhưng không có quyền vào nơi đang đăng nhập (vd. khách vào trang quản trị)
             await _userManager.ResetAccessFailedCountAsync(user);
 
             var roles = await _userManager.GetRolesAsync(user);
 
+            if (allowedRoles != null && !roles.Any(allowedRoles.Contains))
+            {
+                await RejectLoginAsync(user, ipAddress, "Đăng nhập thất bại: tài khoản không có quyền truy cập.");
+
+                return new LoginResult
+                {
+                    Status = LoginStatus.AccessDenied
+                };
+            }
+
+            // 5. Đăng nhập thành công
             await _auditLogService.RecordAsync("LoginSuccess", "ApplicationUser", user.Id, "Đăng nhập thành công.", ipAddress, user.Id);
 
             await _unitOfWork.SaveChangesAsync();
@@ -169,14 +180,14 @@ namespace RentMate.Service.Services
                     FullName = user.FullName,
                     Email = user.Email ?? string.Empty,
                     AvatarUrl = user.AvatarUrl,
-                    RoleName = roles.Contains("Admin") ? "Admin" : (roles.FirstOrDefault() ?? "User")
+                    RoleName = roles.Contains("Admin") ? "Admin" : roles.Contains("Manager") ? "Manager" : (roles.FirstOrDefault() ?? "User")
                 }
             };
         }
 
-        private async Task RejectLoginAsync(ApplicationUser? user, string ipAddress)
+        private async Task RejectLoginAsync(ApplicationUser? user, string ipAddress, string description = "Đăng nhập thất bại.")
         {
-            await _auditLogService.RecordAsync("LoginFailed", "ApplicationUser", user?.Id, "Đăng nhập thất bại.", ipAddress, user?.Id);
+            await _auditLogService.RecordAsync("LoginFailed", "ApplicationUser", user?.Id, description, ipAddress, user?.Id);
 
             await _unitOfWork.SaveChangesAsync();
         }
