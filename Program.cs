@@ -90,6 +90,8 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 builder.Services.AddScoped<IRentalService, RentalService>();
 
+builder.Services.AddScoped<IPaymentService,PaymentService>();
+
 builder.Services.AddScoped<
     IConditionReportService,
     ConditionReportService>();

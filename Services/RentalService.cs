@@ -256,7 +256,30 @@ namespace RentMate.Api.Services
                 throw new InvalidOperationException(
                     "Rental is not ready for pickup.");
             }
+            var rentalFeePaid =
+                await _context.Payments.AnyAsync(p =>
+                    p.RentalId == rentalId &&
+                    p.PaymentType == PaymentType.RentalFee &&
+                    p.Status == PaymentStatus.Paid);
 
+            var depositPaid =
+                rental.DepositAmount <= 0 ||
+                await _context.Payments.AnyAsync(p =>
+                    p.RentalId == rentalId &&
+                    p.PaymentType == PaymentType.Deposit &&
+                    p.Status == PaymentStatus.Paid);
+
+            if (!rentalFeePaid || !depositPaid)
+            {
+                throw new InvalidOperationException(
+                    "Rental fee and deposit must be paid before pickup.");
+            }
+
+            if (!rentalFeePaid || !depositPaid)
+            {
+                throw new InvalidOperationException(
+                    "Rental fee and deposit must be paid before pickup.");
+            }
             // =========================
             // PHẢI CÓ BEFORE REPORT
             // =========================
