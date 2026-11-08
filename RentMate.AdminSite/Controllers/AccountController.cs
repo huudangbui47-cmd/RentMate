@@ -115,10 +115,10 @@ namespace RentMate.AdminSite.Controllers
             var principal = new ClaimsPrincipal(identity);
 
             var authenticationProperties = new AuthenticationProperties
-                {
-                    IsPersistent = model.RememberMe,
-                    AllowRefresh = true
-                };
+            {
+                IsPersistent = model.RememberMe,
+                AllowRefresh = true
+            };
 
             if (model.RememberMe)
             {
@@ -232,6 +232,14 @@ namespace RentMate.AdminSite.Controllers
                 return BadRequest(new
                 {
                     message = GetFirstModelError()
+                });
+            }
+
+            if (model.NewPassword == model.OldPassword)
+            {
+                return BadRequest(new
+                {
+                    message = "Mật khẩu mới phải khác mật khẩu hiện tại."
                 });
             }
 
