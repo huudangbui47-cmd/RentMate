@@ -57,7 +57,23 @@ Hai file này không có trên GitHub nên phải tự tạo.
 }
 ```
 
-Smtp để trống vẫn chạy được, khi đó link quên mật khẩu được in ra console. Muốn gửi mail thật thì điền `Host` là `smtp.gmail.com`, `Username` là Gmail gửi đi, `Password` là App Password của Gmail đó.
+Smtp để trống vẫn chạy được, khi đó link quên mật khẩu được in ra console (đổi `&amp;` thành `&` trước khi dán vào trình duyệt).
+
+Muốn gửi mail thật qua Gmail:
+1. Bật Xác minh 2 bước tại https://myaccount.google.com/security
+2. Tạo App Password tại https://myaccount.google.com/apppasswords, chép mã 16 ký tự
+3. Điền vào mục `Smtp`:
+```json
+"Smtp": {
+  "Host": "smtp.gmail.com",
+  "Port": 587,
+  "EnableSsl": true,
+  "Username": "gmail-cua-ban@gmail.com",
+  "Password": "maapppassword16kytu",
+  "FromName": "RentMate"
+}
+```
+`Password` là mã App Password viết liền, không phải mật khẩu Gmail. Sửa xong phải chạy lại AdminSite.
 
 ## 3. Tạo database
 
