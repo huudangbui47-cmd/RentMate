@@ -314,6 +314,14 @@ namespace RentMate.AdminSite.Controllers
                 });
             }
 
+            if (model.NewPassword == model.OldPassword)
+            {
+                return BadRequest(new
+                {
+                    message = "Mật khẩu mới phải khác mật khẩu hiện tại."
+                });
+            }
+
             try
             {
                 string userId = GetCurrentUserId();
