@@ -68,6 +68,7 @@
                                     string editValues = JsonSerializer.Serialize(new
                                     {
                                         Id = item.Id,
+                                        RowVersion = item.RowVersion,
                                         CategoryName = item.CategoryName,
                                         Description = item.Description
                                     });
@@ -77,6 +78,7 @@
 
                                 <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
                                       onsubmit="return confirm('@(item.IsActive ? "Ngừng hoạt động danh mục này?" : "Mở lại hoạt động danh mục này?")');">
+                                    <input type="hidden" name="isActive" value="@(item.IsActive ? "false" : "true")" />
                                     <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@toggleTitle" aria-label="@toggleTitle">
                                         <partial name="_LockIcon" model="item.IsActive" />
                                     </button>
@@ -120,6 +122,7 @@
 
                 <div class="modal-body">
                     <input type="hidden" name="Id" />
+                    <input type="hidden" name="RowVersion" />
 
                     <div class="mb-3">
                         <label for="categoryEditName" class="form-label">Tên danh mục</label>

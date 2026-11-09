@@ -69,6 +69,7 @@ namespace RentMate.Service.Services
                 .Select(u => new CustomerViewModel
                 {
                     Id = u.Id,
+                    ConcurrencyStamp = u.ConcurrencyStamp,
                     FullName = u.FullName,
                     Email = u.Email ?? string.Empty,
                     PhoneNumber = u.PhoneNumber ?? string.Empty,
@@ -150,6 +151,9 @@ namespace RentMate.Service.Services
         {
             var customer = await FindCustomerAsync(model.Id);
 
+            if (customer.ConcurrencyStamp != model.ConcurrencyStamp)
+                throw new InvalidOperationException(ConcurrencyMessage);
+
             string fullName = model.FullName.Trim();
             string email = model.Email.Trim();
             string phoneNumber = model.PhoneNumber.Trim();
@@ -181,9 +185,15 @@ namespace RentMate.Service.Services
 
             var result = await _userManager.UpdateAsync(customer);
 
+            // Người khác lưu đúng lúc giữa bước kiểm tra và bước lưu
+            if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+                throw new InvalidOperationException(ConcurrencyMessage);
+
             if (!result.Succeeded)
                 throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
         }
+
+        private const string ConcurrencyMessage = "Khách hàng này vừa được cập nhật ở nơi khác. Vui lòng tải lại trang rồi sửa lại.";
 
         // Nhân viên không tự đặt mật khẩu cho khách: hệ thống sinh mật khẩu tạm,
         // nhật ký chỉ ghi nhận hành động, không lưu mật khẩu.
@@ -213,11 +223,15 @@ namespace RentMate.Service.Services
             return temporaryPassword;
         }
 
-        public async Task<bool> ToggleActiveAsync(string id, string actorUserId, string ipAddress)
+        public async Task<bool> SetActiveAsync(string id, bool isActive, string actorUserId, string ipAddress)
         {
             var customer = await FindCustomerAsync(id);
 
-            bool newIsActive = !customer.IsActive;
+            // Trang của người bấm có thể đã cũ: người khác vừa khóa/mở trước đó
+            if (customer.IsActive == isActive)
+                throw new InvalidOperationException(isActive ? "Khách hàng này đã được mở khóa trước đó." : "Khách hàng này đã bị khóa trước đó.");
+
+            bool newIsActive = isActive;
 
             if (!newIsActive)
             {

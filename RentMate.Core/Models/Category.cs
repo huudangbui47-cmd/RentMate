@@ -8,6 +8,9 @@ namespace RentMate.Core.Models
 
         public bool IsActive { get; set; } = true;
 
+        // SQL Server tự đổi giá trị mỗi lần bản ghi thay đổi
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
         public ICollection<Item> Items { get; set; } = new List<Item>();
     }
 }

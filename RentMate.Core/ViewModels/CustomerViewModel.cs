@@ -6,6 +6,9 @@ namespace RentMate.Core.ViewModels
     {
         public string Id { get; set; } = string.Empty;
 
+        // Mã phiên bản lúc mở form, dùng để phát hiện người khác đã sửa trước
+        public string? ConcurrencyStamp { get; set; }
+
         [Required(ErrorMessage = "Họ tên không được để trống.")]
         [StringLength(100, ErrorMessage = "Họ tên tối đa 100 ký tự.")]
         public string FullName { get; set; } = string.Empty;

@@ -97,6 +97,7 @@
                                 string editValues = JsonSerializer.Serialize(new
                                 {
                                     Id = item.Id,
+                                    ConcurrencyStamp = item.ConcurrencyStamp,
                                     FullName = item.FullName,
                                     Email = item.Email,
                                     PhoneNumber = item.PhoneNumber,
@@ -116,6 +117,7 @@
 
                                 <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
                                       onsubmit="return confirm('@(item.IsActive ? "Khóa khách hàng này?" : "Mở khóa khách hàng này?")');">
+                                    <input type="hidden" name="isActive" value="@(item.IsActive ? "false" : "true")" />
                                     <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@lockTitle" aria-label="@lockTitle">
                                         <partial name="_LockIcon" model="item.IsActive" />
                                     </button>
@@ -151,6 +153,7 @@
 
                 <div class="modal-body">
                     <input type="hidden" name="Id" />
+                    <input type="hidden" name="ConcurrencyStamp" />
 
                     <div class="mb-3">
                         <label for="customerEditFullName" class="form-label">Họ tên</label>
@@ -172,7 +175,6 @@
                         <input type="text" id="customerEditAddress" name="Address" maxlength="200" class="form-control" autocomplete="off" />
                     </div>
 
-                    <div class="form-text">Mật khẩu không sửa ở đây. Dùng nút hình chìa khóa để đặt lại mật khẩu.</div>
                 </div>
 
                 <div class="modal-footer">

@@ -9,6 +9,7 @@ namespace RentMate.Data.Configurations.Catalog
         public void Configure(EntityTypeBuilder<Category> builder)
         {
             builder.Property(c => c.Id).HasColumnName("CategoryId");
+            builder.Property(c => c.RowVersion).IsRowVersion();
         }
     }
 }

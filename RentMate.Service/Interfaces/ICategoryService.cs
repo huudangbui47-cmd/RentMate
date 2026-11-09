@@ -14,7 +14,7 @@ namespace RentMate.Service.Interfaces
         Task<List<CategoryViewModel>> GetAllForManagementAsync();
         Task CreateAsync(CategoryViewModel model, string actorUserId, string ipAddress);
         Task UpdateAsync(CategoryViewModel model, string actorUserId, string ipAddress);
-        Task ToggleActiveAsync(int id, string actorUserId, string ipAddress);
+        Task SetActiveAsync(int id, bool isActive, string actorUserId, string ipAddress);
         Task DeleteAsync(int id, string actorUserId, string ipAddress);
     }
 }

@@ -92,6 +92,7 @@ namespace RentMate.Service.Services
                 .Select(c => new CategoryViewModel
                 {
                     Id = c.Id,
+                    RowVersion = Convert.ToBase64String(c.RowVersion),
                     CategoryName = c.CategoryName,
                     Description = c.Description,
                     IsActive = c.IsActive,
@@ -141,6 +142,9 @@ namespace RentMate.Service.Services
             if (category == null)
                 throw new InvalidOperationException("Danh mục không tồn tại.");
 
+            if (Convert.ToBase64String(category.RowVersion) != model.RowVersion)
+                throw new InvalidOperationException(CategoryConcurrencyMessage);
+
             if (string.IsNullOrWhiteSpace(model.CategoryName))
                 throw new InvalidOperationException("Tên danh mục không được để trống.");
 
@@ -180,18 +184,32 @@ namespace RentMate.Service.Services
                 ipAddress,
                 actorUserId);
 
-            await _unitOfWork.SaveChangesAsync();
+            try
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Người khác lưu đúng lúc giữa bước kiểm tra và bước lưu
+                throw new InvalidOperationException(CategoryConcurrencyMessage);
+            }
         }
 
+        private const string CategoryConcurrencyMessage = "Danh mục này vừa được cập nhật ở nơi khác. Vui lòng tải lại trang rồi sửa lại.";
+
         // Không xóa cứng vì danh mục còn đồ cho thuê tham chiếu, chỉ bật/tắt
-        public async Task ToggleActiveAsync(int id, string actorUserId, string ipAddress)
+        public async Task SetActiveAsync(int id, bool isActive, string actorUserId, string ipAddress)
         {
             var category = await _unitOfWork.Categories.GetByIdAsync(id);
 
             if (category == null)
                 throw new InvalidOperationException("Danh mục không tồn tại.");
 
-            category.IsActive = !category.IsActive;
+            // Trang của người bấm có thể đã cũ: người khác vừa đổi trạng thái trước đó
+            if (category.IsActive == isActive)
+                throw new InvalidOperationException(isActive ? "Danh mục này đã được mở lại hoạt động trước đó." : "Danh mục này đã ngừng hoạt động trước đó.");
+
+            category.IsActive = isActive;
 
             await _auditLogService.RecordAsync(
                 "ToggleCategory",

@@ -6,6 +6,9 @@ namespace RentMate.Core.ViewModels
     {
         public int Id { get; set; }
 
+        // RowVersion dạng Base64, dùng để phát hiện người khác đã sửa trước
+        public string? RowVersion { get; set; }
+
         [Required(ErrorMessage = "Vui lòng nhập tên danh mục.")]
         [StringLength(100, ErrorMessage = "Tên danh mục tối đa 100 ký tự.")]
         [Display(Name = "Tên danh mục")]

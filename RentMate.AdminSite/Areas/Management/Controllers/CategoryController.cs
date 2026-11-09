@@ -77,13 +77,13 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ToggleActive(int id)
+        public async Task<IActionResult> ToggleActive(int id, bool isActive)
         {
             try
             {
-                await _categoryService.ToggleActiveAsync(id, GetCurrentUserId(), GetIpAddress());
+                await _categoryService.SetActiveAsync(id, isActive, GetCurrentUserId(), GetIpAddress());
 
-                TempData["Success"] = "Cập nhật trạng thái danh mục thành công.";
+                TempData["Success"] = isActive ? "Mở lại hoạt động danh mục thành công." : "Ngừng hoạt động danh mục thành công.";
             }
             catch (InvalidOperationException ex)
             {

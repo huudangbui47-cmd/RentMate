@@ -15,6 +15,6 @@ namespace RentMate.Service.Interfaces
 
         Task<string> ResetPasswordAsync(string id, string actorUserId, string ipAddress);
 
-        Task<bool> ToggleActiveAsync(string id, string actorUserId, string ipAddress);
+        Task<bool> SetActiveAsync(string id, bool isActive, string actorUserId, string ipAddress);
     }
 }

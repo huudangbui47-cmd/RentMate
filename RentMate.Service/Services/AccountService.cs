@@ -64,6 +64,7 @@ namespace RentMate.Service.Services
                 .Select(u => new UserListItemViewModel
                 {
                     Id = u.Id,
+                    ConcurrencyStamp = u.ConcurrencyStamp,
                     FullName = u.FullName,
                     Email = u.Email ?? string.Empty,
                     PhoneNumber = u.PhoneNumber,
@@ -145,6 +146,9 @@ namespace RentMate.Service.Services
         {
             var user = await FindManagerAsync(model.Id);
 
+            if (user.ConcurrencyStamp != model.ConcurrencyStamp)
+                throw new InvalidOperationException(UserConcurrencyMessage);
+
             if (string.IsNullOrWhiteSpace(model.FullName))
                 throw new InvalidOperationException("Họ tên không được để trống.");
 
@@ -187,6 +191,10 @@ namespace RentMate.Service.Services
 
             var result = await _userManager.UpdateAsync(user);
 
+            // Người khác lưu đúng lúc giữa bước kiểm tra và bước lưu
+            if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+                throw new InvalidOperationException(UserConcurrencyMessage);
+
             if (!result.Succeeded)
                 throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
 
@@ -201,11 +209,17 @@ namespace RentMate.Service.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<bool> ToggleActiveAsync(string id, string actorUserId, string ipAddress)
+        private const string UserConcurrencyMessage = "Tài khoản này vừa được cập nhật ở nơi khác. Vui lòng tải lại trang rồi sửa lại.";
+
+        public async Task<bool> SetActiveAsync(string id, bool isActive, string actorUserId, string ipAddress)
         {
             var user = await FindManagerAsync(id);
 
-            bool newIsActive = !user.IsActive;
+            // Trang của người bấm có thể đã cũ: người khác vừa khóa/mở trước đó
+            if (user.IsActive == isActive)
+                throw new InvalidOperationException(isActive ? "Tài khoản này đã được mở khóa trước đó." : "Tài khoản này đã bị khóa trước đó.");
+
+            bool newIsActive = isActive;
 
             user.IsActive = newIsActive;
 

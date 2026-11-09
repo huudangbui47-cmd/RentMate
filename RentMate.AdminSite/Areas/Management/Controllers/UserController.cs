@@ -77,11 +77,11 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ToggleActive(string id)
+        public async Task<IActionResult> ToggleActive(string id, bool isActive)
         {
             try
             {
-                bool isActive = await _accountService.ToggleActiveAsync(id, GetCurrentUserId(), GetIpAddress());
+                await _accountService.SetActiveAsync(id, isActive, GetCurrentUserId(), GetIpAddress());
 
                 TempData["Success"] = isActive ? "Mở khóa tài khoản thành công." : "Khóa tài khoản thành công.";
             }

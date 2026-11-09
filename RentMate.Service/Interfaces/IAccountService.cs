@@ -12,7 +12,7 @@ namespace RentMate.Service.Interfaces
 
         Task UpdateUserAsync(UserEditViewModel model, string actorUserId, string ipAddress);
 
-        Task<bool> ToggleActiveAsync(string id, string actorUserId, string ipAddress);
+        Task<bool> SetActiveAsync(string id, bool isActive, string actorUserId, string ipAddress);
 
         Task DeleteAsync(string id, string actorUserId, string ipAddress);
 

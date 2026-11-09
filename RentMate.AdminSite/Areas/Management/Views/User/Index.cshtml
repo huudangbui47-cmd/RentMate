@@ -89,6 +89,7 @@
                                 string editValues = JsonSerializer.Serialize(new
                                 {
                                     Id = item.Id,
+                                    ConcurrencyStamp = item.ConcurrencyStamp,
                                     FullName = item.FullName,
                                     Email = item.Email,
                                     PhoneNumber = item.PhoneNumber
@@ -100,6 +101,7 @@
 
                                     <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
                                           onsubmit="return confirm('@(item.IsActive ? "Khóa tài khoản này?" : "Mở khóa tài khoản này?")');">
+                                        <input type="hidden" name="isActive" value="@(item.IsActive ? "false" : "true")" />
                                         <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@lockTitle" aria-label="@lockTitle">
                                             <partial name="_LockIcon" model="item.IsActive" />
                                         </button>
@@ -143,6 +145,7 @@
 
                 <div class="modal-body">
                     <input type="hidden" name="Id" />
+                    <input type="hidden" name="ConcurrencyStamp" />
 
                     <div class="mb-3">
                         <label for="userEditFullName" class="form-label">Họ tên</label>
@@ -160,7 +163,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="userEditNewPassword" class="form-label">Mật khẩu mới (không bắt buộc)</label>
+                        <label for="userEditNewPassword" class="form-label">Mật khẩu mới (có thể để trống)</label>
                         <div class="rm-password-field">
                             <input type="password" id="userEditNewPassword" name="NewPassword" class="form-control" autocomplete="new-password" />
                             <partial name="_PasswordToggle" />
@@ -168,14 +171,13 @@
                     </div>
 
                     <div class="mb-2">
-                        <label for="userEditConfirmPassword" class="form-label">Xác nhận mật khẩu mới</label>
+                        <label for="userEditConfirmPassword" class="form-label">Xác nhận mật khẩu mới(có thể để trống)</label>
                         <div class="rm-password-field">
                             <input type="password" id="userEditConfirmPassword" name="ConfirmPassword" class="form-control" autocomplete="new-password" />
                             <partial name="_PasswordToggle" />
                         </div>
                     </div>
 
-                    <div class="form-text">Để trống cả hai ô mật khẩu nếu chỉ muốn sửa thông tin.</div>
                 </div>
 
                 <div class="modal-footer">
