@@ -106,13 +106,17 @@
                                 string lockTitle = item.IsActive ? "Khóa tài khoản" : "Mở khóa tài khoản";
                             }
                             <div class="admin-row-actions">
-                                <button type="button" class="btn admin-row-primary" data-edit-modal="#customerEditModal" data-edit-values="@editValues">Sửa</button>
-
+                                @if (User.IsInRole("Admin"))
+                                {
+                                    <button type="button" class="btn admin-row-primary" data-edit-modal="#customerEditModal" data-edit-values="@editValues">Sửa</button>
+                                }
+                                
                                 <form asp-action="ResetPassword" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
                                       onsubmit="return confirm('Đặt lại mật khẩu cho khách hàng này? Mật khẩu cũ sẽ không dùng được nữa.');">
                                     <button type="submit" class="rm-icon-button" title="Đặt lại mật khẩu" aria-label="Đặt lại mật khẩu">
                                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4" /><path d="m11 12 9-9M17 6l3 3M15 8l2 2" /></svg>
                                     </button>
+                                    
                                 </form>
 
                                 <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
@@ -142,46 +146,49 @@
     </nav>
 }
 
-<div class="modal fade" id="customerEditModal" tabindex="-1" aria-labelledby="customerEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form asp-action="Edit" method="post" data-edit-form>
-                <div class="modal-header">
-                    <h5 class="modal-title" id="customerEditModalLabel">Sửa thông tin khách hàng</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-                </div>
-
-                <div class="modal-body">
-                    <input type="hidden" name="Id" />
-                    <input type="hidden" name="ConcurrencyStamp" />
-
-                    <div class="mb-3">
-                        <label for="customerEditFullName" class="form-label">Họ tên</label>
-                        <input type="text" id="customerEditFullName" name="FullName" maxlength="100" class="form-control" autocomplete="off" />
+@if (User.IsInRole("Admin"))
+{
+    <div class="modal fade" id="customerEditModal" tabindex="-1" aria-labelledby="customerEditModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form asp-action="Edit" method="post" data-edit-form>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="customerEditModalLabel">Sửa thông tin khách hàng</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="customerEditEmail" class="form-label">Email</label>
-                        <input type="email" id="customerEditEmail" name="Email" maxlength="100" class="form-control" autocomplete="off" />
+                    <div class="modal-body">
+                        <input type="hidden" name="Id" />
+                        <input type="hidden" name="ConcurrencyStamp" />
+
+                        <div class="mb-3">
+                            <label for="customerEditFullName" class="form-label">Họ tên</label>
+                            <input type="text" id="customerEditFullName" name="FullName" maxlength="100" class="form-control" autocomplete="off" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="customerEditEmail" class="form-label">Email</label>
+                            <input type="email" id="customerEditEmail" name="Email" maxlength="100" class="form-control" autocomplete="off" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="customerEditPhone" class="form-label">Số điện thoại</label>
+                            <input type="tel" id="customerEditPhone" name="PhoneNumber" maxlength="10" class="form-control" autocomplete="off" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="customerEditAddress" class="form-label">Địa chỉ</label>
+                            <input type="text" id="customerEditAddress" name="Address" maxlength="200" class="form-control" autocomplete="off" />
+                        </div>
+
                     </div>
 
-                    <div class="mb-3">
-                        <label for="customerEditPhone" class="form-label">Số điện thoại</label>
-                        <input type="tel" id="customerEditPhone" name="PhoneNumber" maxlength="10" class="form-control" autocomplete="off" />
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
                     </div>
-
-                    <div class="mb-2">
-                        <label for="customerEditAddress" class="form-label">Địa chỉ</label>
-                        <input type="text" id="customerEditAddress" name="Address" maxlength="200" class="form-control" autocomplete="off" />
-                    </div>
-
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
-</div>
+}

@@ -60,6 +60,7 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
         // Sửa bằng modal trên trang danh sách: trả JSON để modal giữ nguyên dữ liệu khi có lỗi
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(CustomerViewModel model)
         {
             if (!ModelState.IsValid)
