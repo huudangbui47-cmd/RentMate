@@ -3,6 +3,7 @@
 
 @{
     ViewData["Title"] = "Danh mục";
+    var parentOptions = ViewData["ParentOptions"] as List<CategoryOptionViewModel> ?? new();
 }
 
 <div class="page-heading">
@@ -48,8 +49,22 @@
                 }
                 @foreach (var item in Model)
                 {
-                    <tr data-search="@item.CategoryName @item.Description" data-status="@(item.IsActive ? "active" : "inactive")">
-                        <td class="fw-semibold">@item.CategoryName</td>
+                    bool isChild = item.ParentCategoryId != null;
+                    <tr data-search="@item.CategoryName @item.ParentCategoryName @item.Description" data-status="@(item.IsActive ? "active" : "inactive")">
+                        <td>
+                            @if (isChild)
+                            {
+                                <span class="rm-category-child">@item.CategoryName</span>
+                            }
+                            else
+                            {
+                                <span class="fw-semibold">@item.CategoryName</span>
+                                @if (item.ChildCount > 0)
+                                {
+                                    <span class="text-muted small ms-1">(@item.ChildCount danh mục con)</span>
+                                }
+                            }
+                        </td>
                         <td class="text-muted">@item.Description</td>
                         <td class="text-center">@item.ItemCount</td>
                         <td>
@@ -70,21 +85,44 @@
                                         Id = item.Id,
                                         RowVersion = item.RowVersion,
                                         CategoryName = item.CategoryName,
-                                        Description = item.Description
+                                        Description = item.Description,
+                                        ParentCategoryId = item.ParentCategoryId
                                     });
                                     string toggleTitle = item.IsActive ? "Ngừng hoạt động danh mục" : "Mở lại hoạt động danh mục";
+                                    string toggleConfirm = item.IsActive
+                                        ? (item.ChildCount > 0 ? "Ngừng hoạt động danh mục này? Các danh mục con cũng sẽ ngừng hoạt động." : "Ngừng hoạt động danh mục này?")
+                                        : "Mở lại hoạt động danh mục này?";
                                 }
                                 <button type="button" class="btn admin-row-primary" data-edit-modal="#categoryEditModal" data-edit-values="@editValues">Sửa</button>
 
-                                <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
-                                      onsubmit="return confirm('@(item.IsActive ? "Ngừng hoạt động danh mục này?" : "Mở lại hoạt động danh mục này?")');">
-                                    <input type="hidden" name="isActive" value="@(item.IsActive ? "false" : "true")" />
-                                    <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@toggleTitle" aria-label="@toggleTitle">
-                                        <partial name="_LockIcon" model="item.IsActive" />
-                                    </button>
-                                </form>
+                                @if (!isChild)
+                                {
+                                    <a asp-action="Create" asp-route-parentId="@item.Id" class="rm-icon-button" title="Thêm danh mục con" aria-label="Thêm danh mục con">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                                    </a>
+                                }
 
-                                @if (item.ItemCount == 0)
+                                @if (item.IsActive && item.ItemCount > 0)
+                                {
+                                    @* Đang có đồ thì không được ngừng hoạt động *@
+                                    <span class="rm-row-action-form" title="Đang có @item.ItemCount đồ cho thuê nên không thể ngừng hoạt động">
+                                        <button type="button" class="rm-icon-button" disabled aria-label="Không thể ngừng hoạt động danh mục đang có đồ">
+                                            <partial name="_LockIcon" model="item.IsActive" />
+                                        </button>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
+                                          onsubmit="return confirm('@toggleConfirm');">
+                                        <input type="hidden" name="isActive" value="@(item.IsActive ? "false" : "true")" />
+                                        <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@toggleTitle" aria-label="@toggleTitle">
+                                            <partial name="_LockIcon" model="item.IsActive" />
+                                        </button>
+                                    </form>
+                                }
+
+                                @if (item.ItemCount == 0 && item.ChildCount == 0)
                                 {
                                     <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
                                           onsubmit="return confirm('Xóa danh mục này?');">
@@ -96,8 +134,11 @@
                                 else
                                 {
                                     @* span bọc ngoài để tooltip vẫn hiện khi nút bị vô hiệu *@
-                                    <span class="rm-row-action-form" title="Danh mục đang có @item.ItemCount đồ cho thuê nên không thể xóa">
-                                        <button type="button" class="rm-icon-button" disabled aria-label="Không thể xóa danh mục đang có đồ">
+                                    string deleteBlockedReason = item.ChildCount > 0
+                                        ? $"Danh mục đang có {item.ChildCount} danh mục con nên không thể xóa"
+                                        : $"Danh mục đang có {item.ItemCount} đồ cho thuê nên không thể xóa";
+                                    <span class="rm-row-action-form" title="@deleteBlockedReason">
+                                        <button type="button" class="rm-icon-button" disabled aria-label="@deleteBlockedReason">
                                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
                                         </button>
                                     </span>
@@ -127,6 +168,17 @@
                     <div class="mb-3">
                         <label for="categoryEditName" class="form-label">Tên danh mục</label>
                         <input type="text" id="categoryEditName" name="CategoryName" maxlength="100" class="form-control" autocomplete="off" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="categoryEditParent" class="form-label">Thuộc danh mục</label>
+                        <select id="categoryEditParent" name="ParentCategoryId" class="form-select">
+                            <option value="">Không có (đây là danh mục cha)</option>
+                            @foreach (var option in parentOptions)
+                            {
+                                <option value="@option.Id">@option.CategoryName</option>
+                            }
+                        </select>
                     </div>
 
                     <div class="mb-2">

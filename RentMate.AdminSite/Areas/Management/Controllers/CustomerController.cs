@@ -23,7 +23,9 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
             return View(model);
         }
 
+        // Thêm, sửa, đặt lại mật khẩu khách: chỉ Admin. Manager chỉ xem và khóa/mở khóa.
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
             return View(new CustomerViewModel());
@@ -31,6 +33,7 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create(CustomerViewModel model)
         {
             // Khách mới chưa có Id; Id là string không null nên MVC tự coi là bắt buộc
@@ -41,11 +44,12 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
             try
             {
-                string temporaryPassword = await _customerService.CreateAsync(model, GetCurrentUserId(), GetIpAddress());
+                bool emailSent = await _customerService.CreateAsync(model, GetCurrentUserId(), GetIpAddress());
 
-                TempData["Success"] = "Thêm khách hàng thành công.";
-                TempData["TemporaryPasswordFor"] = model.Email.Trim();
-                TempData["TemporaryPassword"] = temporaryPassword;
+                if (emailSent)
+                    TempData["Success"] = "Thêm khách hàng thành công. Mật khẩu tạm đã được gửi vào email của khách.";
+                else
+                    TempData["Error"] = "Đã thêm khách hàng nhưng chưa gửi được email mật khẩu tạm. Hãy kiểm tra cấu hình email rồi bấm Đặt lại mật khẩu để gửi lại.";
 
                 return RedirectToAction(nameof(Index));
             }
@@ -80,20 +84,20 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
             }
         }
 
-        // Mật khẩu tạm chỉ hiện 1 lần trên trang danh sách để nhân viên báo cho khách
+        // Mật khẩu tạm được gửi thẳng vào email của khách, không hiện trên trang
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ResetPassword(string id)
         {
             try
             {
-                var customer = await _customerService.GetByIdAsync(id);
+                bool emailSent = await _customerService.ResetPasswordAsync(id, GetCurrentUserId(), GetIpAddress());
 
-                string temporaryPassword = await _customerService.ResetPasswordAsync(id, GetCurrentUserId(), GetIpAddress());
-
-                TempData["Success"] = "Đặt lại mật khẩu thành công.";
-                TempData["TemporaryPasswordFor"] = customer?.Email;
-                TempData["TemporaryPassword"] = temporaryPassword;
+                if (emailSent)
+                    TempData["Success"] = "Đặt lại mật khẩu thành công. Mật khẩu tạm đã được gửi vào email của khách.";
+                else
+                    TempData["Error"] = "Đã đặt lại mật khẩu nhưng chưa gửi được email cho khách. Hãy kiểm tra cấu hình email rồi thử lại.";
             }
             catch (InvalidOperationException ex)
             {

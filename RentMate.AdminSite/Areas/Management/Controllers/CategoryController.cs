@@ -20,19 +20,27 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
         {
             var categories = await _categoryService.GetAllForManagementAsync();
 
+            // Danh sách danh mục cha cho ô "Thuộc danh mục" trong modal sửa
+            ViewData["ParentOptions"] = await _categoryService.GetParentOptionsAsync();
+
             return View(categories);
         }
 
+        // parentId có giá trị khi bấm "Thêm danh mục con" ở một danh mục cha
         [HttpGet]
-        public IActionResult Create()
+        public async Task<IActionResult> Create(int? parentId)
         {
-            return View(new CategoryViewModel());
+            ViewData["ParentOptions"] = await _categoryService.GetParentOptionsAsync();
+
+            return View(new CategoryViewModel { ParentCategoryId = parentId });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CategoryViewModel model)
         {
+            ViewData["ParentOptions"] = await _categoryService.GetParentOptionsAsync();
+
             if (!ModelState.IsValid)
                 return View(model);
 

@@ -8,8 +8,10 @@ using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
 using RentMate.Data.Context;
 using RentMate.Data.UnitOfWork;
+using RentMate.Service.DTOs;
 using RentMate.Service.Interfaces;
 using RentMate.Service.Services;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,6 +83,21 @@ builder.Services.AddAuthentication(options =>
             Encoding.UTF8.GetBytes(jwtKey)),
 
         ClockSkew = TimeSpan.Zero
+    };
+
+    // Token còn hạn nhưng tài khoản đã bị khóa hoặc mật khẩu đã bị đổi/đặt lại thì không dùng được nữa
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            string? userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            string? securityStamp = context.Principal?.FindFirstValue(SessionClaimTypes.SecurityStamp);
+
+            var authService = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
+
+            if (userId == null || !await authService.IsSessionValidAsync(userId, securityStamp))
+                context.Fail("Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại.");
+        }
     };
 });
 

@@ -65,6 +65,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Error/403";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+
+        // Đăng xuất phiên đang mở khi tài khoản bị khóa hoặc đổi/đặt lại mật khẩu
+        options.Events.OnValidatePrincipal = CookieSessionValidator.ValidateAsync;
     });
 
 var app = builder.Build();

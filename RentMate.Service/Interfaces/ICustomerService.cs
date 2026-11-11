@@ -8,12 +8,13 @@ namespace RentMate.Service.Interfaces
 
         Task<CustomerViewModel?> GetByIdAsync(string id);
 
-        // Trả về mật khẩu tạm để nhân viên báo cho khách
-        Task<string> CreateAsync(CustomerViewModel model, string actorUserId, string ipAddress);
+        // Mật khẩu tạm gửi vào email của khách; trả về false nếu gửi email thất bại
+        Task<bool> CreateAsync(CustomerViewModel model, string actorUserId, string ipAddress);
 
         Task UpdateAsync(CustomerViewModel model, string actorUserId, string ipAddress);
 
-        Task<string> ResetPasswordAsync(string id, string actorUserId, string ipAddress);
+        // Mật khẩu tạm gửi vào email của khách; trả về false nếu gửi email thất bại
+        Task<bool> ResetPasswordAsync(string id, string actorUserId, string ipAddress);
 
         Task<bool> SetActiveAsync(string id, bool isActive, string actorUserId, string ipAddress);
     }

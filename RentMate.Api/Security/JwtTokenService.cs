@@ -34,6 +34,7 @@ namespace RentMate.Api.Security
                 new(ClaimTypes.Name, user.FullName),
                 new(ClaimTypes.Email, user.Email),
                 new(ClaimTypes.Role, user.RoleName),
+                new(SessionClaimTypes.SecurityStamp, user.SecurityStamp),
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 

@@ -6,5 +6,8 @@ namespace RentMate.Service.DTOs.Categories
         public string CategoryName { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsActive { get; set; }
+
+        // null là danh mục cha; app dựng cây danh mục từ trường này
+        public int? ParentCategoryId { get; set; }
     }
 }

@@ -86,17 +86,7 @@ namespace RentMate.Service.Services
             CreateItemDto dto,
             string ownerId)
         {
-            var categoryExists = await _unitOfWork.Categories
-                .BuildQuery(c =>
-                    c.Id == dto.CategoryId &&
-                    c.IsActive)
-                .AnyAsync();
-
-            if (!categoryExists)
-            {
-                throw new ArgumentException(
-                    "Category does not exist.");
-            }
+            await EnsureCategoryAssignableAsync(dto.CategoryId);
 
             if (!Enum.IsDefined(
                 typeof(ItemCondition),
@@ -168,17 +158,7 @@ namespace RentMate.Service.Services
                     "You are not the owner of this item.");
             }
 
-            var categoryExists = await _unitOfWork.Categories
-                .BuildQuery(c =>
-                    c.Id == dto.CategoryId &&
-                    c.IsActive)
-                .AnyAsync();
-
-            if (!categoryExists)
-            {
-                throw new ArgumentException(
-                    "Category does not exist.");
-            }
+            await EnsureCategoryAssignableAsync(dto.CategoryId);
 
             if (!Enum.IsDefined(
                 typeof(ItemCondition),
@@ -256,8 +236,9 @@ namespace RentMate.Service.Services
                     (i.Owner.Email != null && i.Owner.Email.Contains(keyword)));
             }
 
+            // Lọc theo danh mục cha thì lấy cả đồ trong các danh mục con
             if (categoryId.HasValue)
-                query = query.Where(i => i.CategoryId == categoryId.Value);
+                query = query.Where(i => i.CategoryId == categoryId.Value || i.Category.ParentCategoryId == categoryId.Value);
 
             if (status.HasValue)
                 query = query.Where(i => i.Status == status.Value);
@@ -289,15 +270,24 @@ namespace RentMate.Service.Services
                 })
                 .ToListAsync();
 
-            var categories = await _unitOfWork.Categories
+            var allCategories = await _unitOfWork.Categories
                 .BuildQuery(c => true)
-                .OrderBy(c => c.CategoryName)
                 .Select(c => new CategoryOptionViewModel
                 {
                     Id = c.Id,
-                    CategoryName = c.CategoryName
+                    CategoryName = c.CategoryName,
+                    ParentCategoryId = c.ParentCategoryId
                 })
                 .ToListAsync();
+
+            // Mỗi danh mục cha đứng trước các danh mục con của nó
+            var categories = new List<CategoryOptionViewModel>();
+
+            foreach (var parent in allCategories.Where(c => c.ParentCategoryId == null).OrderBy(c => c.CategoryName))
+            {
+                categories.Add(parent);
+                categories.AddRange(allCategories.Where(c => c.ParentCategoryId == parent.Id).OrderBy(c => c.CategoryName));
+            }
 
             return new ItemListViewModel
             {
@@ -340,6 +330,27 @@ namespace RentMate.Service.Services
                 actorUserId);
 
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        // Đồ chỉ được gắn vào danh mục đang hoạt động (và danh mục cha cũng đang hoạt động).
+        // Danh mục cha đã có danh mục con thì phải chọn danh mục con.
+        private async Task EnsureCategoryAssignableAsync(int categoryId)
+        {
+            var category = await _unitOfWork.Categories
+                .BuildQuery(c => c.Id == categoryId)
+                .Select(c => new
+                {
+                    c.IsActive,
+                    ParentActive = c.ParentCategory == null || c.ParentCategory.IsActive,
+                    HasActiveChildren = c.Children.Any(child => child.IsActive)
+                })
+                .FirstOrDefaultAsync();
+
+            if (category == null || !category.IsActive || !category.ParentActive)
+                throw new ArgumentException("Category does not exist.");
+
+            if (category.HasActiveChildren)
+                throw new ArgumentException("This category has subcategories. Please choose a subcategory.");
         }
     }
 }

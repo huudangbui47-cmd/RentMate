@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentMate.AdminSite.Infrastructure.Storage;
 using RentMate.Core.Enums;
 using RentMate.Core.ViewModels;
+using RentMate.Service.DTOs;
 using RentMate.Service.Interfaces;
 using System.Security.Claims;
 
@@ -102,7 +103,9 @@ namespace RentMate.AdminSite.Controllers
 
                 new Claim(ClaimTypes.Email, user.Email),
 
-                new Claim(ClaimTypes.Role, user.RoleName)
+                new Claim(ClaimTypes.Role, user.RoleName),
+
+                new Claim(SessionClaimTypes.SecurityStamp, user.SecurityStamp)
             };
 
             if (!string.IsNullOrEmpty(user.AvatarUrl))
@@ -321,6 +324,13 @@ namespace RentMate.AdminSite.Controllers
 
                 await _accountService.ChangePasswordAsync(userId, model.OldPassword, model.NewPassword, ipAddress);
 
+                // Đổi mật khẩu làm SecurityStamp đổi: cấp lại cookie để phiên hiện tại không bị đăng xuất,
+                // còn các phiên ở máy khác sẽ bị đăng xuất
+                var updatedUser = await _accountService.GetByIdAsync(userId);
+
+                if (updatedUser != null)
+                    await RefreshSignInAsync(updatedUser);
+
                 return Ok(new
                 {
                     message = "Đổi mật khẩu thành công."
@@ -459,7 +469,8 @@ namespace RentMate.AdminSite.Controllers
                 new(ClaimTypes.NameIdentifier, user.Id),
                 new(ClaimTypes.Name, user.FullName),
                 new(ClaimTypes.Email, user.Email),
-                new(ClaimTypes.Role, user.RoleName)
+                new(ClaimTypes.Role, user.RoleName),
+                new(SessionClaimTypes.SecurityStamp, await _authService.GetSecurityStampAsync(user.Id) ?? string.Empty)
             };
 
             if (!string.IsNullOrEmpty(user.AvatarUrl))

@@ -1,10 +1,9 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RentMate.Service.DTOs.Categories;
 using RentMate.Service.Interfaces;
 
 namespace RentMate.Api.Controllers
 {
+    // Chỉ đọc: danh mục được thêm/sửa bên trang quản trị (AdminSite)
     [Route("api/[controller]")]
     [ApiController]
     public class CategoriesController : ControllerBase
@@ -34,27 +33,6 @@ namespace RentMate.Api.Controllers
                 return NotFound();
 
             return Ok(category);
-        }
-
-        [Authorize]
-        [HttpPost]
-        public async Task<IActionResult> Create(
-            CreateCategoryDto dto)
-        {
-            try
-            {
-                var result =
-                    await _categoryService.CreateAsync(dto);
-
-                return CreatedAtAction(
-                    nameof(GetById),
-                    new { id = result.CategoryId },
-                    result);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
         }
     }
 }

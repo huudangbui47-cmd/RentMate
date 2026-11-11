@@ -28,7 +28,7 @@
             <option value="">Tất cả danh mục</option>
             @foreach (var category in Model.Categories)
             {
-                <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.CategoryName</option>
+                <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@(category.ParentCategoryId == null ? category.CategoryName : "— " + category.CategoryName)</option>
             }
         </select>
         <select name="status" class="form-select">

@@ -8,6 +8,13 @@ namespace RentMate.Core.Models
 
         public bool IsActive { get; set; } = true;
 
+        // Danh mục chỉ có 2 cấp: null là danh mục cha, có giá trị là danh mục con
+        public int? ParentCategoryId { get; set; }
+
+        public Category? ParentCategory { get; set; }
+
+        public ICollection<Category> Children { get; set; } = new List<Category>();
+
         // SQL Server tự đổi giá trị mỗi lần bản ghi thay đổi
         public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 

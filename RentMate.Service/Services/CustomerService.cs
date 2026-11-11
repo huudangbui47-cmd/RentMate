@@ -5,6 +5,7 @@ using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
 using RentMate.Core.ViewModels;
 using RentMate.Service.Interfaces;
+using System.Net;
 using System.Security.Cryptography;
 
 namespace RentMate.Service.Services
@@ -28,12 +29,14 @@ namespace RentMate.Service.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAuditLogService _auditLogService;
+        private readonly IEmailService _emailService;
 
-        public CustomerService(UserManager<ApplicationUser> userManager, IUnitOfWork unitOfWork, IAuditLogService auditLogService)
+        public CustomerService(UserManager<ApplicationUser> userManager, IUnitOfWork unitOfWork, IAuditLogService auditLogService, IEmailService emailService)
         {
             _userManager = userManager;
             _unitOfWork = unitOfWork;
             _auditLogService = auditLogService;
+            _emailService = emailService;
         }
 
         public async Task<CustomerListViewModel> SearchAsync(string? searchTerm, bool? isActive, int page = 1)
@@ -109,7 +112,9 @@ namespace RentMate.Service.Services
             };
         }
 
-        public async Task<string> CreateAsync(CustomerViewModel model, string actorUserId, string ipAddress)
+        // Mật khẩu tạm chỉ gửi vào email của khách, người tạo không nhìn thấy.
+        // Trả về false nếu đã tạo tài khoản nhưng gửi email thất bại.
+        public async Task<bool> CreateAsync(CustomerViewModel model, string actorUserId, string ipAddress)
         {
             string email = model.Email.Trim();
             string phoneNumber = model.PhoneNumber.Trim();
@@ -143,7 +148,11 @@ namespace RentMate.Service.Services
 
             await _unitOfWork.SaveChangesAsync();
 
-            return temporaryPassword;
+            return await TrySendAsync(customer.Email!, "Tài khoản RentMate của bạn đã được tạo",
+                $"<p>Xin chào {Encode(customer.FullName)},</p>" +
+                "<p>Bộ phận quản trị RentMate vừa tạo tài khoản cho bạn.</p>" +
+                $"<p>Email đăng nhập: <strong>{Encode(customer.Email)}</strong><br/>Mật khẩu tạm: <strong>{Encode(temporaryPassword)}</strong></p>" +
+                "<p>Vui lòng đăng nhập ứng dụng RentMate và đổi mật khẩu ngay.</p>");
         }
 
         // Mọi thay đổi trong 1 lần lưu được gộp thành 1 dòng nhật ký
@@ -175,6 +184,8 @@ namespace RentMate.Service.Services
             if (changes.Count == 0)
                 return;
 
+            string? oldEmail = customer.Email;
+
             customer.FullName = fullName;
             customer.Email = email;
             customer.UserName = email;
@@ -191,13 +202,24 @@ namespace RentMate.Service.Services
 
             if (!result.Succeeded)
                 throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+
+            // Báo cho khách biết tài khoản vừa bị thay đổi; gửi lỗi thì vẫn giữ thay đổi đã lưu
+            string body = $"<p>Xin chào {Encode(customer.FullName)},</p>" +
+                "<p>Bộ phận quản trị RentMate vừa cập nhật thông tin tài khoản của bạn:</p>" +
+                $"<ul>{string.Join("", changes.Select(c => $"<li>{Encode(c)}</li>"))}</ul>" +
+                "<p>Nếu bạn không yêu cầu thay đổi này, vui lòng liên hệ bộ phận hỗ trợ RentMate.</p>";
+
+            await TrySendAsync(email, "Thông tin tài khoản RentMate của bạn vừa được cập nhật", body);
+
+            if (!string.IsNullOrEmpty(oldEmail) && !string.Equals(oldEmail, email, StringComparison.OrdinalIgnoreCase))
+                await TrySendAsync(oldEmail, "Thông tin tài khoản RentMate của bạn vừa được cập nhật", body);
         }
 
         private const string ConcurrencyMessage = "Khách hàng này vừa được cập nhật ở nơi khác. Vui lòng tải lại trang rồi sửa lại.";
 
-        // Nhân viên không tự đặt mật khẩu cho khách: hệ thống sinh mật khẩu tạm,
-        // nhật ký chỉ ghi nhận hành động, không lưu mật khẩu.
-        public async Task<string> ResetPasswordAsync(string id, string actorUserId, string ipAddress)
+        // Hệ thống sinh mật khẩu tạm và chỉ gửi vào email của khách; người bấm không nhìn thấy,
+        // nhật ký chỉ ghi nhận hành động. Trả về false nếu đã đặt lại nhưng gửi email thất bại.
+        public async Task<bool> ResetPasswordAsync(string id, string actorUserId, string ipAddress)
         {
             var customer = await FindCustomerAsync(id);
 
@@ -220,7 +242,11 @@ namespace RentMate.Service.Services
 
             await _unitOfWork.SaveChangesAsync();
 
-            return temporaryPassword;
+            return await TrySendAsync(customer.Email!, "Mật khẩu RentMate của bạn đã được đặt lại",
+                $"<p>Xin chào {Encode(customer.FullName)},</p>" +
+                "<p>Bộ phận quản trị RentMate vừa đặt lại mật khẩu cho tài khoản của bạn.</p>" +
+                $"<p>Mật khẩu tạm: <strong>{Encode(temporaryPassword)}</strong></p>" +
+                "<p>Vui lòng đăng nhập ứng dụng RentMate và đổi mật khẩu ngay. Nếu bạn không yêu cầu, hãy liên hệ bộ phận hỗ trợ.</p>");
         }
 
         public async Task<bool> SetActiveAsync(string id, bool isActive, string actorUserId, string ipAddress)
@@ -285,6 +311,21 @@ namespace RentMate.Service.Services
         {
             return $"Rm@{RandomNumberGenerator.GetInt32(100000, 1000000)}x";
         }
+
+        private async Task<bool> TrySendAsync(string toEmail, string subject, string htmlBody)
+        {
+            try
+            {
+                await _emailService.SendAsync(toEmail, subject, htmlBody);
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+
+        private static string Encode(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
 
         private static void AddChange(List<string> changes, string label, string? oldValue, string? newValue)
         {

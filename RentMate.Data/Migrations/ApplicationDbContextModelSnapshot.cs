@@ -307,6 +307,9 @@ namespace RentMate.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("ParentCategoryId")
+                        .HasColumnType("int");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -314,6 +317,8 @@ namespace RentMate.Data.Migrations
                         .HasColumnType("rowversion");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentCategoryId");
 
                     b.ToTable("Categories");
                 });
@@ -702,6 +707,16 @@ namespace RentMate.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RentMate.Core.Models.Category", b =>
+                {
+                    b.HasOne("RentMate.Core.Models.Category", "ParentCategory")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ParentCategory");
+                });
+
             modelBuilder.Entity("RentMate.Core.Models.ConditionReport", b =>
                 {
                     b.HasOne("RentMate.Core.Models.ApplicationUser", "CreatedByUser")
@@ -847,6 +862,8 @@ namespace RentMate.Data.Migrations
 
             modelBuilder.Entity("RentMate.Core.Models.Category", b =>
                 {
+                    b.Navigation("Children");
+
                     b.Navigation("Items");
                 });
 

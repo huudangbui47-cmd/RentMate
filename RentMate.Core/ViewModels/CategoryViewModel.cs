@@ -21,6 +21,15 @@ namespace RentMate.Core.ViewModels
         [Display(Name = "Đang hoạt động")]
         public bool IsActive { get; set; } = true;
 
+        // Để trống là danh mục cha
+        [Display(Name = "Thuộc danh mục")]
+        public int? ParentCategoryId { get; set; }
+
+        public string? ParentCategoryName { get; set; }
+
+        public int ChildCount { get; set; }
+
+        // Danh mục cha: tính cả đồ trong các danh mục con
         public int ItemCount { get; set; }
     }
 }

@@ -269,3 +269,22 @@
     font-size: 1.6rem;
     font-weight: 700;
 }
+
+/* Danh mục con: thụt vào dưới danh mục cha */
+.rm-category-child {
+    display: inline-block;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.rm-category-child::before {
+    content: "";
+    position: absolute;
+    left: 0.4rem;
+    top: 0.1rem;
+    width: 0.7rem;
+    height: 0.6rem;
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    opacity: 0.35;
+}

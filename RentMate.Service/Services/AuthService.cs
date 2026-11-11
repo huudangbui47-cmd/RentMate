@@ -77,11 +77,46 @@ namespace RentMate.Service.Services
                 throw new ArgumentException(errors);
             }
 
-            // Role "User" được tạo bởi DbSeeder của AdminSite
-            if (await _roleManager.RoleExistsAsync("User"))
+            // Role "User" thường do DbSeeder của AdminSite tạo. Nếu Api chạy trước AdminSite
+            // thì tạo luôn ở đây, để không sinh ra tài khoản không có role.
+            if (!await _roleManager.RoleExistsAsync("User"))
             {
-                await _userManager.AddToRoleAsync(user, "User");
+                await _roleManager.CreateAsync(new IdentityRole("User"));
             }
+
+            var roleResult = await _userManager.AddToRoleAsync(user, "User");
+
+            if (!roleResult.Succeeded)
+            {
+                throw new ArgumentException(string.Join(
+                    "; ",
+                    roleResult.Errors.Select(e => e.Description)));
+            }
+        }
+
+        // =========================
+        // KIỂM TRA PHIÊN ĐĂNG NHẬP
+        // =========================
+
+        // Phiên (cookie hoặc JWT) chỉ còn hợp lệ khi tài khoản vẫn hoạt động và SecurityStamp chưa đổi.
+        // SecurityStamp tự đổi khi mật khẩu được đổi hoặc đặt lại, nên các phiên cũ bị đăng xuất.
+        public async Task<bool> IsSessionValidAsync(string userId, string? securityStamp)
+        {
+            if (string.IsNullOrEmpty(securityStamp))
+                return false;
+
+            var user = await _userManager.FindByIdAsync(userId);
+
+            return user != null
+                && user.IsActive
+                && user.SecurityStamp == securityStamp;
+        }
+
+        public async Task<string?> GetSecurityStampAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            return user?.SecurityStamp;
         }
 
         // =========================
@@ -180,6 +215,7 @@ namespace RentMate.Service.Services
                     FullName = user.FullName,
                     Email = user.Email ?? string.Empty,
                     AvatarUrl = user.AvatarUrl,
+                    SecurityStamp = user.SecurityStamp ?? string.Empty,
                     RoleName = roles.Contains("Admin") ? "Admin" : roles.Contains("Manager") ? "Manager" : (roles.FirstOrDefault() ?? "User")
                 }
             };

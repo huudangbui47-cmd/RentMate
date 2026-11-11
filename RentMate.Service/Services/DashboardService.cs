@@ -97,12 +97,14 @@ namespace RentMate.Service.Services
                 })
                 .ToListAsync();
 
+            // Thống kê theo danh mục cha, tính cả đồ trong các danh mục con
             var categoryStats = await _unitOfWork.Categories
-                .BuildQuery(c => c.IsActive)
+                .BuildQuery(c => c.IsActive && c.ParentCategoryId == null)
                 .Select(c => new CategoryStatViewModel
                 {
                     CategoryName = c.CategoryName,
                     ItemCount = c.Items.Count(i => i.Status != ItemStatus.Hidden)
+                        + c.Children.SelectMany(child => child.Items).Count(i => i.Status != ItemStatus.Hidden)
                 })
                 .OrderByDescending(c => c.ItemCount)
                 .Take(6)

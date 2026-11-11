@@ -1,5 +1,9 @@
 @model CategoryViewModel
 
+@{
+    var parentOptions = ViewData["ParentOptions"] as List<CategoryOptionViewModel> ?? new();
+}
+
 <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
 
 <input type="hidden" asp-for="Id" />
@@ -11,16 +15,28 @@
         <span asp-validation-for="CategoryName" class="text-danger small"></span>
     </div>
 
-    <div class="col-md-6 d-flex align-items-end">
-        <div class="form-check form-switch mb-2">
-            <input asp-for="IsActive" class="form-check-input" />
-            <label asp-for="IsActive" class="form-check-label"></label>
-        </div>
+    <div class="col-md-6">
+        <label asp-for="ParentCategoryId" class="form-label"></label>
+        <select asp-for="ParentCategoryId" class="form-select">
+            <option value="">Không có (đây là danh mục cha)</option>
+            @foreach (var option in parentOptions)
+            {
+                <option value="@option.Id">@option.CategoryName</option>
+            }
+        </select>
+        <div class="form-text">Chọn danh mục cha nếu muốn tạo danh mục con, ví dụ Điện thoại thuộc Đồ điện tử.</div>
     </div>
 
     <div class="col-12">
         <label asp-for="Description" class="form-label"></label>
         <textarea asp-for="Description" class="form-control" rows="3"></textarea>
         <span asp-validation-for="Description" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12">
+        <div class="form-check form-switch">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label asp-for="IsActive" class="form-check-label"></label>
+        </div>
     </div>
 </div>
