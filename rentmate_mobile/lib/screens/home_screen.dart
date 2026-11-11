@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/item_service.dart';
 import 'item_detail_screen.dart';
 import 'login_screen.dart';
+import 'my_rentals_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -73,6 +74,13 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('RentMate'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: 'Đơn thuê của tôi',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MyRentalsScreen()),
+            ),
+          ),
           IconButton(icon: const Icon(Icons.logout), tooltip: 'Đăng xuất', onPressed: _logout),
         ],
       ),

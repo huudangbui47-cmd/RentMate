@@ -22,12 +22,9 @@ class _RentalScreenState extends State<RentalScreen> {
     super.dispose();
   }
 
-  // Thuê từ ngày 12 đến ngày 14 = 2 ngày; thuê và trả cùng ngày tính 1 ngày.
-  int get _days {
-    if (_range == null) return 0;
-    final d = _range!.end.difference(_range!.start).inDays;
-    return d < 1 ? 1 : d;
-  }
+  // API tính cả ngày nhận lẫn ngày trả: thuê 12 → 14 = 3 ngày.
+  int get _days =>
+      _range == null ? 0 : _range!.end.difference(_range!.start).inDays + 1;
 
   Future<void> _pickDates() async {
     final today = DateUtils.dateOnly(DateTime.now());
