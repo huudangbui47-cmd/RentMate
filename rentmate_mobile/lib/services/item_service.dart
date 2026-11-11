@@ -25,6 +25,7 @@ class Item {
   final String status;
   final int categoryId;
   final String categoryName;
+  final String ownerId;
   final String ownerName;
 
   Item.fromJson(Map<String, dynamic> j)
@@ -37,6 +38,7 @@ class Item {
         status = (j['status'] ?? '') as String,
         categoryId = j['categoryId'] as int,
         categoryName = (j['categoryName'] ?? '') as String,
+        ownerId = (j['ownerId'] ?? '') as String,
         ownerName = (j['ownerName'] ?? '') as String;
 }
 
@@ -56,6 +58,39 @@ class ItemService {
         .map((e) => Category.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// id == null: đăng đồ mới (POST); có id: sửa đồ (PUT).
+  Future<void> saveItem({
+    int? id,
+    required String name,
+    required String description,
+    required num pricePerDay,
+    required num depositAmount,
+    required int categoryId,
+    required String condition,
+  }) async {
+    final body = jsonEncode({
+      'itemName': name,
+      'description': description,
+      'pricePerDay': pricePerDay,
+      'depositAmount': depositAmount,
+      'categoryId': categoryId,
+      'condition': conditionValues[condition],
+    });
+    final headers = await AuthService().authHeaders();
+    final res = id == null
+        ? await http.post(Uri.parse('$apiBaseUrl/api/Items'), headers: headers, body: body)
+        : await http.put(Uri.parse('$apiBaseUrl/api/Items/$id'), headers: headers, body: body);
+    checkResponse(res);
+  }
+
+  Future<void> deleteItem(int id) async {
+    final res = await http.delete(
+      Uri.parse('$apiBaseUrl/api/Items/$id'),
+      headers: await AuthService().authHeaders(),
+    );
+    checkResponse(res);
+  }
 }
 
 // 250000 -> "250.000 đ"
@@ -74,5 +109,8 @@ const conditionLabels = {
   'LikeNew': 'Như mới',
   'Good': 'Tốt',
   'Fair': 'Khá',
-  'Poor': 'Cũ',
+  'Damaged': 'Hư hỏng',
 };
+
+// API nhận condition dạng số, theo enum ItemCondition trong RentMate.Core.
+const conditionValues = {'New': 1, 'LikeNew': 2, 'Good': 3, 'Fair': 4, 'Damaged': 5};

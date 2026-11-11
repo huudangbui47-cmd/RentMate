@@ -17,9 +17,9 @@ class RentMateApp extends StatelessWidget {
       title: 'RentMate',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-      // Đã có token thì vào thẳng trang chủ, chưa có thì vào đăng nhập.
+      // Kiểm tra userId (lưu cùng token khi đăng nhập): phiên cũ chưa có userId sẽ phải đăng nhập lại.
       home: FutureBuilder<String?>(
-        future: AuthService().getToken(),
+        future: AuthService().getUserId(),
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));

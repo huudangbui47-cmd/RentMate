@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/item_service.dart';
 import 'item_detail_screen.dart';
 import 'login_screen.dart';
+import 'my_items_screen.dart';
 import 'my_rentals_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -75,8 +76,18 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('RentMate'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.inventory_2_outlined),
+            tooltip: 'Đồ của tôi',
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MyItemsScreen()),
+              );
+              _load(); // đồ vừa đăng/sửa/xóa hiện ngay ở trang chủ
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.receipt_long),
-            tooltip: 'Đơn thuê của tôi',
+            tooltip: 'Đơn thuê',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const MyRentalsScreen()),
             ),

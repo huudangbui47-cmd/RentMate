@@ -10,6 +10,7 @@ const String apiBaseUrl = 'http://10.0.2.2:5076';
 class AuthService {
   static const _tokenKey = 'token';
   static const _nameKey = 'fullName';
+  static const _userIdKey = 'userId';
 
   Future<void> login(String email, String password) async {
     final res = await http.post(
@@ -23,6 +24,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, data['token'] as String);
     await prefs.setString(_nameKey, (data['fullName'] ?? '') as String);
+    await prefs.setString(_userIdKey, data['userId'] as String);
   }
 
   Future<void> register({
@@ -52,11 +54,29 @@ class AuthService {
   Future<String?> getFullName() async =>
       (await SharedPreferences.getInstance()).getString(_nameKey);
 
+  Future<String?> getUserId() async =>
+      (await SharedPreferences.getInstance()).getString(_userIdKey);
+
+  // Header cho các API cần đăng nhập ([Authorize]).
+  Future<Map<String, String>> authHeaders() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Bạn cần đăng nhập lại');
+    return {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'};
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_nameKey);
+    await prefs.remove(_userIdKey);
   }
+}
+
+// Ném lỗi dễ hiểu nếu API không trả 2xx.
+void checkResponse(http.Response res) {
+  if (res.statusCode == 401) throw Exception('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
+  if (res.statusCode == 403) throw Exception('Bạn không có quyền thực hiện thao tác này');
+  if (res.statusCode < 200 || res.statusCode >= 300) throw Exception(apiErrorMessage(res));
 }
 
 // API có thể trả {message}, ProblemDetails {title, detail} hoặc lỗi validation {errors}.

@@ -8,6 +8,9 @@ class Rental {
   final int id;
   final int itemId;
   final String itemName;
+  final String renterId;
+  final String renterName;
+  final String ownerId;
   final String ownerName;
   final DateTime startDate;
   final DateTime endDate;
@@ -20,6 +23,9 @@ class Rental {
       : id = j['rentalId'] as int,
         itemId = j['itemId'] as int,
         itemName = (j['itemName'] ?? '') as String,
+        renterId = (j['renterId'] ?? '') as String,
+        renterName = (j['renterName'] ?? '') as String,
+        ownerId = (j['ownerId'] ?? '') as String,
         ownerName = (j['ownerName'] ?? '') as String,
         startDate = DateTime.parse(j['startDate'] as String),
         endDate = DateTime.parse(j['endDate'] as String),
@@ -29,27 +35,24 @@ class Rental {
         requestNote = j['requestNote'] as String?;
 }
 
-// shortcut: chỉ chắc chắn có "Pending"; các tên khác đoán theo các API approve/reject/pickup/return/complete, trạng thái lạ sẽ hiện nguyên tên tiếng Anh.
+// Theo RentalStatus trong RentalService.cs.
 const rentalStatusLabels = {
   'Pending': 'Chờ duyệt',
   'Approved': 'Đã duyệt',
+  'WaitingForPickup': 'Chờ giao đồ',
   'Rejected': 'Bị từ chối',
-  'PickedUp': 'Đang thuê',
+  'Rented': 'Đang thuê',
   'Returned': 'Đã trả đồ',
   'Completed': 'Hoàn tất',
-  'Cancelled': 'Đã hủy',
 };
 
 class RentalService {
   Future<List<Rental>> getMyRentals() async {
-    final token = await AuthService().getToken();
-    if (token == null) throw Exception('Bạn cần đăng nhập lại');
     final res = await http.get(
       Uri.parse('$apiBaseUrl/api/Rentals/my'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: await AuthService().authHeaders(),
     );
-    if (res.statusCode == 401) throw Exception('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
-    if (res.statusCode != 200) throw Exception(apiErrorMessage(res));
+    checkResponse(res);
     return (jsonDecode(res.body) as List)
         .map((e) => Rental.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -61,15 +64,9 @@ class RentalService {
     required DateTime endDate,
     String? note,
   }) async {
-    final token = await AuthService().getToken();
-    if (token == null) throw Exception('Bạn cần đăng nhập lại');
-
     final res = await http.post(
       Uri.parse('$apiBaseUrl/api/Rentals'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: await AuthService().authHeaders(),
       body: jsonEncode({
         'itemId': itemId,
         'startDate': startDate.toIso8601String(),
@@ -77,9 +74,15 @@ class RentalService {
         'requestNote': (note == null || note.isEmpty) ? null : note,
       }),
     );
-    if (res.statusCode == 401) throw Exception('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
-    if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(apiErrorMessage(res));
-    }
+    checkResponse(res);
+  }
+
+  /// action: approve | reject | pickup | return | complete
+  Future<void> updateStatus(int rentalId, String action) async {
+    final res = await http.put(
+      Uri.parse('$apiBaseUrl/api/Rentals/$rentalId/$action'),
+      headers: await AuthService().authHeaders(),
+    );
+    checkResponse(res);
   }
 }
