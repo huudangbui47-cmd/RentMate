@@ -17,7 +17,7 @@ class AuthService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
-    if (res.statusCode != 200) throw Exception(_errorMessage(res));
+    if (res.statusCode != 200) throw Exception(apiErrorMessage(res));
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     final prefs = await SharedPreferences.getInstance();
@@ -42,7 +42,7 @@ class AuthService {
       }),
     );
     if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception(_errorMessage(res));
+      throw Exception(apiErrorMessage(res));
     }
   }
 
@@ -57,25 +57,25 @@ class AuthService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_nameKey);
   }
+}
 
-  // API có thể trả {message}, ProblemDetails {title, detail} hoặc lỗi validation {errors}.
-  String _errorMessage(http.Response res) {
-    try {
-      final body = jsonDecode(res.body);
-      if (body is Map) {
-        if (body['message'] != null) return body['message'].toString();
-        final errors = body['errors'];
-        if (errors is Map && errors.isNotEmpty) {
-          final first = errors.values.first;
-          return first is List ? first.first.toString() : first.toString();
-        }
-        if (body['detail'] != null) return body['detail'].toString();
-        if (body['title'] != null) return body['title'].toString();
+// API có thể trả {message}, ProblemDetails {title, detail} hoặc lỗi validation {errors}.
+String apiErrorMessage(http.Response res) {
+  try {
+    final body = jsonDecode(res.body);
+    if (body is Map) {
+      if (body['message'] != null) return body['message'].toString();
+      final errors = body['errors'];
+      if (errors is Map && errors.isNotEmpty) {
+        final first = errors.values.first;
+        return first is List ? first.first.toString() : first.toString();
       }
-      if (body is String && body.isNotEmpty) return body;
-    } catch (_) {
-      if (res.body.isNotEmpty) return res.body;
+      if (body['detail'] != null) return body['detail'].toString();
+      if (body['title'] != null) return body['title'].toString();
     }
-    return 'Lỗi ${res.statusCode}';
+    if (body is String && body.isNotEmpty) return body;
+  } catch (_) {
+    if (res.body.isNotEmpty) return res.body;
   }
+  return 'Lỗi ${res.statusCode}';
 }
