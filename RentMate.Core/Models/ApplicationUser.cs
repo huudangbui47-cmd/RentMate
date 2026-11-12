@@ -15,6 +15,14 @@ namespace RentMate.Core.Models
         public DateTime CreatedAt { get; set; }
             = DateTime.UtcNow;
 
+        // Thông tin ngân hàng để rút tiền (bắt buộc trước lần rút đầu tiên).
+        // Họ tên chủ tài khoản lưu dạng không dấu, viết hoa: "NGUYEN VAN A".
+        public string? BankAccountName { get; set; }
+
+        public string? BankName { get; set; }
+
+        public string? BankAccountNumber { get; set; }
+
         public ICollection<Item> Items { get; set; }
             = new List<Item>();
 
@@ -32,5 +40,8 @@ namespace RentMate.Core.Models
 
         public ICollection<Notification> Notifications { get; set; }
             = new List<Notification>();
+
+        public ICollection<WalletTransaction> WalletTransactions { get; set; }
+            = new List<WalletTransaction>();
     }
 }

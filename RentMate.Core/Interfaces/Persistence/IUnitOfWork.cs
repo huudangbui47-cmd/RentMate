@@ -17,6 +17,8 @@ namespace RentMate.Core.Interfaces.Persistence
         IRepository<Notification> Notifications { get; }
         IRepository<AuditLog> AuditLogs { get; }
 
+        IRepository<WalletTransaction> WalletTransactions { get; }
+
         Task<int> SaveChangesAsync();
     }
 }

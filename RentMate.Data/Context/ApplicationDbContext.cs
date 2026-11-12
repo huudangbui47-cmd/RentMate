@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using RentMate.Core.Models;
 
@@ -25,6 +25,8 @@ namespace RentMate.Data.Context
         public DbSet<Notification> Notifications { get; set; } = null!;
 
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+
+        public DbSet<WalletTransaction> WalletTransactions { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
