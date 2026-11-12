@@ -10,11 +10,19 @@ namespace RentMate.Service.Services
 {
     public class RentalService : IRentalService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        // Phí nền tảng trừ trên tiền thuê lúc hoàn tất (không tính trên tiền cọc)
+        private const decimal PlatformFeeRate = 0.05m;
 
-        public RentalService(IUnitOfWork unitOfWork)
+        // Đơn đã duyệt mà người thuê chưa thanh toán sau ngần này thì chủ đồ được hủy
+        private static readonly TimeSpan PaymentTimeout = TimeSpan.FromHours(24);
+
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IWalletService _walletService;
+
+        public RentalService(IUnitOfWork unitOfWork, IWalletService walletService)
         {
             _unitOfWork = unitOfWork;
+            _walletService = walletService;
         }
 
         // =========================
@@ -243,11 +251,11 @@ namespace RentMate.Service.Services
                 throw new UnauthorizedAccessException();
             }
 
-            if (rental.Status != RentalStatus.Approved &&
-                rental.Status != RentalStatus.WaitingForPickup)
+            // Người thuê phải thanh toán (trạng thái WaitingForPickup) trước khi giao đồ
+            if (rental.Status != RentalStatus.WaitingForPickup)
             {
                 throw new InvalidOperationException(
-                    "Rental is not ready for pickup.");
+                    "Rental must be paid before pickup.");
             }
 
             // =========================
@@ -354,6 +362,141 @@ namespace RentMate.Service.Services
             rental.CompletedAt = DateTime.UtcNow;
 
             rental.Item.Status = ItemStatus.Available;
+
+            // Chia tiền: chủ đồ nhận tiền thuê trừ phí, người thuê nhận lại tiền cọc.
+            // shortcut: chưa trừ tiền bồi thường (luôn 0); thêm khi biên bản sau khi trả có ô tiền bồi thường.
+            var ownerIncome = Math.Round(rental.TotalPrice * (1 - PlatformFeeRate), 0);
+
+            await AddWalletEntryAsync(
+                rental.Item.OwnerId,
+                ownerIncome,
+                WalletTransactionType.RentalIncome,
+                rental.Id,
+                $"Tiền thuê đơn #{rental.Id} (đã trừ phí {PlatformFeeRate:P0})");
+
+            await AddWalletEntryAsync(
+                rental.RenterId,
+                rental.DepositAmount,
+                WalletTransactionType.DepositRefund,
+                rental.Id,
+                $"Hoàn cọc đơn #{rental.Id}");
+
+            await AddPaymentAsync(rental.Id, rental.DepositAmount, PaymentType.DepositRefund);
+
+            // Một lần SaveChanges: đổi trạng thái đơn và cộng tiền cùng thành công hoặc cùng thất bại
+            await _unitOfWork.SaveChangesAsync();
+
+            return true;
+        }
+
+        // =========================
+        // PAY (người thuê thanh toán bằng ví)
+        // =========================
+        public async Task<bool> PayAsync(
+            int rentalId,
+            string renterId)
+        {
+            var rental = await _unitOfWork.Rentals.GetByIdAsync(rentalId);
+
+            if (rental == null)
+            {
+                return false;
+            }
+
+            if (rental.RenterId != renterId)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (rental.Status != RentalStatus.Approved)
+            {
+                throw new InvalidOperationException(
+                    "Only approved rentals can be paid.");
+            }
+
+            var amount = rental.TotalPrice + rental.DepositAmount;
+
+            // shortcut: 2 lệnh trả tiền gửi đúng cùng lúc có thể cùng qua kiểm tra này; cần khóa ví nếu dùng thật.
+            if (await _walletService.GetAvailableBalanceAsync(renterId) < amount)
+            {
+                throw new InvalidOperationException(
+                    "Insufficient wallet balance. Please top up your wallet.");
+            }
+
+            await AddWalletEntryAsync(
+                renterId,
+                -amount,
+                WalletTransactionType.RentalPayment,
+                rental.Id,
+                $"Thanh toán đơn #{rental.Id} (thuê + cọc)");
+
+            await AddPaymentAsync(rental.Id, rental.TotalPrice, PaymentType.RentalFee);
+            await AddPaymentAsync(rental.Id, rental.DepositAmount, PaymentType.Deposit);
+
+            rental.Status = RentalStatus.WaitingForPickup;
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return true;
+        }
+
+        // =========================
+        // CANCEL (trước khi giao đồ)
+        // =========================
+        public async Task<bool> CancelAsync(
+            int rentalId,
+            string userId)
+        {
+            var rental = await GetRentalWithItemAsync(rentalId);
+
+            if (rental == null)
+            {
+                return false;
+            }
+
+            var isRenter = rental.RenterId == userId;
+            var isOwner = rental.Item.OwnerId == userId;
+
+            if (!isRenter && !isOwner)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (isRenter)
+            {
+                // Người thuê hủy được bất cứ lúc nào trước khi nhận đồ
+                if (rental.Status != RentalStatus.Pending &&
+                    rental.Status != RentalStatus.Approved &&
+                    rental.Status != RentalStatus.WaitingForPickup)
+                {
+                    throw new InvalidOperationException(
+                        "Rental can only be cancelled before pickup.");
+                }
+            }
+            else
+            {
+                // Chủ đồ chỉ hủy được đơn đã duyệt mà người thuê không thanh toán sau 24 giờ
+                if (rental.Status != RentalStatus.Approved ||
+                    rental.ApprovedAt == null ||
+                    DateTime.UtcNow - rental.ApprovedAt.Value < PaymentTimeout)
+                {
+                    throw new InvalidOperationException(
+                        "Owner can only cancel approved rentals unpaid for 24 hours.");
+                }
+            }
+
+            // Đã thanh toán thì hoàn 100% vào ví người thuê
+            if (rental.Status == RentalStatus.WaitingForPickup)
+            {
+                await AddWalletEntryAsync(
+                    rental.RenterId,
+                    rental.TotalPrice + rental.DepositAmount,
+                    WalletTransactionType.Refund,
+                    rental.Id,
+                    $"Hoàn tiền đơn #{rental.Id} bị hủy");
+            }
+
+            rental.Status = RentalStatus.Cancelled;
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -523,6 +666,43 @@ namespace RentMate.Service.Services
             }
 
             return ToDto(rental);
+        }
+
+        // Dòng sổ ví, ghi nhận ngay (Completed). Chưa lưu: hàm gọi tự SaveChanges.
+        private async Task AddWalletEntryAsync(
+            string userId,
+            decimal amount,
+            WalletTransactionType type,
+            int rentalId,
+            string note)
+        {
+            await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
+            {
+                UserId = userId,
+                Amount = amount,
+                Type = type,
+                Status = WalletTransactionStatus.Completed,
+                RentalId = rentalId,
+                Note = note,
+                ProcessedAt = DateTime.UtcNow
+            });
+        }
+
+        // Ghi vào bảng Payment để trang Admin (chi tiết đơn) thấy lịch sử thanh toán
+        private async Task AddPaymentAsync(
+            int rentalId,
+            decimal amount,
+            PaymentType type)
+        {
+            await _unitOfWork.Payments.AddAsync(new Payment
+            {
+                RentalId = rentalId,
+                Amount = amount,
+                PaymentType = type,
+                PaymentMethod = PaymentMethod.Wallet,
+                Status = PaymentStatus.Paid,
+                PaidAt = DateTime.UtcNow
+            });
         }
 
         // =========================

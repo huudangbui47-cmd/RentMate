@@ -50,6 +50,12 @@ namespace RentMate.Service.Services
             };
         }
 
+        public async Task<decimal> GetAvailableBalanceAsync(string userId)
+        {
+            var (balance, pendingWithdraw) = await GetBalanceAsync(userId);
+            return balance - pendingWithdraw;
+        }
+
         // =========================
         // LỊCH SỬ
         // =========================

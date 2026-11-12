@@ -94,6 +94,26 @@ namespace RentMate.Api.Controllers
                     GetUserId()));
         }
 
+        // PUT api/rentals/1/pay  (người thuê trả tiền thuê + cọc bằng ví)
+        [HttpPut("{id}/pay")]
+        public async Task<IActionResult> Pay(int id)
+        {
+            return await ExecuteAction(
+                () => _rentalService.PayAsync(
+                    id,
+                    GetUserId()));
+        }
+
+        // PUT api/rentals/1/cancel
+        [HttpPut("{id}/cancel")]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            return await ExecuteAction(
+                () => _rentalService.CancelAsync(
+                    id,
+                    GetUserId()));
+        }
+
         // PUT api/rentals/1/pickup
         [HttpPut("{id}/pickup")]
         public async Task<IActionResult> Pickup(int id)

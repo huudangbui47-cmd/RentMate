@@ -9,6 +9,9 @@ namespace RentMate.Service.Interfaces
 
         Task<List<WalletTransactionDto>> GetHistoryAsync(string userId);
 
+        // Số dư dùng được (đã trừ tiền đang chờ rút) – RentalService dùng khi thanh toán đơn
+        Task<decimal> GetAvailableBalanceAsync(string userId);
+
         Task<DepositRequestDto> CreateDepositAsync(string userId, decimal amount);
 
         Task UpdateBankInfoAsync(string userId, UpdateBankInfoDto dto);
