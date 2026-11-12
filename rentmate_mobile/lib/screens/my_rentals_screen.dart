@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/item_service.dart';
 import '../services/rental_service.dart';
+import 'condition_report_screen.dart';
 
 /// Hai tab: đơn mình đi thuê, và đơn người khác thuê đồ của mình.
 class MyRentalsScreen extends StatefulWidget {
@@ -22,7 +23,7 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = _load());
+    setState(() { _future = _load(); });
     await _future;
   }
 
@@ -129,6 +130,17 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
   // Ai được bấm nút nào: theo kiểm tra quyền trong RentalService.cs.
   List<Widget> _actions(Rental r, bool isOwner) {
     final buttons = <Widget>[
+      // Biên bản có từ lúc duyệt trở đi; chủ đồ lập, người thuê chỉ xem.
+      if (r.status != 'Pending' && r.status != 'Rejected')
+        TextButton.icon(
+          icon: const Icon(Icons.fact_check_outlined),
+          label: const Text('Biên bản'),
+          onPressed: () async {
+            final created = await Navigator.of(context).push<bool>(MaterialPageRoute(
+                builder: (_) => ConditionReportScreen(rental: r, isOwner: isOwner)));
+            if (created == true) await _reload();
+          },
+        ),
       if (isOwner && r.status == 'Pending') ...[
         OutlinedButton(
             onPressed: () => _act(r, 'reject', 'Đã từ chối yêu cầu'), child: const Text('Từ chối')),
@@ -149,7 +161,7 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
     if (buttons.isEmpty) return [];
     return [
       const SizedBox(height: 8),
-      Row(mainAxisAlignment: MainAxisAlignment.end, spacing: 8, children: buttons),
+      Wrap(alignment: WrapAlignment.end, spacing: 8, children: buttons),
     ];
   }
 
