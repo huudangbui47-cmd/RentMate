@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- App gọi API nên cần quyền mạng (không để ở src/debug vì .gitignore bỏ qua thư mục Debug) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:usesCleartextTraffic="true"
         android:label="rentmate_mobile"
