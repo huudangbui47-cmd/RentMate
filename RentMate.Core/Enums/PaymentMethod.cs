@@ -4,6 +4,7 @@ namespace RentMate.Core.Enums
     {
         Cash = 1,
         BankTransfer = 2,
-        OnlinePayment = 3
+        OnlinePayment = 3,
+        Wallet = 4
     }
 }

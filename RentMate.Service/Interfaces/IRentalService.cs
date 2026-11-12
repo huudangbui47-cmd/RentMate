@@ -42,5 +42,7 @@ namespace RentMate.Service.Interfaces
         Task<RentalListViewModel> SearchAsync(string? searchTerm, RentalStatus? status, int page = 1);
 
         Task<RentalDetailsViewModel?> GetDetailsAsync(int id);
+        Task<bool> PayAsync(int rentalId, string renterId);
+        Task<bool> CancelAsync(int rentalId, string userId);
     }
 }

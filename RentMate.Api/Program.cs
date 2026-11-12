@@ -121,7 +121,7 @@ builder.Services.AddCors(options =>
 // 7. Swagger
 // =========================
 builder.Services.AddEndpointsApiExplorer();
-
+builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo

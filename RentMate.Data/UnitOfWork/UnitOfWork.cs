@@ -22,6 +22,8 @@ namespace RentMate.Data.UnitOfWork
         public IRepository<Notification> Notifications { get; }
         public IRepository<AuditLog> AuditLogs { get; }
 
+        public IRepository<WalletTransaction> WalletTransactions { get; }
+
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
@@ -38,6 +40,8 @@ namespace RentMate.Data.UnitOfWork
 
             Notifications = new Repository<Notification>(context);
             AuditLogs = new Repository<AuditLog>(context);
+
+            WalletTransactions = new Repository<WalletTransaction>(context);
         }
 
         public async Task<int> SaveChangesAsync()

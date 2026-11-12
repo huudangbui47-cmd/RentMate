@@ -10,6 +10,6 @@ namespace RentMate.Core.Enums
         Rented = 6,
         Returned = 7,
         Completed = 8,
-        Overdue = 9
+        Overdue = 9,
     }
 }
