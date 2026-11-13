@@ -1,7 +1,24 @@
 @model ItemListViewModel
+@inject IConfiguration Configuration
 
 @{
     ViewData["Title"] = "Đồ cho thuê";
+
+    // Ảnh do khách tải lên nằm trên Api (wwwroot/uploads/items), không nằm trên AdminSite
+    string apiBaseUrl = (Configuration["ApiBaseUrl"] ?? "https://localhost:7130").TrimEnd('/');
+
+    // Chỉ nhận ảnh trong thư mục upload của Api hoặc link http(s), tránh chèn "javascript:"
+    string? ToImageSrc(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return null;
+
+        if (url.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            return apiBaseUrl + url;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) ? url : null;
+    }
 
     // Admin chỉ được đặt các trạng thái này; "Đang cho thuê" do luồng đơn thuê quyết định
     var manualStatuses = new[]
@@ -15,6 +32,12 @@
 <div class="page-heading">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <h3>Đồ cho thuê</h3>
+        @if (Model.PendingCount > 0 && Model.Status != ItemStatus.PendingApproval)
+        {
+            <a asp-action="Index" asp-route-status="@ItemStatus.PendingApproval" class="btn btn-warning">
+                Có @Model.PendingCount đồ chờ duyệt
+            </a>
+        }
     </div>
 </div>
 
@@ -33,6 +56,8 @@
         </select>
         <select name="status" class="form-select">
             <option value="">Tất cả trạng thái</option>
+            <option value="@ItemStatus.PendingApproval" selected="@(Model.Status == ItemStatus.PendingApproval)">Chờ duyệt (@Model.PendingCount)</option>
+            <option value="@ItemStatus.Rejected" selected="@(Model.Status == ItemStatus.Rejected)">Bị từ chối</option>
             <option value="@ItemStatus.Available" selected="@(Model.Status == ItemStatus.Available)">Sẵn sàng</option>
             <option value="@ItemStatus.Rented" selected="@(Model.Status == ItemStatus.Rented)">Đang cho thuê</option>
             <option value="@ItemStatus.Unavailable" selected="@(Model.Status == ItemStatus.Unavailable)">Tạm ngưng</option>
@@ -73,23 +98,41 @@
                         ItemStatus.Available => "admin-badge-success",
                         ItemStatus.Rented => "admin-badge-primary",
                         ItemStatus.Unavailable => "admin-badge-warning",
+                        ItemStatus.PendingApproval => "admin-badge-warning",
+                        ItemStatus.Rejected => "admin-badge-danger",
                         _ => "admin-badge-muted"
                     };
+                    bool isPending = item.Status == ItemStatus.PendingApproval;
+                    bool notApproved = isPending || item.Status == ItemStatus.Rejected;
 
-                    // Ảnh do người dùng app gửi lên: chỉ nhận link http(s) để tránh chèn "javascript:"
-                    bool hasSafeImage = Uri.TryCreate(item.ImageUrl, UriKind.Absolute, out var imageUri)
-                        && (imageUri.Scheme == Uri.UriSchemeHttp || imageUri.Scheme == Uri.UriSchemeHttps);
+                    var imageSrcs = item.ImageUrls.Select(ToImageSrc).Where(src => src != null).ToList();
 
                     <tr>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                @if (hasSafeImage)
+                                @if (imageSrcs.Count > 0)
                                 {
-                                    <img src="@item.ImageUrl" alt="" class="admin-product-thumb" />
+                                    <button type="button" class="rm-thumb-button" data-bs-toggle="modal" data-bs-target="#itemImagesModal"
+                                            data-name="@item.ItemName" data-images="@System.Text.Json.JsonSerializer.Serialize(imageSrcs)"
+                                            title="Xem @imageSrcs.Count ảnh">
+                                        <img src="@imageSrcs[0]" alt="" class="admin-product-thumb" />
+                                        @if (imageSrcs.Count > 1)
+                                        {
+                                            <span class="rm-thumb-count">@imageSrcs.Count</span>
+                                        }
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="admin-product-thumb rm-thumb-empty" title="Chưa có ảnh"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 17-5-5-9 8" /></svg></span>
                                 }
                                 <div>
                                     <div class="fw-semibold">@item.ItemName</div>
                                     <small class="text-muted">@item.CategoryName · @item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</small>
+                                    @if (!string.IsNullOrWhiteSpace(item.Description))
+                                    {
+                                        <div class="rm-item-description" title="@item.Description">@item.Description</div>
+                                    }
                                 </div>
                             </div>
                         </td>
@@ -101,14 +144,29 @@
                         <td class="text-end">@item.DepositAmount.ToString("N0") đ</td>
                         <td>@item.ConditionText</td>
                         <td class="text-center">@item.RentalCount</td>
-                        <td><span class="admin-badge @badgeClass">@item.StatusText</span></td>
-                        <td class="text-end">
+                        <td>
+                            <span class="admin-badge @badgeClass">@item.StatusText</span>
+                            @if (item.Status == ItemStatus.Rejected && !string.IsNullOrWhiteSpace(item.RejectionReason))
+                            {
+                                <div><small class="text-muted" title="@item.RejectionReason">Lý do: @item.RejectionReason</small></div>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (isPending)
+                            {
+                                <form asp-action="Approve" asp-route-id="@item.Id" asp-route-returnStatus="@Model.Status" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success">Duyệt</button>
+                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectItemModal"
+                                        data-id="@item.Id" data-name="@item.ItemName">Từ chối</button>
+                            }
                             @if (item.Status != ItemStatus.Rented)
                             {
                                 <div class="dropdown d-inline-block">
                                     <button type="button" class="admin-more-button" data-bs-toggle="dropdown" aria-expanded="false">⋯</button>
                                     <div class="dropdown-menu dropdown-menu-end admin-action-menu">
-                                        @foreach (var option in manualStatuses.Where(s => s.Status != item.Status))
+                                        @* Đồ chưa duyệt chỉ được ẩn; muốn hiện thì phải bấm Duyệt *@
+                                        @foreach (var option in manualStatuses.Where(s => s.Status != item.Status && (!notApproved || s.Status == ItemStatus.Hidden)))
                                         {
                                             <form asp-action="UpdateStatus" asp-route-id="@item.Id" asp-route-status="@option.Status" method="post">
                                                 <button type="submit" class="dropdown-item @(option.Status == ItemStatus.Hidden ? "text-danger" : "")">@option.Text</button>
@@ -125,6 +183,43 @@
     </div>
 </div>
 
+<div class="modal fade" id="rejectItemModal" data-reason-modal tabindex="-1" aria-labelledby="rejectItemTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="Reject" asp-route-returnStatus="@Model.Status" method="post" class="modal-content">
+            <input type="hidden" name="id" />
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectItemTitle">Từ chối đồ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Từ chối <strong data-fill-name></strong>?</p>
+                <label for="rejectReason" class="form-label">Lý do (chủ đồ sẽ thấy trong app)</label>
+                <textarea id="rejectReason" name="reason" class="form-control" rows="3" maxlength="500" required
+                          placeholder="Ví dụ: Mô tả quá sơ sài, vui lòng ghi rõ tình trạng và phụ kiện kèm theo."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-danger">Từ chối</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="itemImagesModal" tabindex="-1" aria-labelledby="itemImagesTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="itemImagesTitle">Ảnh của <span data-fill-name></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="rm-image-grid" data-image-grid></div>
+                <small class="text-muted d-block mt-2">Ảnh đầu tiên là ảnh chính. Bấm vào ảnh để xem cỡ lớn.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
 @if (Model.TotalPages > 1)
 {
     <nav aria-label="Phân trang" class="d-flex flex-wrap gap-2 justify-content-center mt-3">
@@ -134,4 +229,9 @@
                class="btn @(Model.Page == i ? "btn-primary" : "btn-outline-primary")" aria-current="@(Model.Page == i ? "page" : null)">@i</a>
         }
     </nav>
+}
+
+@section Scripts {
+    <script src="~/js/reason-modal.js" asp-append-version="true"></script>
+    <script src="~/js/item-images-modal.js" asp-append-version="true"></script>
 }

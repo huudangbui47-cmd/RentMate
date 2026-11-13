@@ -32,7 +32,13 @@
             <div class="card-body">
                 <div class="dashboard-stat-label">Đồ cho thuê</div>
                 <div class="dashboard-stat-value">@Model.TotalItems</div>
-                <div class="rm-stat-sub">@Model.AvailableItems đang sẵn sàng</div>
+                <div class="rm-stat-sub">
+                    @Model.AvailableItems đang sẵn sàng
+                    @if (Model.PendingApprovalItems > 0)
+                    {
+                        <span>· <a asp-controller="Item" asp-action="Index" asp-route-status="@ItemStatus.PendingApproval">@Model.PendingApprovalItems chờ duyệt</a></span>
+                    }
+                </div>
             </div>
         </div>
     </div>

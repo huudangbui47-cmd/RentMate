@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../services/auth_service.dart';
 import '../services/item_service.dart';
+import '../widgets/ui.dart';
+import 'item_detail_screen.dart';
 import 'item_form_screen.dart';
 
 class MyItemsScreen extends StatefulWidget {
@@ -12,17 +13,10 @@ class MyItemsScreen extends StatefulWidget {
 }
 
 class _MyItemsScreenState extends State<MyItemsScreen> {
-  late Future<List<Item>> _future = _load();
-
-  // shortcut: API chưa có "GET đồ của tôi" nên lấy hết rồi lọc theo ownerId; nhóm thêm API riêng thì đổi sang gọi API đó.
-  Future<List<Item>> _load() async {
-    final userId = await AuthService().getUserId();
-    final items = await ItemService().getItems();
-    return items.where((i) => i.ownerId == userId).toList();
-  }
+  late Future<List<Item>> _future = ItemService().getMyItems();
 
   Future<void> _reload() async {
-    setState(() { _future = _load(); });
+    setState(() { _future = ItemService().getMyItems(); });
     await _future;
   }
 
@@ -30,30 +24,27 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => ItemFormScreen(item: item)),
     );
-    if (saved == true) await _reload();
+    if (saved == true) {
+      if (mounted) showSnack(context, 'Đã gửi. Đồ sẽ hiện trên app sau khi được duyệt.');
+      await _reload();
+    }
   }
 
   Future<void> _delete(Item item) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xóa đồ?'),
-        content: Text('Bạn chắc chắn muốn xóa "${item.name}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Xóa')),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'Xóa đồ?',
+      message: '"${item.name}" sẽ bị gỡ khỏi RentMate. Lịch sử đơn thuê vẫn được giữ.',
+      confirmText: 'Xóa',
+      danger: true,
     );
-    if (ok != true) return;
+    if (!ok) return;
     try {
       await ItemService().deleteItem(item.id);
+      if (mounted) showSnack(context, 'Đã xóa "${item.name}"');
       await _reload();
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      if (mounted) showSnack(context, errorText(e), error: true);
     }
   }
 
@@ -69,45 +60,105 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
       body: FutureBuilder<List<Item>>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text(snap.error.toString().replaceFirst('Exception: ', '')));
-          }
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) return const LoadingView();
+          if (snap.hasError) return ErrorView(message: errorText(snap.error!), onRetry: _reload);
           final items = snap.data!;
+          final pending = items.where((i) => i.status == 'PendingApproval').length;
+          final rejected = items.where((i) => i.status == 'Rejected').length;
           return RefreshIndicator(
             onRefresh: _reload,
             child: items.isEmpty
-                ? ListView(children: const [
-                    SizedBox(height: 120),
-                    Center(child: Text('Bạn chưa đăng đồ nào.\nBấm "Đăng đồ" để bắt đầu.',
-                        textAlign: TextAlign.center)),
+                ? ListView(children: [
+                    EmptyView(
+                      icon: Icons.add_business_outlined,
+                      title: 'Bạn chưa đăng đồ nào',
+                      subtitle: 'Cho thuê đồ ít dùng để kiếm thêm thu nhập.',
+                      action: FilledButton.icon(
+                        onPressed: () => _openForm(),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Đăng đồ đầu tiên'),
+                      ),
+                    ),
                   ])
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final item = items[i];
-                      return Card(
-                        child: ListTile(
-                          title: Text(item.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                              '${formatVnd(item.pricePerDay)} / ngày · ${conditionLabels[item.condition] ?? item.condition}'),
-                          onTap: () => _openForm(item),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            tooltip: 'Xóa',
-                            onPressed: () => _delete(item),
-                          ),
-                        ),
-                      );
-                    },
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                    children: [
+                      if (rejected > 0) ...[
+                        NoticeBox('$rejected món bị từ chối. Xem lý do bên dưới, sửa lại rồi lưu để được duyệt lại.',
+                            icon: Icons.error_outline, color: statusColor('Rejected')),
+                        const SizedBox(height: 8),
+                      ],
+                      if (pending > 0) ...[
+                        NoticeBox('$pending món đang chờ quản lý duyệt. Đồ sẽ hiện trên trang Khám phá sau khi được duyệt.',
+                            icon: Icons.hourglass_top_rounded, color: statusColor('PendingApproval')),
+                        const SizedBox(height: 8),
+                      ],
+                      for (final item in items) ...[_card(item), const SizedBox(height: 12)],
+                    ],
                   ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _card(Item item) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final rented = item.status == 'Rented';
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // Đồ đang có người thuê thì không sửa được, chỉ xem
+        onTap: () => rented
+            ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id)))
+            : _openForm(item),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: 64),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        const SizedBox(height: 2),
+                        Text('${formatVnd(item.pricePerDay)}/ngày · ${item.categoryName}',
+                            style: TextStyle(color: muted, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        StatusBadge(itemStatusLabels[item.status] ?? item.status, statusColor(item.status)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (v) => v == 'edit' ? _openForm(item) : _delete(item),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'edit', enabled: !rented, child: const Text('Sửa')),
+                      PopupMenuItem(value: 'delete', enabled: !rented, child: const Text('Xóa')),
+                    ],
+                  ),
+                ],
+              ),
+              if (item.status == 'Rejected' && (item.rejectionReason ?? '').isNotEmpty) ...[
+                const SizedBox(height: 10),
+                NoticeBox('Lý do từ chối: ${item.rejectionReason}', icon: Icons.feedback_outlined, color: statusColor('Rejected')),
+              ],
+              if (item.status == 'Unavailable') ...[
+                const SizedBox(height: 10),
+                NoticeBox('Quản lý đã tạm ngưng đồ này. Liên hệ RentMate nếu cần hỗ trợ.',
+                    icon: Icons.pause_circle_outline, color: statusColor('Unavailable')),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

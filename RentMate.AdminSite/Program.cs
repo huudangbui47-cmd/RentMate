@@ -35,7 +35,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders(); // sinh token cho link "Quên mật khẩu"
+    .AddDefaultTokenProviders() // sinh token cho link "Quên mật khẩu"
+    .AddErrorDescriber<VietnameseIdentityErrorDescriber>();
 
 // Link đặt lại mật khẩu gửi qua email hết hạn sau 30 phút
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromMinutes(30));

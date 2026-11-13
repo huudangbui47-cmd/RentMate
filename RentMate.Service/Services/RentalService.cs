@@ -35,38 +35,32 @@ namespace RentMate.Service.Services
             if (dto.StartDate.Date < DateTime.UtcNow.Date)
             {
                 throw new ArgumentException(
-                    "Start date cannot be in the past.");
+                    "Ngày bắt đầu thuê không được ở trong quá khứ.");
             }
 
             if (dto.EndDate.Date < dto.StartDate.Date)
             {
                 throw new ArgumentException(
-                    "End date cannot be before start date.");
+                    "Ngày trả phải sau hoặc trùng ngày nhận.");
             }
 
             var item = await _unitOfWork.Items
-                .BuildQuery(i =>
-                    i.Id == dto.ItemId &&
-                    i.Status != ItemStatus.Hidden)
+                .BuildQuery(i => i.Id == dto.ItemId)
                 .FirstOrDefaultAsync();
 
-            if (item == null)
+            // Chỉ thuê được đồ đã duyệt (đang trống hoặc đang có người thuê thì đặt lịch khác)
+            if (item == null ||
+                (item.Status != ItemStatus.Available && item.Status != ItemStatus.Rented))
             {
                 throw new ArgumentException(
-                    "Item does not exist.");
+                    "Đồ không tồn tại hoặc hiện không cho thuê.");
             }
 
             // Không được thuê đồ của chính mình
             if (item.OwnerId == renterId)
             {
                 throw new InvalidOperationException(
-                    "You cannot rent your own item.");
-            }
-
-            if (item.Status == ItemStatus.Unavailable)
-            {
-                throw new InvalidOperationException(
-                    "This item is currently unavailable.");
+                    "Bạn không thể thuê đồ của chính mình.");
             }
 
             var numberOfDays =
@@ -167,7 +161,7 @@ namespace RentMate.Service.Services
             if (rental.Status != RentalStatus.Pending)
             {
                 throw new InvalidOperationException(
-                    "Only pending rentals can be approved.");
+                    "Chỉ duyệt được đơn đang chờ duyệt.");
             }
 
             // Kiểm tra lịch thuê trùng
@@ -189,7 +183,7 @@ namespace RentMate.Service.Services
             if (hasConflict)
             {
                 throw new InvalidOperationException(
-                    "This item is already booked for this period.");
+                    "Đồ đã có người thuê trong khoảng thời gian này.");
             }
 
             rental.Status = RentalStatus.Approved;
@@ -222,7 +216,7 @@ namespace RentMate.Service.Services
             if (rental.Status != RentalStatus.Pending)
             {
                 throw new InvalidOperationException(
-                    "Only pending rentals can be rejected.");
+                    "Chỉ từ chối được đơn đang chờ duyệt.");
             }
 
             rental.Status = RentalStatus.Rejected;
@@ -255,7 +249,7 @@ namespace RentMate.Service.Services
             if (rental.Status != RentalStatus.WaitingForPickup)
             {
                 throw new InvalidOperationException(
-                    "Rental must be paid before pickup.");
+                    "Người thuê chưa thanh toán, chưa giao đồ được.");
             }
 
             // =========================
@@ -271,7 +265,7 @@ namespace RentMate.Service.Services
             if (!hasBeforeReport)
             {
                 throw new InvalidOperationException(
-                    "Before-rental condition report is required before pickup.");
+                    "Cần lập biên bản trước khi giao đồ.");
             }
 
             rental.Status = RentalStatus.Rented;
@@ -306,7 +300,7 @@ namespace RentMate.Service.Services
             if (rental.Status != RentalStatus.Rented)
             {
                 throw new InvalidOperationException(
-                    "Only rented items can be returned.");
+                    "Chỉ trả được đồ đang thuê.");
             }
 
             rental.Status = RentalStatus.Returned;
@@ -339,7 +333,7 @@ namespace RentMate.Service.Services
             if (rental.Status != RentalStatus.Returned)
             {
                 throw new InvalidOperationException(
-                    "Rental must be returned before completion.");
+                    "Người thuê chưa trả đồ, chưa hoàn tất được.");
             }
 
             // =========================
@@ -355,7 +349,7 @@ namespace RentMate.Service.Services
             if (!hasAfterReport)
             {
                 throw new InvalidOperationException(
-                    "After-rental condition report is required before completion.");
+                    "Cần lập biên bản sau khi nhận lại đồ.");
             }
 
             rental.Status = RentalStatus.Completed;
@@ -411,7 +405,7 @@ namespace RentMate.Service.Services
             if (rental.Status != RentalStatus.Approved)
             {
                 throw new InvalidOperationException(
-                    "Only approved rentals can be paid.");
+                    "Chỉ thanh toán được đơn đã được chủ đồ duyệt.");
             }
 
             var amount = rental.TotalPrice + rental.DepositAmount;
@@ -420,7 +414,7 @@ namespace RentMate.Service.Services
             if (await _walletService.GetAvailableBalanceAsync(renterId) < amount)
             {
                 throw new InvalidOperationException(
-                    "Insufficient wallet balance. Please top up your wallet.");
+                    "Số dư ví không đủ. Vui lòng nạp thêm tiền.");
             }
 
             await AddWalletEntryAsync(
@@ -470,7 +464,7 @@ namespace RentMate.Service.Services
                     rental.Status != RentalStatus.WaitingForPickup)
                 {
                     throw new InvalidOperationException(
-                        "Rental can only be cancelled before pickup.");
+                        "Chỉ hủy được đơn trước khi nhận đồ.");
                 }
             }
             else
@@ -481,7 +475,7 @@ namespace RentMate.Service.Services
                     DateTime.UtcNow - rental.ApprovedAt.Value < PaymentTimeout)
                 {
                     throw new InvalidOperationException(
-                        "Owner can only cancel approved rentals unpaid for 24 hours.");
+                        "Chủ đồ chỉ hủy được đơn đã duyệt mà người thuê chưa thanh toán sau 24 giờ.");
                 }
             }
 
@@ -734,7 +728,8 @@ namespace RentMate.Service.Services
                 Status = rental.Status.ToString(),
 
                 RequestNote = rental.RequestNote,
-                RequestedAt = rental.RequestedAt
+                RequestedAt = rental.RequestedAt,
+                ApprovedAt = rental.ApprovedAt
             };
         }
     }

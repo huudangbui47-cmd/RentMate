@@ -5,6 +5,7 @@ namespace RentMate.Core.ViewModels
         public int TotalUsers { get; set; }
         public int TotalItems { get; set; }
         public int AvailableItems { get; set; }
+        public int PendingApprovalItems { get; set; }
         public int PendingRentals { get; set; }
         public int ActiveRentals { get; set; }
         public int OverdueRentals { get; set; }

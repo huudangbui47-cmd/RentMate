@@ -15,5 +15,16 @@ namespace RentMate.Service.Interfaces
         Task<bool> IsSessionValidAsync(string userId, string? securityStamp);
 
         Task<string?> GetSecurityStampAsync(string userId);
+
+        // Tài khoản khách trên app
+        Task<ProfileDto?> GetProfileAsync(string userId);
+
+        Task UpdateProfileAsync(string userId, UpdateProfileDto dto, string ipAddress);
+
+        Task<AuthenticatedUser> ChangePasswordAsync(string userId, ChangePasswordDto dto, string ipAddress);
+
+        Task RequestPasswordResetCodeAsync(string email, string ipAddress);
+
+        Task ResetPasswordWithCodeAsync(ResetPasswordWithCodeDto dto, string ipAddress);
     }
 }

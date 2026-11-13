@@ -31,5 +31,8 @@ namespace RentMate.Service.DTOs.Rentals
         public string? RequestNote { get; set; }
 
         public DateTime RequestedAt { get; set; }
+
+        // Chủ đồ được hủy đơn đã duyệt nếu người thuê chưa thanh toán sau 24 giờ kể từ lúc này
+        public DateTime? ApprovedAt { get; set; }
     }
 }

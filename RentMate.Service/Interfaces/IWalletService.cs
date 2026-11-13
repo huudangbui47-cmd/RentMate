@@ -1,3 +1,5 @@
+using RentMate.Core.Enums;
+using RentMate.Core.ViewModels;
 using RentMate.Service.DTOs.Wallet;
 
 namespace RentMate.Service.Interfaces
@@ -14,6 +16,9 @@ namespace RentMate.Service.Interfaces
 
         Task<DepositRequestDto> CreateDepositAsync(string userId, decimal amount);
 
+        // Yêu cầu nạp đang chờ của chính người dùng (null nếu không có / đã xử lý)
+        Task<DepositRequestDto?> GetPendingDepositAsync(string userId, int transactionId);
+
         Task UpdateBankInfoAsync(string userId, UpdateBankInfoDto dto);
 
         Task<WalletTransactionDto> CreateWithdrawAsync(string userId, decimal amount);
@@ -21,13 +26,13 @@ namespace RentMate.Service.Interfaces
         // ===== Xác nhận nạp: dùng chung cho admin duyệt tay và webhook (sau này) =====
         Task ConfirmDepositAsync(string code, decimal receivedAmount, string? processedByUserId);
 
-        // ===== Admin =====
-        Task<List<WalletRequestForAdminDto>> GetPendingRequestsAsync();
+        // ===== Admin (trang quản trị) =====
+        Task<WalletRequestListViewModel> SearchRequestsAsync(WalletTransactionType? type, WalletTransactionStatus? status, string? searchTerm, int page = 1);
 
-        Task<bool> ApproveDepositAsync(int transactionId, string adminId);
+        Task ApproveDepositAsync(int transactionId, string adminId, string ipAddress);
 
-        Task<bool> CompleteWithdrawAsync(int transactionId, string adminId);
+        Task CompleteWithdrawAsync(int transactionId, string adminId, string ipAddress);
 
-        Task<bool> RejectRequestAsync(int transactionId, string adminId, string? reason);
+        Task RejectRequestAsync(int transactionId, string adminId, string? reason, string ipAddress);
     }
 }

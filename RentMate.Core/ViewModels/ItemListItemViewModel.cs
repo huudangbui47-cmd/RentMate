@@ -6,7 +6,9 @@ namespace RentMate.Core.ViewModels
     {
         public int Id { get; set; }
         public string ItemName { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public string? ImageUrl { get; set; }
+        public List<string> ImageUrls { get; set; } = new();
         public string CategoryName { get; set; } = string.Empty;
         public string OwnerName { get; set; } = string.Empty;
         public string? OwnerEmail { get; set; }
@@ -14,6 +16,7 @@ namespace RentMate.Core.ViewModels
         public decimal DepositAmount { get; set; }
         public ItemCondition Condition { get; set; }
         public ItemStatus Status { get; set; }
+        public string? RejectionReason { get; set; }
         public int RentalCount { get; set; }
         public DateTime CreatedAt { get; set; }
 
@@ -23,6 +26,8 @@ namespace RentMate.Core.ViewModels
             ItemStatus.Rented => "Đang cho thuê",
             ItemStatus.Unavailable => "Tạm ngưng",
             ItemStatus.Hidden => "Đã ẩn",
+            ItemStatus.PendingApproval => "Chờ duyệt",
+            ItemStatus.Rejected => "Bị từ chối",
             _ => "Không xác định"
         };
 

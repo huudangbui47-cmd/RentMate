@@ -88,40 +88,4 @@ namespace RentMate.Service.DTOs.Wallet
         [Range(10_000, 50_000_000, ErrorMessage = "Số tiền rút từ 10.000 đến 50.000.000 đ.")]
         public decimal Amount { get; set; }
     }
-
-    public class RejectWalletRequestDto
-    {
-        [MaxLength(500)]
-        public string? Reason { get; set; }
-    }
-
-    // Dòng hiển thị cho admin: yêu cầu nạp / rút đang chờ
-    public class WalletRequestForAdminDto
-    {
-        public int TransactionId { get; set; }
-
-        public string Type { get; set; } = string.Empty;
-
-        public string Status { get; set; } = string.Empty;
-
-        // Luôn là số dương để admin dễ đọc
-        public decimal Amount { get; set; }
-
-        public string? Code { get; set; }
-
-        public DateTime CreatedAt { get; set; }
-
-        public string UserId { get; set; } = string.Empty;
-
-        public string UserFullName { get; set; } = string.Empty;
-
-        public string? UserEmail { get; set; }
-
-        // Đầy đủ (chỉ admin thấy) để chuyển khoản khi rút
-        public string? BankName { get; set; }
-
-        public string? BankAccountNumber { get; set; }
-
-        public string? BankAccountName { get; set; }
-    }
 }

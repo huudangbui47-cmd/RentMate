@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using RentMate.Core.Enums;
 using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
+using RentMate.Core.ViewModels;
 using RentMate.Service.DTOs.Wallet;
 using RentMate.Service.Interfaces;
 
@@ -19,13 +20,16 @@ namespace RentMate.Service.Services
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IAuditLogService _auditLogService;
 
         public WalletService(
             IUnitOfWork unitOfWork,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IAuditLogService auditLogService)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
+            _auditLogService = auditLogService;
         }
 
         // =========================
@@ -34,7 +38,7 @@ namespace RentMate.Service.Services
         public async Task<WalletSummaryDto> GetSummaryAsync(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId)
-                ?? throw new ArgumentException("User does not exist.");
+                ?? throw new ArgumentException("Tài khoản không tồn tại.");
 
             var (balance, pendingWithdraw) = await GetBalanceAsync(userId);
 
@@ -76,7 +80,7 @@ namespace RentMate.Service.Services
         {
             if (amount < 10_000 || amount > 50_000_000)
             {
-                throw new ArgumentException("Deposit amount must be between 10,000 and 50,000,000.");
+                throw new ArgumentException("Số tiền nạp từ 10.000 đến 50.000.000 đ.");
             }
 
             var transaction = new WalletTransaction
@@ -99,6 +103,23 @@ namespace RentMate.Service.Services
             };
         }
 
+        public async Task<DepositRequestDto?> GetPendingDepositAsync(string userId, int transactionId)
+        {
+            return await _unitOfWork.WalletTransactions
+                .BuildQuery(w =>
+                    w.Id == transactionId &&
+                    w.UserId == userId &&
+                    w.Type == WalletTransactionType.Deposit &&
+                    w.Status == WalletTransactionStatus.Pending)
+                .Select(w => new DepositRequestDto
+                {
+                    TransactionId = w.Id,
+                    Code = w.Code!,
+                    Amount = w.Amount
+                })
+                .FirstOrDefaultAsync();
+        }
+
         // =========================
         // XÁC NHẬN NẠP (admin duyệt tay / webhook dùng chung)
         // =========================
@@ -113,20 +134,20 @@ namespace RentMate.Service.Services
                     w.Type == WalletTransactionType.Deposit)
                 .Select(w => (int?)w.Id)
                 .FirstOrDefaultAsync()
-                ?? throw new ArgumentException("Deposit code does not exist.");
+                ?? throw new ArgumentException("Mã nạp tiền không tồn tại.");
 
             var transaction = (await _unitOfWork.WalletTransactions.GetByIdAsync(transactionId))!;
 
             // Mỗi mã chỉ được xác nhận 1 lần
             if (transaction.Status != WalletTransactionStatus.Pending)
             {
-                throw new InvalidOperationException("This deposit has already been processed.");
+                throw new InvalidOperationException("Yêu cầu nạp này đã được xử lý rồi.");
             }
 
             // Số tiền chuyển phải khớp số tiền yêu cầu
             if (receivedAmount != transaction.Amount)
             {
-                throw new InvalidOperationException("Received amount does not match the requested amount.");
+                throw new InvalidOperationException("Số tiền nhận được không khớp với số tiền yêu cầu.");
             }
 
             transaction.Status = WalletTransactionStatus.Completed;
@@ -142,7 +163,7 @@ namespace RentMate.Service.Services
         public async Task UpdateBankInfoAsync(string userId, UpdateBankInfoDto dto)
         {
             var user = await _userManager.FindByIdAsync(userId)
-                ?? throw new ArgumentException("User does not exist.");
+                ?? throw new ArgumentException("Tài khoản không tồn tại.");
 
             // Không cho đổi tài khoản nhận khi đang có yêu cầu rút chờ xử lý
             var hasPendingWithdraw = await _unitOfWork.WalletTransactions
@@ -154,7 +175,7 @@ namespace RentMate.Service.Services
 
             if (hasPendingWithdraw)
             {
-                throw new InvalidOperationException("Cannot change bank info while a withdrawal is pending.");
+                throw new InvalidOperationException("Bạn đang có yêu cầu rút tiền chờ xử lý, chưa đổi được tài khoản ngân hàng.");
             }
 
             user.BankName = dto.BankName.Trim();
@@ -177,15 +198,15 @@ namespace RentMate.Service.Services
         {
             if (amount < 10_000 || amount > 50_000_000)
             {
-                throw new ArgumentException("Withdraw amount must be between 10,000 and 50,000,000.");
+                throw new ArgumentException("Số tiền rút từ 10.000 đến 50.000.000 đ.");
             }
 
             var user = await _userManager.FindByIdAsync(userId)
-                ?? throw new ArgumentException("User does not exist.");
+                ?? throw new ArgumentException("Tài khoản không tồn tại.");
 
             if (!HasBankInfo(user))
             {
-                throw new InvalidOperationException("Please add your bank information before withdrawing.");
+                throw new InvalidOperationException("Vui lòng nhập thông tin ngân hàng trước khi rút tiền.");
             }
 
             var (balance, pendingWithdraw) = await GetBalanceAsync(userId);
@@ -193,7 +214,7 @@ namespace RentMate.Service.Services
             // shortcut: 2 yêu cầu rút gửi đúng cùng lúc có thể cùng qua bước kiểm tra này; cần khóa ví (transaction Serializable) nếu dùng thật.
             if (amount > balance - pendingWithdraw)
             {
-                throw new InvalidOperationException("Insufficient available balance.");
+                throw new InvalidOperationException("Số dư khả dụng không đủ.");
             }
 
             // Lưu số âm, trạng thái Pending: số tiền bị khóa ngay, chưa trừ khỏi Balance
@@ -213,25 +234,55 @@ namespace RentMate.Service.Services
         }
 
         // =========================
-        // ADMIN: DANH SÁCH CHỜ XỬ LÝ
+        // ADMIN: DANH SÁCH NẠP / RÚT
         // =========================
-        public async Task<List<WalletRequestForAdminDto>> GetPendingRequestsAsync()
+        public async Task<WalletRequestListViewModel> SearchRequestsAsync(
+            WalletTransactionType? type, WalletTransactionStatus? status, string? searchTerm, int page = 1)
         {
-            return await _unitOfWork.WalletTransactions
-                .BuildQuery(w =>
-                    w.Status == WalletTransactionStatus.Pending &&
-                    (w.Type == WalletTransactionType.Deposit ||
-                     w.Type == WalletTransactionType.Withdraw))
-                .OrderBy(w => w.CreatedAt)
-                .Select(w => new WalletRequestForAdminDto
+            var query = _unitOfWork.WalletTransactions.BuildQuery(w =>
+                w.Type == WalletTransactionType.Deposit || w.Type == WalletTransactionType.Withdraw);
+
+            if (type.HasValue)
+                query = query.Where(w => w.Type == type.Value);
+
+            if (status.HasValue)
+                query = query.Where(w => w.Status == status.Value);
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                string keyword = searchTerm.Trim();
+
+                query = query.Where(w =>
+                    (w.Code != null && w.Code.Contains(keyword)) ||
+                    w.User.FullName.Contains(keyword) ||
+                    (w.User.Email != null && w.User.Email.Contains(keyword)));
+            }
+
+            int totalCount = await query.CountAsync();
+            const int pageSize = 10;
+            page = Math.Clamp(page, 1, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
+
+            // Đang xem yêu cầu chờ xử lý: cũ nhất lên đầu để xử lý trước
+            var ordered = status == WalletTransactionStatus.Pending
+                ? query.OrderBy(w => w.CreatedAt)
+                : query.OrderByDescending(w => w.CreatedAt);
+
+            var requests = await ordered
+                .Skip((page - 1) * pageSize).Take(pageSize)
+                .Select(w => new WalletRequestItemViewModel
                 {
-                    TransactionId = w.Id,
-                    Type = w.Type.ToString(),
-                    Status = w.Status.ToString(),
+                    Id = w.Id,
+                    Type = w.Type,
+                    Status = w.Status,
                     Amount = Math.Abs(w.Amount),
                     Code = w.Code,
+                    Note = w.Note,
                     CreatedAt = w.CreatedAt,
-                    UserId = w.UserId,
+                    ProcessedAt = w.ProcessedAt,
+                    ProcessedByName = _userManager.Users
+                        .Where(u => u.Id == w.ProcessedByUserId)
+                        .Select(u => u.FullName)
+                        .FirstOrDefault(),
                     UserFullName = w.User.FullName,
                     UserEmail = w.User.Email,
                     BankName = w.User.BankName,
@@ -239,84 +290,94 @@ namespace RentMate.Service.Services
                     BankAccountName = w.User.BankAccountName
                 })
                 .ToListAsync();
+
+            var pending = _unitOfWork.WalletTransactions
+                .BuildQuery(w => w.Status == WalletTransactionStatus.Pending);
+
+            return new WalletRequestListViewModel
+            {
+                Type = type,
+                Status = status,
+                SearchTerm = searchTerm,
+                PendingDepositCount = await pending.CountAsync(w => w.Type == WalletTransactionType.Deposit),
+                PendingWithdrawCount = await pending.CountAsync(w => w.Type == WalletTransactionType.Withdraw),
+                Requests = requests,
+                Page = page, PageSize = pageSize, TotalCount = totalCount
+            };
         }
 
         // =========================
-        // ADMIN: DUYỆT NẠP
+        // ADMIN: DUYỆT NẠP (đã thấy tiền vào tài khoản RentMate)
         // =========================
-        public async Task<bool> ApproveDepositAsync(int transactionId, string adminId)
+        public async Task ApproveDepositAsync(int transactionId, string adminId, string ipAddress)
         {
             var transaction = await _unitOfWork.WalletTransactions.GetByIdAsync(transactionId);
 
             if (transaction == null || transaction.Type != WalletTransactionType.Deposit)
-            {
-                return false;
-            }
+                throw new InvalidOperationException("Yêu cầu nạp tiền không tồn tại.");
 
-            // Admin đã đối chiếu sao kê đúng số tiền yêu cầu
+            await _auditLogService.RecordAsync("ApproveDeposit", "WalletTransaction", transaction.Id.ToString(),
+                $"Duyệt nạp {transaction.Amount:N0} đ, mã {transaction.Code}.", ipAddress, adminId);
+
+            // Admin đã đối chiếu sao kê đúng số tiền yêu cầu; hàm này lưu luôn nhật ký ở trên
             await ConfirmDepositAsync(transaction.Code!, transaction.Amount, adminId);
-
-            return true;
         }
 
         // =========================
         // ADMIN: ĐÃ CHUYỂN KHOẢN RÚT
         // =========================
-        public async Task<bool> CompleteWithdrawAsync(int transactionId, string adminId)
+        public async Task CompleteWithdrawAsync(int transactionId, string adminId, string ipAddress)
         {
             var transaction = await _unitOfWork.WalletTransactions.GetByIdAsync(transactionId);
 
             if (transaction == null || transaction.Type != WalletTransactionType.Withdraw)
-            {
-                return false;
-            }
+                throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
 
             if (transaction.Status != WalletTransactionStatus.Pending)
-            {
-                throw new InvalidOperationException("This withdrawal has already been processed.");
-            }
+                throw new InvalidOperationException("Yêu cầu rút này đã được xử lý rồi.");
 
             transaction.Status = WalletTransactionStatus.Completed;
             transaction.ProcessedByUserId = adminId;
             transaction.ProcessedAt = DateTime.UtcNow;
 
-            await SaveProcessedAsync();
+            await _auditLogService.RecordAsync("CompleteWithdraw", "WalletTransaction", transaction.Id.ToString(),
+                $"Xác nhận đã chuyển {Math.Abs(transaction.Amount):N0} đ cho yêu cầu rút #{transaction.Id}.", ipAddress, adminId);
 
-            return true;
+            await SaveProcessedAsync();
         }
 
         // =========================
         // ADMIN: TỪ CHỐI NẠP / RÚT
         // =========================
-        public async Task<bool> RejectRequestAsync(int transactionId, string adminId, string? reason)
+        public async Task RejectRequestAsync(int transactionId, string adminId, string? reason, string ipAddress)
         {
             var transaction = await _unitOfWork.WalletTransactions.GetByIdAsync(transactionId);
 
             if (transaction == null ||
                 (transaction.Type != WalletTransactionType.Deposit &&
                  transaction.Type != WalletTransactionType.Withdraw))
-            {
-                return false;
-            }
+                throw new InvalidOperationException("Yêu cầu không tồn tại.");
 
             if (transaction.Status != WalletTransactionStatus.Pending)
-            {
-                throw new InvalidOperationException("This request has already been processed.");
-            }
+                throw new InvalidOperationException("Yêu cầu này đã được xử lý rồi.");
+
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new InvalidOperationException("Vui lòng nhập lý do từ chối để khách biết.");
+
+            reason = reason.Trim();
 
             // Rút bị từ chối: tiền tự mở khóa vì dòng Rejected không còn được tính
             transaction.Status = WalletTransactionStatus.Rejected;
             transaction.ProcessedByUserId = adminId;
             transaction.ProcessedAt = DateTime.UtcNow;
+            transaction.Note = reason.Length > 500 ? reason[..500] : reason;
 
-            if (!string.IsNullOrWhiteSpace(reason))
-            {
-                transaction.Note = reason.Trim();
-            }
+            string typeText = transaction.Type == WalletTransactionType.Deposit ? "nạp" : "rút";
+
+            await _auditLogService.RecordAsync("RejectWalletRequest", "WalletTransaction", transaction.Id.ToString(),
+                $"Từ chối yêu cầu {typeText} {Math.Abs(transaction.Amount):N0} đ (#{transaction.Id}). Lý do: {transaction.Note}", ipAddress, adminId);
 
             await SaveProcessedAsync();
-
-            return true;
         }
 
         // =========================
@@ -352,7 +413,7 @@ namespace RentMate.Service.Services
             catch (DbUpdateConcurrencyException)
             {
                 throw new InvalidOperationException(
-                    "This request was just processed by someone else. Please reload.");
+                    "Yêu cầu này vừa được người khác xử lý. Vui lòng tải lại trang.");
             }
         }
 

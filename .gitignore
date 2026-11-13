@@ -488,3 +488,4 @@ appsettings.Development.json
 
 # Ảnh người dùng tải lên lúc chạy app
 RentMate.AdminSite/wwwroot/uploads/
+RentMate.Api/wwwroot/uploads/

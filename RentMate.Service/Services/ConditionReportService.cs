@@ -34,7 +34,7 @@ namespace RentMate.Service.Services
             if (rental == null)
             {
                 throw new ArgumentException(
-                    "Rental does not exist.");
+                    "Đơn thuê không tồn tại.");
             }
 
             // MVP:
@@ -42,7 +42,7 @@ namespace RentMate.Service.Services
             if (rental.Item.OwnerId != userId)
             {
                 throw new UnauthorizedAccessException(
-                    "Only the item owner can create condition reports.");
+                    "Chỉ chủ đồ mới lập được biên bản.");
             }
 
             if (!Enum.IsDefined(
@@ -50,7 +50,7 @@ namespace RentMate.Service.Services
                 dto.ReportType))
             {
                 throw new ArgumentException(
-                    "Invalid report type.");
+                    "Loại biên bản không hợp lệ.");
             }
 
             if (!Enum.IsDefined(
@@ -58,7 +58,7 @@ namespace RentMate.Service.Services
                 dto.Condition))
             {
                 throw new ArgumentException(
-                    "Invalid item condition.");
+                    "Tình trạng đồ không hợp lệ.");
             }
 
             // Không cho tạo trùng Before/After
@@ -71,7 +71,7 @@ namespace RentMate.Service.Services
             if (alreadyExists)
             {
                 throw new InvalidOperationException(
-                    "This condition report already exists.");
+                    "Biên bản này đã được lập rồi.");
             }
 
             // =========================
@@ -84,7 +84,7 @@ namespace RentMate.Service.Services
                     rental.Status != RentalStatus.WaitingForPickup)
                 {
                     throw new InvalidOperationException(
-                        "Before-rental report can only be created after approval and before pickup.");
+                        "Biên bản trước khi giao chỉ lập được sau khi duyệt và trước khi giao đồ.");
                 }
             }
 
@@ -97,7 +97,7 @@ namespace RentMate.Service.Services
                 if (rental.Status != RentalStatus.Returned)
                 {
                     throw new InvalidOperationException(
-                        "After-rental report can only be created after the item is returned.");
+                        "Biên bản sau khi trả chỉ lập được khi người thuê đã trả đồ.");
                 }
             }
 
@@ -153,7 +153,7 @@ namespace RentMate.Service.Services
             if (rental == null)
             {
                 throw new ArgumentException(
-                    "Rental does not exist.");
+                    "Đơn thuê không tồn tại.");
             }
 
             // Chỉ renter và owner được xem

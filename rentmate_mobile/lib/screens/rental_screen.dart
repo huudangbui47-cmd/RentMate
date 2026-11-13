@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/item_service.dart';
 import '../services/rental_service.dart';
+import '../services/wallet_service.dart';
+import '../widgets/ui.dart';
 
 class RentalScreen extends StatefulWidget {
   final Item item;
@@ -15,6 +17,16 @@ class _RentalScreenState extends State<RentalScreen> {
   final _note = TextEditingController();
   DateTimeRange? _range;
   bool _loading = false;
+  WalletSummary? _wallet;
+
+  @override
+  void initState() {
+    super.initState();
+    // Số dư chỉ để tham khảo; lỗi thì bỏ qua
+    WalletService().getSummary().then((w) {
+      if (mounted) setState(() => _wallet = w);
+    }).catchError((_) {});
+  }
 
   @override
   void dispose() {
@@ -23,8 +35,7 @@ class _RentalScreenState extends State<RentalScreen> {
   }
 
   // API tính cả ngày nhận lẫn ngày trả: thuê 12 → 14 = 3 ngày.
-  int get _days =>
-      _range == null ? 0 : _range!.end.difference(_range!.start).inDays + 1;
+  int get _days => _range == null ? 0 : _range!.end.difference(_range!.start).inDays + 1;
 
   Future<void> _pickDates() async {
     final today = DateUtils.dateOnly(DateTime.now());
@@ -33,7 +44,7 @@ class _RentalScreenState extends State<RentalScreen> {
       firstDate: today,
       lastDate: today.add(const Duration(days: 365)),
       initialDateRange: _range,
-      helpText: 'Chọn ngày thuê',
+      helpText: 'Chọn ngày nhận và ngày trả',
       saveText: 'Xong',
     );
     if (picked != null) setState(() => _range = picked);
@@ -41,8 +52,7 @@ class _RentalScreenState extends State<RentalScreen> {
 
   Future<void> _submit() async {
     if (_range == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Vui lòng chọn ngày thuê')));
+      showSnack(context, 'Vui lòng chọn ngày thuê', error: true);
       return;
     }
     setState(() => _loading = true);
@@ -56,76 +66,85 @@ class _RentalScreenState extends State<RentalScreen> {
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      if (mounted) showSnack(context, errorText(e), error: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _fmt(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    final scheme = Theme.of(context).colorScheme;
     final rentTotal = item.pricePerDay * _days;
+    final total = rentTotal + item.depositAmount;
+    final notEnough = _wallet != null && _range != null && _wallet!.availableBalance < total;
     return Scaffold(
       appBar: AppBar(title: const Text('Đặt thuê')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(item.name, style: Theme.of(context).textTheme.titleLarge),
-          Text('${formatVnd(item.pricePerDay)} / ngày'),
-          const SizedBox(height: 24),
+          Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(12),
+              leading: ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: 56),
+              title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('${formatVnd(item.pricePerDay)} / ngày · cọc ${formatVnd(item.depositAmount)}'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('Thời gian thuê', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.date_range),
             label: Text(_range == null
                 ? 'Chọn ngày nhận – ngày trả'
-                : '${_fmt(_range!.start)}  →  ${_fmt(_range!.end)}'),
+                : '${fmtDate(_range!.start)}  →  ${fmtDate(_range!.end)}  ($_days ngày)'),
             onPressed: _loading ? null : _pickDates,
           ),
+          if (item.status == 'Rented') ...[
+            const SizedBox(height: 8),
+            const NoticeBox('Đồ đang có người thuê. Hãy chọn khoảng ngày sau khi họ trả; chủ đồ sẽ xác nhận lịch.',
+                color: Color(0xFFE08A00)),
+          ],
           const SizedBox(height: 16),
           TextField(
             controller: _note,
             maxLines: 3,
             decoration: const InputDecoration(
-              labelText: 'Ghi chú cho chủ đồ (không bắt buộc)',
-              border: OutlineInputBorder(),
+              labelText: 'Lời nhắn cho chủ đồ (không bắt buộc)',
+              hintText: 'Ví dụ: Mình nhận đồ ở quận 1 được không?',
             ),
           ),
-          const SizedBox(height: 24),
           if (_range != null) ...[
-            _row('Số ngày thuê', '$_days ngày'),
-            _row('Tiền thuê', formatVnd(rentTotal)),
-            _row('Tiền cọc', formatVnd(item.depositAmount)),
-            const Divider(),
-            _row('Tổng dự kiến', formatVnd(rentTotal + item.depositAmount), bold: true),
-            const Text('Số tiền chính xác do hệ thống tính khi chủ đồ duyệt.',
-                style: TextStyle(color: Colors.grey, fontSize: 12)),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    InfoRow('Tiền thuê ($_days ngày)', formatVnd(rentTotal)),
+                    InfoRow('Tiền cọc (được hoàn lại)', formatVnd(item.depositAmount)),
+                    const Divider(height: 20),
+                    InfoRow('Cần thanh toán', formatVnd(total), bold: true, valueColor: scheme.primary),
+                    if (_wallet != null)
+                      InfoRow('Số dư ví hiện tại', formatVnd(_wallet!.availableBalance),
+                          valueColor: notEnough ? scheme.error : null),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            NoticeBox(
+              notEnough
+                  ? 'Số dư ví chưa đủ. Bạn vẫn gửi yêu cầu được; sau khi chủ đồ duyệt, hãy nạp thêm tiền rồi thanh toán trong 24 giờ.'
+                  : 'Chưa trừ tiền lúc này. Sau khi chủ đồ duyệt, bạn thanh toán bằng ví trong 24 giờ.',
+              color: notEnough ? const Color(0xFFE08A00) : const Color(0xFF2563EB),
+            ),
           ],
-          FilledButton(
-            onPressed: _loading ? null : _submit,
-            child: _loading
-                ? const SizedBox(
-                    height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Gửi yêu cầu thuê'),
-          ),
+          const SizedBox(height: 24),
+          BusyButton(busy: _loading, onPressed: _submit, label: 'Gửi yêu cầu thuê'),
         ],
-      ),
-    );
-  }
-
-  Widget _row(String label, String value, {bool bold = false}) {
-    final style = bold ? const TextStyle(fontWeight: FontWeight.bold) : null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: style), Text(value, style: style)],
       ),
     );
   }

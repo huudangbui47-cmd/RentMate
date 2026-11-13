@@ -16,6 +16,9 @@ namespace RentMate.Service.DTOs.Items
 
         public string Status { get; set; } = string.Empty;
 
+        // Chỉ có khi bị từ chối (chủ đồ xem ở "Đồ của tôi")
+        public string? RejectionReason { get; set; }
+
         public int CategoryId { get; set; }
 
         public string CategoryName { get; set; } = string.Empty;
@@ -25,5 +28,11 @@ namespace RentMate.Service.DTOs.Items
         public string OwnerName { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; }
+
+        // Ảnh chính để hiện ở danh sách
+        public string? ImageUrl { get; set; }
+
+        // Ảnh chính đứng đầu, sau đó theo thứ tự tải lên
+        public List<ItemImageDto> Images { get; set; } = new();
     }
 }

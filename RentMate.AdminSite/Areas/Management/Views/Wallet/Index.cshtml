@@ -1,0 +1,174 @@
+@model WalletRequestListViewModel
+
+@{
+    ViewData["Title"] = "Nạp / rút tiền";
+    bool isFiltered = Model.Type.HasValue || Model.Status != WalletTransactionStatus.Pending || !string.IsNullOrWhiteSpace(Model.SearchTerm);
+}
+
+<div class="page-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h3>Nạp / rút tiền</h3>
+            <p class="text-muted mb-0">
+                Chờ xử lý: <strong>@Model.PendingDepositCount</strong> yêu cầu nạp, <strong>@Model.PendingWithdrawCount</strong> yêu cầu rút.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-light border mb-3">
+    <strong>Nạp tiền:</strong> mở sao kê tài khoản RentMate, thấy giao dịch có <em>đúng số tiền</em> và nội dung chứa <em>mã nạp</em> thì bấm <strong>Duyệt</strong>.
+    <br />
+    <strong>Rút tiền:</strong> chuyển khoản đúng số tiền tới tài khoản của khách bên dưới, xong mới bấm <strong>Đã chuyển</strong>.
+</div>
+
+<form method="get" asp-action="Index" class="admin-toolbar">
+    <div class="admin-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input asp-for="SearchTerm" name="searchTerm" class="form-control" placeholder="Tìm mã nạp, tên hoặc email khách..." autocomplete="off" />
+    </div>
+    <div class="admin-filterbar">
+        <select name="type" class="form-select">
+            <option value="">Nạp và rút</option>
+            <option value="@WalletTransactionType.Deposit" selected="@(Model.Type == WalletTransactionType.Deposit)">Nạp tiền</option>
+            <option value="@WalletTransactionType.Withdraw" selected="@(Model.Type == WalletTransactionType.Withdraw)">Rút tiền</option>
+        </select>
+        <select name="status" class="form-select" onchange="this.form.all.value = this.value === '' ? 'true' : 'false'">
+            <option value="" selected="@(Model.Status == null)">Tất cả trạng thái</option>
+            <option value="@WalletTransactionStatus.Pending" selected="@(Model.Status == WalletTransactionStatus.Pending)">Chờ xử lý</option>
+            <option value="@WalletTransactionStatus.Completed" selected="@(Model.Status == WalletTransactionStatus.Completed)">Đã xử lý</option>
+            <option value="@WalletTransactionStatus.Rejected" selected="@(Model.Status == WalletTransactionStatus.Rejected)">Đã từ chối</option>
+        </select>
+        <input type="hidden" name="all" value="@(Model.Status == null ? "true" : "false")" />
+        <button type="submit" class="btn btn-outline-primary">Lọc</button>
+        @if (isFiltered)
+        {
+            <a asp-action="Index" class="admin-clear-link">Xóa lọc</a>
+        }
+    </div>
+</form>
+
+<div class="card admin-table-card">
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Loại</th>
+                    <th>Khách hàng</th>
+                    <th class="text-end">Số tiền</th>
+                    <th>Mã nạp / Tài khoản nhận</th>
+                    <th>Thời điểm</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Requests.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">Không có yêu cầu nào.</td></tr>
+                }
+                @foreach (var request in Model.Requests)
+                {
+                    bool isDeposit = request.Type == WalletTransactionType.Deposit;
+                    bool isPending = request.Status == WalletTransactionStatus.Pending;
+                    string badgeClass = request.Status switch
+                    {
+                        WalletTransactionStatus.Pending => "admin-badge-warning",
+                        WalletTransactionStatus.Completed => "admin-badge-success",
+                        WalletTransactionStatus.Rejected => "admin-badge-danger",
+                        _ => "admin-badge-muted"
+                    };
+                    <tr>
+                        <td>
+                            <span class="admin-badge @(isDeposit ? "admin-badge-info" : "admin-badge-primary")">@request.TypeText</span>
+                            <div><small class="text-muted">#@request.Id</small></div>
+                        </td>
+                        <td>
+                            <div>@request.UserFullName</div>
+                            <small class="text-muted">@request.UserEmail</small>
+                        </td>
+                        <td class="text-end fw-semibold">@request.Amount.ToString("N0") đ</td>
+                        <td>
+                            @if (isDeposit)
+                            {
+                                <code class="fs-6">@request.Code</code>
+                            }
+                            else
+                            {
+                                <div class="fw-semibold">@request.BankName</div>
+                                <div><code>@request.BankAccountNumber</code></div>
+                                <small class="text-muted">@request.BankAccountName</small>
+                            }
+                        </td>
+                        <td class="text-muted">
+                            @request.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                            @if (request.ProcessedAt.HasValue)
+                            {
+                                <div><small>Xử lý: @request.ProcessedAt.Value.ToLocalTime().ToString("dd/MM HH:mm") @(request.ProcessedByName != null ? "· " + request.ProcessedByName : "")</small></div>
+                            }
+                        </td>
+                        <td>
+                            <span class="admin-badge @badgeClass">@request.StatusText</span>
+                            @if (request.Status == WalletTransactionStatus.Rejected && !string.IsNullOrWhiteSpace(request.Note))
+                            {
+                                <div><small class="text-muted">Lý do: @request.Note</small></div>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (isPending)
+                            {
+                                string confirmText = isDeposit
+                                    ? $"Xác nhận đã nhận {request.Amount:N0} đ với nội dung {request.Code}?"
+                                    : $"Xác nhận đã chuyển {request.Amount:N0} đ tới {request.BankName} {request.BankAccountNumber}?";
+
+                                <form asp-action="@(isDeposit ? "ApproveDeposit" : "CompleteWithdraw")" asp-route-id="@request.Id" method="post" class="d-inline"
+                                      onsubmit="return confirm('@confirmText')">
+                                    <button type="submit" class="btn btn-sm btn-success">@(isDeposit ? "Duyệt" : "Đã chuyển")</button>
+                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectWalletModal"
+                                        data-id="@request.Id" data-name="@($"{request.TypeText.ToLower()} {request.Amount:N0} đ của {request.UserFullName}")">Từ chối</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="rejectWalletModal" data-reason-modal tabindex="-1" aria-labelledby="rejectWalletTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="Reject" method="post" class="modal-content">
+            <input type="hidden" name="id" />
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectWalletTitle">Từ chối yêu cầu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Từ chối yêu cầu <strong data-fill-name></strong>?</p>
+                <label for="walletRejectReason" class="form-label">Lý do (khách sẽ thấy trong app)</label>
+                <textarea id="walletRejectReason" name="reason" class="form-control" rows="3" maxlength="500" required
+                          placeholder="Ví dụ: Không thấy giao dịch có mã nạp này trong sao kê."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-danger">Từ chối</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Phân trang" class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <a asp-action="Index" asp-route-page="@i" asp-route-type="@Model.Type" asp-route-status="@Model.Status" asp-route-all="@(Model.Status == null)" asp-route-searchTerm="@Model.SearchTerm"
+               class="btn @(Model.Page == i ? "btn-primary" : "btn-outline-primary")" aria-current="@(Model.Page == i ? "page" : null)">@i</a>
+        }
+    </nav>
+}
+
+@section Scripts {
+    <script src="~/js/reason-modal.js" asp-append-version="true"></script>
+}

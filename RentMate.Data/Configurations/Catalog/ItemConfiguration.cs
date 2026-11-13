@@ -13,6 +13,8 @@ namespace RentMate.Data.Configurations.Catalog
             builder.Property(i => i.PricePerDay).HasPrecision(18, 2);
             builder.Property(i => i.DepositAmount).HasPrecision(18, 2);
 
+            builder.Property(i => i.RejectionReason).HasMaxLength(500);
+
             // User 1 - N Item
             builder.HasOne(i => i.Owner)
                 .WithMany(u => u.Items)

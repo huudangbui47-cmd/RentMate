@@ -40,5 +40,41 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Approve(int id, string? returnStatus)
+        {
+            try
+            {
+                await _itemService.ApproveAsync(id, GetCurrentUserId(), GetIpAddress());
+
+                TempData["Success"] = "Đã duyệt. Đồ đã hiện trên app.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+
+            return RedirectToAction(nameof(Index), new { status = returnStatus });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Reject(int id, string reason, string? returnStatus)
+        {
+            try
+            {
+                await _itemService.RejectAsync(id, reason, GetCurrentUserId(), GetIpAddress());
+
+                TempData["Success"] = "Đã từ chối. Chủ đồ sẽ thấy lý do trong app.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+
+            return RedirectToAction(nameof(Index), new { status = returnStatus });
+        }
     }
 }

@@ -144,7 +144,7 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
                       url,
                       height: 180,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Text('Không mở được ảnh: $url',
+                      errorBuilder: (_, _, _) => Text('Không mở được ảnh: $url',
                           style: const TextStyle(color: Colors.grey)),
                     ),
                   ),
@@ -169,7 +169,7 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
       ),
       const SizedBox(height: 16),
       DropdownButtonFormField<String>(
-        value: _condition,
+        initialValue: _condition,
         decoration: const InputDecoration(labelText: 'Tình trạng', border: border),
         items: [
           for (final e in conditionLabels.entries)

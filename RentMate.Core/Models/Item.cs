@@ -14,7 +14,10 @@ namespace RentMate.Core.Models
 
         public ItemCondition Condition { get; set; }
 
-        public ItemStatus Status { get; set; } = ItemStatus.Available;
+        public ItemStatus Status { get; set; } = ItemStatus.PendingApproval;
+
+        // Lý do quản lý từ chối, hiện cho chủ đồ trên app
+        public string? RejectionReason { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using RentMate.Api.Infrastructure.Storage;
 using RentMate.Api.Security;
 using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
@@ -38,7 +39,12 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     })
     .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders() // mã 6 số cho "Quên mật khẩu" trên app
+    .AddErrorDescriber<VietnameseIdentityErrorDescriber>();
+
+// Cấu hình gửi email (mục "Smtp" trong appsettings, giống AdminSite)
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
 // =========================
 // 4. Repository / UnitOfWork + Services
@@ -46,12 +52,17 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IRentalService, RentalService>();
 builder.Services.AddScoped<IConditionReportService, ConditionReportService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+// Ảnh đồ cho thuê lưu trong wwwroot/uploads/items (giống ảnh đại diện ở AdminSite)
+builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
 // =========================
 // 5. JWT Authentication
@@ -121,7 +132,7 @@ builder.Services.AddCors(options =>
 // 7. Swagger
 // =========================
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddScoped<IWalletService, WalletService>();
+
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -171,6 +182,9 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+// Phục vụ ảnh đã tải lên: /uploads/items/...
+app.UseStaticFiles();
 
 app.UseCors("AllowFlutter");
 

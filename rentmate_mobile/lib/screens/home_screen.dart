@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/item_service.dart';
+import '../widgets/ui.dart';
 import 'item_detail_screen.dart';
-import 'login_screen.dart';
-import 'my_items_screen.dart';
-import 'my_rentals_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,8 +16,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final _service = ItemService();
   List<Item> _items = [];
   List<Category> _categories = [];
-  int? _selectedCategoryId; // null = tất cả
+  int? _parentId; // danh mục cha đang chọn, null = tất cả
+  int? _childId; // danh mục con đang chọn trong danh mục cha
   String _search = '';
+  String _sort = 'newest';
+  String _name = '';
+  String? _userId;
   bool _loading = true;
   String? _error;
 
@@ -36,159 +38,289 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     try {
       final results = await Future.wait([_service.getItems(), _service.getCategories()]);
+      final auth = AuthService();
+      _name = await auth.getFullName() ?? '';
+      _userId = await auth.getUserId();
+      if (!mounted) return;
       setState(() {
         _items = results[0] as List<Item>;
         _categories = results[1] as List<Category>;
+        // Danh mục đang chọn vừa bị ẩn thì quay về "Tất cả"
+        if (!_categories.any((c) => c.id == _parentId)) _parentId = null;
+        if (!_categories.any((c) => c.id == _childId)) _childId = null;
       });
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) setState(() => _error = errorText(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  // Chọn danh mục cha thì hiện cả đồ thuộc danh mục con của nó.
+  List<Category> get _parents => _categories.where((c) => c.parentId == null).toList();
+
+  List<Category> get _children =>
+      _parentId == null ? [] : _categories.where((c) => c.parentId == _parentId).toList();
+
   bool _matchesCategory(Item item) {
-    if (_selectedCategoryId == null) return true;
-    if (item.categoryId == _selectedCategoryId) return true;
-    final cat = _categories.where((c) => c.id == item.categoryId).firstOrNull;
-    return cat?.parentId == _selectedCategoryId;
+    if (_childId != null) return item.categoryId == _childId;
+    if (_parentId == null) return true;
+    if (item.categoryId == _parentId) return true;
+    // Chọn danh mục cha thì hiện cả đồ thuộc các danh mục con của nó
+    return _categories.any((c) => c.id == item.categoryId && c.parentId == _parentId);
   }
 
-  List<Item> get _visibleItems => _items
-      .where(_matchesCategory)
-      .where((i) => i.name.toLowerCase().contains(_search.toLowerCase()))
-      .toList();
-
-  Future<void> _logout() async {
-    await AuthService().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+  List<Item> get _visibleItems {
+    final keyword = _search.trim().toLowerCase();
+    final list = _items
+        .where(_matchesCategory)
+        .where((i) =>
+            keyword.isEmpty ||
+            i.name.toLowerCase().contains(keyword) ||
+            i.description.toLowerCase().contains(keyword))
+        .toList();
+    switch (_sort) {
+      case 'priceAsc':
+        list.sort((a, b) => a.pricePerDay.compareTo(b.pricePerDay));
+      case 'priceDesc':
+        list.sort((a, b) => b.pricePerDay.compareTo(a.pricePerDay));
+      default:
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('RentMate'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.inventory_2_outlined),
-            tooltip: 'Đồ của tôi',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MyItemsScreen()),
-              );
-              _load(); // đồ vừa đăng/sửa/xóa hiện ngay ở trang chủ
-            },
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _header(scheme)),
+              SliverToBoxAdapter(child: _categoryBar()),
+              ..._body(),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.receipt_long),
-            tooltip: 'Đơn thuê',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MyRentalsScreen()),
-            ),
+        ),
+      ),
+    );
+  }
+
+  Widget _header(ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_name.isEmpty ? 'Xin chào 👋' : 'Xin chào, ${_name.split(' ').last} 👋',
+              style: TextStyle(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 2),
+          const Text('Hôm nay bạn muốn thuê gì?',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Tìm laptop, máy ảnh, lều...',
+                    prefixIcon: Icon(Icons.search),
+                    isDense: true,
+                  ),
+                  onChanged: (v) => setState(() => _search = v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                tooltip: 'Sắp xếp',
+                initialValue: _sort,
+                onSelected: (v) => setState(() => _sort = v),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'newest', child: Text('Mới đăng')),
+                  PopupMenuItem(value: 'priceAsc', child: Text('Giá thấp → cao')),
+                  PopupMenuItem(value: 'priceDesc', child: Text('Giá cao → thấp')),
+                ],
+                child: Container(
+                  height: 48,
+                  width: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: const Icon(Icons.tune_rounded),
+                ),
+              ),
+            ],
           ),
-          IconButton(icon: const Icon(Icons.logout), tooltip: 'Đăng xuất', onPressed: _logout),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Tìm đồ cho thuê...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: (v) => setState(() => _search = v),
-            ),
+    );
+  }
+
+  Widget _categoryBar() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 48,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              _chip('Tất cả', _parentId == null, () => setState(() {
+                    _parentId = null;
+                    _childId = null;
+                  })),
+              for (final c in _parents)
+                _chip(c.name, _parentId == c.id, () => setState(() {
+                      _parentId = c.id;
+                      _childId = null;
+                    }), icon: ItemThumb.iconFor(c.name)),
+            ],
           ),
+        ),
+        // Danh mục cha có con: hiện thêm hàng danh mục con
+        if (_children.isNotEmpty)
           SizedBox(
-            height: 48,
+            height: 44,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                _chip('Tất cả', null),
-                // Chỉ hiện danh mục cấp 1 làm bộ lọc.
-                for (final c in _categories.where((c) => c.parentId == null)) _chip(c.name, c.id),
+                _chip('Tất cả', _childId == null, () => setState(() => _childId = null), small: true),
+                for (final c in _children)
+                  _chip(c.name, _childId == c.id, () => setState(() => _childId = c.id), small: true),
               ],
             ),
           ),
-          Expanded(child: _body()),
-        ],
+      ],
+    );
+  }
+
+  Widget _chip(String label, bool selected, VoidCallback onTap, {IconData? icon, bool small = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: ChoiceChip(
+        avatar: icon == null ? null : Icon(icon, size: 18),
+        label: Text(label),
+        selected: selected,
+        showCheckmark: false,
+        visualDensity: small ? VisualDensity.compact : null,
+        onSelected: (_) => onTap(),
       ),
     );
   }
 
-  Widget _chip(String label, int? id) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: ChoiceChip(
-          label: Text(label),
-          selected: _selectedCategoryId == id,
-          onSelected: (_) => setState(() => _selectedCategoryId = id),
-        ),
-      );
-
-  Widget _body() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+  List<Widget> _body() {
+    if (_loading) return const [SliverFillRemaining(child: LoadingView())];
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            FilledButton(onPressed: _load, child: const Text('Thử lại')),
-          ],
-        ),
-      );
+      return [SliverFillRemaining(child: ErrorView(message: _error!, onRetry: _load))];
     }
     final items = _visibleItems;
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: items.isEmpty
-          ? ListView(children: const [
-              SizedBox(height: 120),
-              Center(child: Text('Không có đồ nào')),
-            ])
-          : ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, i) => _itemCard(items[i]),
-            ),
-    );
+    if (items.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: EmptyView(
+            icon: Icons.search_off_rounded,
+            title: _items.isEmpty ? 'Chưa có đồ nào được đăng' : 'Không tìm thấy đồ phù hợp',
+            subtitle: _items.isEmpty ? 'Hãy là người đầu tiên đăng đồ cho thuê!' : 'Thử từ khóa hoặc danh mục khác.',
+          ),
+        ),
+      ];
+    }
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        sliver: SliverToBoxAdapter(
+          child: Text('${items.length} món đồ', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ),
+      ),
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.66,
+          ),
+          delegate: SliverChildBuilderDelegate((context, i) => _itemCard(items[i]), childCount: items.length),
+        ),
+      ),
+    ];
   }
 
   Widget _itemCard(Item item) {
-    final available = item.status == 'Available';
+    final scheme = Theme.of(context).colorScheme;
+    final mine = item.ownerId == _userId;
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: const CircleAvatar(radius: 28, child: Icon(Icons.inventory_2_outlined)),
-        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id)),
+          );
+        },
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Text('${formatVnd(item.pricePerDay)} / ngày',
-                style: TextStyle(color: Theme.of(context).colorScheme.primary)),
-            Text('${item.categoryName} · ${conditionLabels[item.condition] ?? item.condition}'),
+            Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 1.25,
+                  child: LayoutBuilder(
+                    builder: (_, c) => ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: c.maxWidth, radius: 0),
+                  ),
+                ),
+                if (mine || item.status == 'Rented')
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: mine ? scheme.primary : Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(mine ? 'Đồ của bạn' : 'Đang được thuê',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+              ],
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700, height: 1.25)),
+                    const SizedBox(height: 4),
+                    Text(item.categoryName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                    const Spacer(),
+                    Text.rich(
+                      TextSpan(children: [
+                        TextSpan(
+                          text: formatVnd(item.pricePerDay),
+                          style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 15),
+                        ),
+                        TextSpan(text: ' /ngày', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
-        ),
-        trailing: Chip(
-          label: Text(available ? 'Còn trống' : 'Đang thuê'),
-          backgroundColor: available ? Colors.green.shade100 : Colors.grey.shade300,
-        ),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id)),
         ),
       ),
     );

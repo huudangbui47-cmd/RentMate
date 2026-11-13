@@ -288,3 +288,61 @@
     border-bottom: 2px solid currentColor;
     opacity: 0.35;
 }
+
+/* Mô tả đồ trong bảng: 2 dòng, rê chuột xem đủ (để quản lý đọc khi duyệt) */
+.rm-item-description {
+    max-width: 320px;
+    font-size: .8125rem;
+    color: var(--bs-secondary-color, #6c757d);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Ảnh đồ cho thuê ở trang quản trị */
+.rm-thumb-button {
+    position: relative;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: zoom-in;
+    flex-shrink: 0;
+}
+
+.rm-thumb-count {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    min-width: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: #435ebe;
+    color: #fff;
+    font-size: 11px;
+    line-height: 20px;
+    text-align: center;
+}
+
+.rm-thumb-empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #adb5bd;
+    background: #f5f6f8;
+}
+
+.rm-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.rm-image-grid img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e3e6ea;
+}

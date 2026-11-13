@@ -24,6 +24,7 @@ namespace RentMate.Service.Services
             int totalUsers = await _userManager.Users.CountAsync();
             int totalItems = await _unitOfWork.Items.BuildQuery(i => i.Status != ItemStatus.Hidden).CountAsync();
             int availableItems = await _unitOfWork.Items.BuildQuery(i => i.Status == ItemStatus.Available).CountAsync();
+            int pendingApprovalItems = await _unitOfWork.Items.BuildQuery(i => i.Status == ItemStatus.PendingApproval).CountAsync();
             int pendingRentals = await _unitOfWork.Rentals.BuildQuery(r => r.Status == RentalStatus.Pending).CountAsync();
 
             int activeRentals = await _unitOfWork.Rentals
@@ -115,6 +116,7 @@ namespace RentMate.Service.Services
                 TotalUsers = totalUsers,
                 TotalItems = totalItems,
                 AvailableItems = availableItems,
+                PendingApprovalItems = pendingApprovalItems,
                 PendingRentals = pendingRentals,
                 ActiveRentals = activeRentals,
                 OverdueRentals = overdueRentals,

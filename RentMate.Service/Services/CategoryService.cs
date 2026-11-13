@@ -25,7 +25,7 @@ namespace RentMate.Service.Services
         // Chỉ trả danh mục đang hoạt động; danh mục con bị ẩn theo khi danh mục cha ngừng hoạt động
         public async Task<List<CategoryDto>> GetAllAsync()
         {
-            return await _unitOfWork.Categories
+            var categories = await _unitOfWork.Categories
                 .BuildQuery(c => c.IsActive && (c.ParentCategory == null || c.ParentCategory.IsActive))
                 .OrderBy(c => c.CategoryName)
                 .Select(c => new CategoryDto
@@ -37,6 +37,17 @@ namespace RentMate.Service.Services
                     ParentCategoryId = c.ParentCategoryId
                 })
                 .ToListAsync();
+
+            // Mỗi danh mục cha đứng ngay trước các danh mục con của nó (app hiển thị theo đúng thứ tự này)
+            var ordered = new List<CategoryDto>();
+
+            foreach (var parent in categories.Where(c => c.ParentCategoryId == null))
+            {
+                ordered.Add(parent);
+                ordered.AddRange(categories.Where(c => c.ParentCategoryId == parent.CategoryId));
+            }
+
+            return ordered;
         }
 
         public async Task<CategoryDto?> GetByIdAsync(int id)

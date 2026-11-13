@@ -34,6 +34,15 @@ namespace RentMate.Core.ViewModels
             "ToggleCategory" => "Đổi trạng thái danh mục",
             "DeleteCategory" => "Xóa danh mục",
             "UpdateItemStatus" => "Cập nhật trạng thái đồ",
+            "ApproveItem" => "Duyệt đồ",
+            "RejectItem" => "Từ chối đồ",
+            "ApproveDeposit" => "Duyệt nạp tiền",
+            "CompleteWithdraw" => "Xác nhận rút tiền",
+            "RejectWalletRequest" => "Từ chối nạp/rút",
+            "CustomerUpdateProfile" => "Khách sửa thông tin",
+            "CustomerChangePassword" => "Khách đổi mật khẩu",
+            "CustomerRequestPasswordReset" => "Khách yêu cầu mã quên mật khẩu",
+            "CustomerResetPassword" => "Khách đặt lại mật khẩu bằng mã",
             _ => Action
         };
 
@@ -45,6 +54,7 @@ namespace RentMate.Core.ViewModels
             "Item" => "Đồ cho thuê",
             "Rental" => "Đơn thuê",
             "Payment" => "Thanh toán",
+            "WalletTransaction" => "Ví",
             _ => EntityName
         };
     }

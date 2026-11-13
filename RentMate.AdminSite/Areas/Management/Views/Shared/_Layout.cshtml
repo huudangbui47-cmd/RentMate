@@ -87,6 +87,15 @@
                                 <span>Thanh toán</span>
                             </a>
                         </li>
+                        @if (isAdmin)
+                        {
+                            <li class="@ItemClass("Wallet")">
+                                <a asp-area="Management" asp-controller="Wallet" asp-action="Index" class="sidebar-link">
+                                    <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4" /><path d="M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2Z" /><circle cx="16" cy="14.5" r="1.2" /></svg></span>
+                                    <span>Nạp / rút tiền</span>
+                                </a>
+                            </li>
+                        }
 
                         <li class="sidebar-title">Khách hàng</li>
                         <li class="@ItemClass("Customer")">

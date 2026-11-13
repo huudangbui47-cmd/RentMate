@@ -10,6 +10,9 @@ namespace RentMate.Core.ViewModels
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public int TotalCount { get; set; }
+
+        // Số đồ đang chờ duyệt (hiện nhắc ở đầu trang)
+        public int PendingCount { get; set; }
         public int TotalPages => Math.Max(1, (TotalCount + PageSize - 1) / PageSize);
 
         public List<ItemListItemViewModel> Items { get; set; } = new();

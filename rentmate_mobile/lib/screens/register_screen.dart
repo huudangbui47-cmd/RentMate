@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../widgets/ui.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -38,15 +39,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _password.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng ký thành công, vui lòng đăng nhập.')),
-      );
+      showSnack(context, 'Đăng ký thành công, vui lòng đăng nhập.');
       Navigator.of(context).pop();
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      if (mounted) showSnack(context, errorText(e), error: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,13 +51,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   InputDecoration _deco(String label, IconData icon) => InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
-        border: const OutlineInputBorder(),
       );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đăng ký')),
+      appBar: AppBar(title: const Text('Tạo tài khoản')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -92,16 +87,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _phone,
                   keyboardType: TextInputType.phone,
                   decoration: _deco('Số điện thoại', Icons.phone_outlined),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Vui lòng nhập số điện thoại' : null,
+                  validator: phoneError,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _password,
                   obscureText: true,
-                  decoration: _deco('Mật khẩu', Icons.lock_outline),
-                  validator: (v) =>
-                      (v == null || v.length < 6) ? 'Mật khẩu tối thiểu 6 ký tự' : null,
+                  decoration: _deco('Mật khẩu', Icons.lock_outline).copyWith(
+                    helperText: 'Ít nhất 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt',
+                  ),
+                  validator: passwordError,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
