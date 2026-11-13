@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
@@ -14,10 +15,32 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   late Future<Profile> _future = AccountService().getProfile();
+  bool _uploadingAvatar = false;
 
   Future<void> _reload() async {
     setState(() { _future = AccountService().getProfile(); });
     await _future;
+  }
+
+  Future<void> _changeAvatar() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (file == null || !mounted) return;
+    setState(() => _uploadingAvatar = true);
+    try {
+      await AccountService().uploadAvatar(file);
+      if (!mounted) return;
+      showSnack(context, 'Đã đổi ảnh đại diện');
+      await _reload();
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
   }
 
   Future<void> _logout() async {
@@ -53,12 +76,37 @@ class _AccountScreenState extends State<AccountScreen> {
                     padding: const EdgeInsets.all(20),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor: scheme.primary,
-                          child: Text(
-                            p.fullName.isEmpty ? '?' : p.fullName.trim().split(' ').last.characters.first.toUpperCase(),
-                            style: const TextStyle(fontSize: 26, color: Colors.white, fontWeight: FontWeight.bold),
+                        GestureDetector(
+                          onTap: _uploadingAvatar ? null : _changeAvatar,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 32,
+                                backgroundColor: scheme.primary,
+                                backgroundImage: p.avatarUrl == null ? null : NetworkImage(p.avatarUrl!),
+                                child: _uploadingAvatar
+                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    : p.avatarUrl != null
+                                        ? null
+                                        : Text(
+                                            p.fullName.isEmpty ? '?' : p.fullName.trim().split(' ').last.characters.first.toUpperCase(),
+                                            style: const TextStyle(fontSize: 26, color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: scheme.outlineVariant),
+                                  ),
+                                  child: Icon(Icons.camera_alt_outlined, size: 14, color: scheme.primary),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(width: 16),

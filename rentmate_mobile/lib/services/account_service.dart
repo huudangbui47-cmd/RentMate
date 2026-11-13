@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import 'auth_service.dart';
+import 'item_service.dart' show imageFullUrl;
 
 class Profile {
   final String userId;
@@ -10,6 +12,7 @@ class Profile {
   final String email;
   final String phoneNumber;
   final String address;
+  final String? avatarUrl; // null nếu chưa có ảnh đại diện
   final DateTime createdAt;
 
   Profile.fromJson(Map<String, dynamic> j)
@@ -18,6 +21,7 @@ class Profile {
         email = (j['email'] ?? '') as String,
         phoneNumber = (j['phoneNumber'] ?? '') as String,
         address = (j['address'] ?? '') as String,
+        avatarUrl = j['avatarUrl'] == null ? null : imageFullUrl(j['avatarUrl'] as String),
         createdAt = DateTime.parse(j['createdAt'] as String);
 }
 
@@ -49,6 +53,17 @@ class AccountService {
     final profile = Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
     await AuthService().saveFullName(profile.fullName);
     return profile;
+  }
+
+  Future<Profile> uploadAvatar(XFile file) async {
+    final headers = await AuthService().authHeaders();
+    headers.remove('Content-Type'); // MultipartRequest tự đặt Content-Type
+    final req = http.MultipartRequest('POST', Uri.parse('$apiBaseUrl/api/Account/avatar'))
+      ..headers.addAll(headers)
+      ..files.add(await http.MultipartFile.fromPath('file', file.path, filename: file.name));
+    final res = await http.Response.fromStream(await req.send());
+    checkResponse(res);
+    return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
   /// Đổi mật khẩu xong server cấp token mới (token cũ ở mọi máy hết hiệu lực).

@@ -244,6 +244,7 @@ namespace RentMate.Service.Services
                 Email = user.Email ?? string.Empty,
                 PhoneNumber = user.PhoneNumber,
                 Address = user.Address,
+                AvatarUrl = user.AvatarUrl,
                 CreatedAt = user.CreatedAt
             };
         }
@@ -270,6 +271,27 @@ namespace RentMate.Service.Services
             await _auditLogService.RecordAsync("CustomerUpdateProfile", "Customer", user.Id, "Khách tự sửa thông tin tài khoản trên app.", ipAddress, user.Id);
 
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<string?> UpdateAvatarAsync(string userId, string avatarUrl, string ipAddress)
+        {
+            var user = await _userManager.FindByIdAsync(userId)
+                ?? throw new ArgumentException("Tài khoản không tồn tại.");
+
+            string? oldAvatarUrl = user.AvatarUrl;
+
+            user.AvatarUrl = avatarUrl;
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+                throw new ArgumentException(string.Join(" ", result.Errors.Select(e => e.Description)));
+
+            await _auditLogService.RecordAsync("CustomerUpdateAvatar", "Customer", user.Id, "Khách đổi ảnh đại diện trên app.", ipAddress, user.Id);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return oldAvatarUrl;
         }
 
         // Đổi mật khẩu làm SecurityStamp thay đổi nên mọi token cũ (kể cả máy đang dùng) hết hiệu lực.

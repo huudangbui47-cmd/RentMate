@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RentMate.Api.Infrastructure.Storage;
 using RentMate.Api.Security;
 using RentMate.Service.DTOs.Auth;
 using RentMate.Service.Interfaces;
@@ -15,11 +16,13 @@ namespace RentMate.Api.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly IFileStorageService _fileStorageService;
 
-        public AccountController(IAuthService authService, IJwtTokenService jwtTokenService)
+        public AccountController(IAuthService authService, IJwtTokenService jwtTokenService, IFileStorageService fileStorageService)
         {
             _authService = authService;
             _jwtTokenService = jwtTokenService;
+            _fileStorageService = fileStorageService;
         }
 
         // GET api/account/me
@@ -44,6 +47,41 @@ namespace RentMate.Api.Controllers
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
+            }
+        }
+
+        // POST api/account/avatar  (multipart, field "file")
+        [HttpPost("avatar")]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        public async Task<IActionResult> UploadAvatar(IFormFile? file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Vui lòng chọn ảnh.");
+
+            string? imageError = _fileStorageService.ValidateImage(file);
+
+            if (imageError != null)
+                return BadRequest(imageError);
+
+            string newAvatarUrl = await _fileStorageService.SaveAsync(file, "uploads/avatars");
+
+            try
+            {
+                string? oldAvatarUrl = await _authService.UpdateAvatarAsync(GetUserId(), newAvatarUrl, GetIpAddress());
+
+                _fileStorageService.Delete(oldAvatarUrl);
+
+                return Ok(await _authService.GetProfileAsync(GetUserId()));
+            }
+            catch (ArgumentException ex)
+            {
+                _fileStorageService.Delete(newAvatarUrl);
+                return BadRequest(ex.Message);
+            }
+            catch
+            {
+                _fileStorageService.Delete(newAvatarUrl);
+                throw;
             }
         }
 
