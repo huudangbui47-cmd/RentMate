@@ -240,14 +240,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       SliverPadding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.66,
-          ),
-          delegate: SliverChildBuilderDelegate((context, i) => _itemCard(items[i]), childCount: items.length),
+        sliver: SliverList.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, i) => _itemCard(items[i]),
         ),
       ),
     ];
@@ -257,6 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final scheme = Theme.of(context).colorScheme;
     final mine = item.ownerId == _userId;
     return Card(
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () async {
@@ -264,63 +261,62 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id)),
           );
         },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                AspectRatio(
-                  aspectRatio: 1.25,
-                  child: LayoutBuilder(
-                    builder: (_, c) => ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: c.maxWidth, radius: 0),
-                  ),
-                ),
-                if (mine || item.status == 'Rented')
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: mine ? scheme.primary : Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(mine ? 'Đồ của bạn' : 'Đang được thuê',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-              ],
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700, height: 1.25)),
-                    const SizedBox(height: 4),
-                    Text(item.categoryName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                    const Spacer(),
-                    Text.rich(
-                      TextSpan(children: [
-                        TextSpan(
-                          text: formatVnd(item.pricePerDay),
-                          style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 15),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: 96, radius: 10),
+                  if (mine || item.status == 'Rented')
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: mine ? scheme.primary : Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        TextSpan(text: ' /ngày', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
-                      ]),
+                        child: Text(mine ? 'Đồ của bạn' : 'Đang được thuê',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+                      ),
                     ),
-                  ],
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 96,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700, height: 1.25)),
+                      const SizedBox(height: 4),
+                      Text(item.categoryName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                      const Spacer(),
+                      Text.rich(
+                        TextSpan(children: [
+                          TextSpan(
+                            text: formatVnd(item.pricePerDay),
+                            style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 15),
+                          ),
+                          TextSpan(text: ' /ngày', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+                        ]),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
