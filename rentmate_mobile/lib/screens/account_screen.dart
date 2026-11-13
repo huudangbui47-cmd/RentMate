@@ -22,6 +22,33 @@ class _AccountScreenState extends State<AccountScreen> {
     await _future;
   }
 
+  Future<void> _avatarMenu(Profile p) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (p.avatarUrl != null)
+              ListTile(
+                leading: const Icon(Icons.visibility_outlined),
+                title: const Text('Xem ảnh đại diện'),
+                onTap: () => Navigator.pop(ctx, 'view'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Đổi ảnh đại diện'),
+              onTap: () => Navigator.pop(ctx, 'change'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'view') showImageViewer(context, p.avatarUrl!);
+    if (action == 'change') await _changeAvatar();
+  }
+
   Future<void> _changeAvatar() async {
     final file = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -77,7 +104,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: _uploadingAvatar ? null : _changeAvatar,
+                          onTap: _uploadingAvatar ? null : () => _avatarMenu(p),
                           child: Stack(
                             children: [
                               CircleAvatar(

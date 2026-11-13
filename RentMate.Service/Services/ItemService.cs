@@ -41,6 +41,7 @@ namespace RentMate.Service.Services
 
             OwnerId = i.OwnerId,
             OwnerName = i.Owner.FullName,
+            OwnerAvatarUrl = i.Owner.AvatarUrl,
 
             CreatedAt = i.CreatedAt,
 

@@ -2,6 +2,43 @@ import 'package:flutter/material.dart';
 
 // Các mảnh giao diện dùng chung cho mọi màn hình.
 
+/// Mở ảnh toàn màn hình, chụm 2 ngón để phóng to.
+void showImageViewer(BuildContext context, String url) {
+  Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+      body: InteractiveViewer(
+        maxScale: 4,
+        child: Center(child: Image.network(url, fit: BoxFit.contain)),
+      ),
+    ),
+  ));
+}
+
+/// Ảnh đại diện: có ảnh thì hiện ảnh, chưa có thì hiện chữ cái đầu của tên.
+class UserAvatar extends StatelessWidget {
+  final String name;
+  final String? url;
+  final double radius;
+  const UserAvatar({super.key, required this.name, this.url, this.radius = 20});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final trimmed = name.trim();
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: scheme.primaryContainer,
+      backgroundImage: url == null ? null : NetworkImage(url!),
+      child: url != null
+          ? null
+          : Text(trimmed.isEmpty ? '?' : trimmed.split(' ').last.characters.first.toUpperCase(),
+              style: TextStyle(fontSize: radius * 0.8, fontWeight: FontWeight.bold)),
+    );
+  }
+}
+
 /// "Exception: abc" -> "abc"
 String errorText(Object e) => e.toString().replaceFirst('Exception: ', '');
 

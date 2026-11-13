@@ -46,6 +46,7 @@ class Item {
   final String categoryName;
   final String ownerId;
   final String ownerName;
+  final String? ownerAvatarUrl;
   final DateTime createdAt;
   final String? imageUrl; // ảnh chính, null nếu chưa có ảnh
   final List<ItemImage> images; // ảnh chính đứng đầu
@@ -63,6 +64,7 @@ class Item {
         categoryName = (j['categoryName'] ?? '') as String,
         ownerId = (j['ownerId'] ?? '') as String,
         ownerName = (j['ownerName'] ?? '') as String,
+        ownerAvatarUrl = j['ownerAvatarUrl'] == null ? null : imageFullUrl(j['ownerAvatarUrl'] as String),
         createdAt = DateTime.parse(j['createdAt'] as String),
         imageUrl = j['imageUrl'] == null ? null : imageFullUrl(j['imageUrl'] as String),
         images = ((j['images'] ?? []) as List)

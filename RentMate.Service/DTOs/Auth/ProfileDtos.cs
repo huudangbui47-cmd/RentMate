@@ -13,6 +13,15 @@ namespace RentMate.Service.DTOs.Auth
         public DateTime CreatedAt { get; set; }
     }
 
+    // Hồ sơ công khai cho người khác xem: không có email, số điện thoại, địa chỉ
+    public class PublicProfileDto
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? AvatarUrl { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
     // Email là tên đăng nhập nên khách không tự đổi; cần đổi thì liên hệ Admin
     public class UpdateProfileDto
     {

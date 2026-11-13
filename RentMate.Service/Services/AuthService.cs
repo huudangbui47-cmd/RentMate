@@ -273,6 +273,22 @@ namespace RentMate.Service.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        public async Task<PublicProfileDto?> GetPublicProfileAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+                return null;
+
+            return new PublicProfileDto
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt
+            };
+        }
+
         public async Task<string?> UpdateAvatarAsync(string userId, string avatarUrl, string ipAddress)
         {
             var user = await _userManager.FindByIdAsync(userId)

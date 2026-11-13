@@ -24,6 +24,8 @@ namespace RentMate.Service.Interfaces
         // Trả về đường dẫn ảnh đại diện cũ để xóa file
         Task<string?> UpdateAvatarAsync(string userId, string avatarUrl, string ipAddress);
 
+        Task<PublicProfileDto?> GetPublicProfileAsync(string userId);
+
         Task<AuthenticatedUser> ChangePasswordAsync(string userId, ChangePasswordDto dto, string ipAddress);
 
         Task RequestPasswordResetCodeAsync(string email, string ipAddress);

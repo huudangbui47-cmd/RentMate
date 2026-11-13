@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/item_service.dart';
 import '../widgets/ui.dart';
 import 'rental_screen.dart';
+import 'user_profile_screen.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final int itemId;
@@ -91,12 +92,15 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               const SizedBox(height: 12),
               Card(
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: scheme.primaryContainer,
-                    child: Text(item.ownerName.isEmpty ? '?' : item.ownerName.characters.first.toUpperCase()),
-                  ),
+                  leading: UserAvatar(name: item.ownerName, url: item.ownerAvatarUrl),
                   title: Text(item.ownerName, style: const TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: Text(mine ? 'Đây là đồ của bạn' : 'Chủ đồ'),
+                  trailing: mine ? null : const Icon(Icons.chevron_right),
+                  onTap: mine
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => UserProfileScreen(userId: item.ownerId)),
+                          ),
                 ),
               ),
               const SizedBox(height: 16),

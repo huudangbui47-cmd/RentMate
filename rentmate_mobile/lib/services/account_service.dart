@@ -25,7 +25,30 @@ class Profile {
         createdAt = DateTime.parse(j['createdAt'] as String);
 }
 
+/// Hồ sơ công khai của người khác (không có email, số điện thoại, địa chỉ).
+class PublicProfile {
+  final String userId;
+  final String fullName;
+  final String? avatarUrl;
+  final DateTime createdAt;
+
+  PublicProfile.fromJson(Map<String, dynamic> j)
+      : userId = (j['userId'] ?? '') as String,
+        fullName = (j['fullName'] ?? '') as String,
+        avatarUrl = j['avatarUrl'] == null ? null : imageFullUrl(j['avatarUrl'] as String),
+        createdAt = DateTime.parse(j['createdAt'] as String);
+}
+
 class AccountService {
+  Future<PublicProfile> getPublicProfile(String userId) async {
+    final res = await http.get(
+      Uri.parse('$apiBaseUrl/api/Users/$userId'),
+      headers: await AuthService().authHeaders(),
+    );
+    checkResponse(res);
+    return PublicProfile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
   Future<Profile> getProfile() async {
     final res = await http.get(
       Uri.parse('$apiBaseUrl/api/Account/me'),

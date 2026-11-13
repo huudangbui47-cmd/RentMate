@@ -27,6 +27,8 @@ namespace RentMate.Service.DTOs.Items
 
         public string OwnerName { get; set; } = string.Empty;
 
+        public string? OwnerAvatarUrl { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         // Ảnh chính để hiện ở danh sách
