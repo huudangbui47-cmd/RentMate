@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'account_screen.dart';
+import 'guest_screen.dart';
 import 'home_screen.dart';
 import 'my_items_screen.dart';
 import 'my_rentals_screen.dart';
@@ -8,9 +9,11 @@ import 'wallet_screen.dart';
 
 /// Khung chính sau khi đăng nhập: thanh điều hướng dưới với 5 mục.
 /// Mỗi lần chuyển tab, tab đó tải lại dữ liệu mới.
+/// guest = true: khách chưa đăng nhập, chỉ có Khám phá và Đăng nhập.
 class MainShell extends StatefulWidget {
   final int initialIndex;
-  const MainShell({super.key, this.initialIndex = 0});
+  final bool guest;
+  const MainShell({super.key, this.initialIndex = 0, this.guest = false});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -21,6 +24,20 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.guest) {
+      return Scaffold(
+        body: [const HomeScreen(), const GuestScreen()][_index],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: const [
+            NavigationDestination(
+                icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: 'Khám phá'),
+            NavigationDestination(icon: Icon(Icons.login_rounded), label: 'Đăng nhập'),
+          ],
+        ),
+      );
+    }
     final tabs = [
       const HomeScreen(),
       const MyRentalsScreen(),

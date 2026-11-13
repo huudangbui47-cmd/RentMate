@@ -1,7 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/item_service.dart';
+import '../services/rental_service.dart';
+import '../services/view_history.dart';
 import '../widgets/ui.dart';
 import 'item_detail_screen.dart';
 
@@ -19,7 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int? _parentId; // danh mục cha đang chọn, null = tất cả
   int? _childId; // danh mục con đang chọn trong danh mục cha
   String _search = '';
-  String _sort = 'newest';
+  String? _sort; // null = mặc định: khách "Được thuê nhiều nhất", đã đăng nhập "Dành cho bạn"
+  Map<int, double> _categoryScore = {}; // điểm sở thích theo danh mục (từ lượt xem và đơn đã thuê)
   String _name = '';
   String? _userId;
   bool _loading = true;
@@ -41,10 +46,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final auth = AuthService();
       _name = await auth.getFullName() ?? '';
       _userId = await auth.getUserId();
+      final items = results[0] as List<Item>;
+      final categories = results[1] as List<Category>;
+      final scores = _userId == null ? <int, double>{} : await _buildCategoryScore(_userId!, items, categories);
       if (!mounted) return;
       setState(() {
-        _items = results[0] as List<Item>;
-        _categories = results[1] as List<Category>;
+        _items = items;
+        _categories = categories;
+        _categoryScore = scores;
         // Danh mục đang chọn vừa bị ẩn thì quay về "Tất cả"
         if (!_categories.any((c) => c.id == _parentId)) _parentId = null;
         if (!_categories.any((c) => c.id == _childId)) _childId = null;
@@ -54,6 +63,45 @@ class _HomeScreenState extends State<HomeScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String get _effectiveSort => _sort ?? (_userId == null ? 'popular' : 'forYou');
+
+  /// Điểm giảm một nửa sau mỗi 7 ngày.
+  static double _decay(DateTime at) => pow(0.5, DateTime.now().difference(at).inHours / (24 * 7)).toDouble();
+
+  /// Điểm sở thích theo danh mục: xem chi tiết = 2, đã thuê = 5, giảm dần theo thời gian.
+  /// Danh mục cha cũng được cộng một nửa để gợi ý cả các danh mục con "anh em".
+  Future<Map<int, double>> _buildCategoryScore(String userId, List<Item> items, List<Category> categories) async {
+    final parentOf = {for (final c in categories) c.id: c.parentId};
+    final scores = <int, double>{};
+    void add(int categoryId, double points) {
+      scores[categoryId] = (scores[categoryId] ?? 0) + points;
+      final parent = parentOf[categoryId];
+      if (parent != null) scores[parent] = (scores[parent] ?? 0) + points / 2;
+    }
+
+    for (final v in await ViewHistory.load(userId)) {
+      add(v.categoryId, 2 * _decay(v.viewedAt));
+    }
+    try {
+      final categoryOfItem = {for (final i in items) i.id: i.categoryId};
+      for (final r in await RentalService().getMyRentals()) {
+        final categoryId = categoryOfItem[r.itemId];
+        if (r.renterId == userId && categoryId != null) add(categoryId, 5 * _decay(r.requestedAt));
+      }
+    } catch (_) {
+      // Không tải được đơn thuê thì vẫn gợi ý theo lượt xem
+    }
+    return scores;
+  }
+
+  double _itemScore(Item item) {
+    final category = _categories.where((c) => c.id == item.categoryId);
+    final parent = category.isEmpty ? null : category.first.parentId;
+    return (_categoryScore[item.categoryId] ?? 0) +
+        (parent == null ? 0 : (_categoryScore[parent] ?? 0) / 2) +
+        0.1 * item.rentCount;
   }
 
   List<Category> get _parents => _categories.where((c) => c.parentId == null).toList();
@@ -78,7 +126,19 @@ class _HomeScreenState extends State<HomeScreen> {
             i.name.toLowerCase().contains(keyword) ||
             i.description.toLowerCase().contains(keyword))
         .toList();
-    switch (_sort) {
+    int newestFirst(Item a, Item b) => b.createdAt.compareTo(a.createdAt);
+    switch (_effectiveSort) {
+      case 'forYou':
+        final score = {for (final i in list) i.id: _itemScore(i)};
+        list.sort((a, b) {
+          final c = score[b.id]!.compareTo(score[a.id]!);
+          return c != 0 ? c : newestFirst(a, b);
+        });
+      case 'popular':
+        list.sort((a, b) {
+          final c = b.rentCount.compareTo(a.rentCount);
+          return c != 0 ? c : newestFirst(a, b);
+        });
       case 'priceAsc':
         list.sort((a, b) => a.pricePerDay.compareTo(b.pricePerDay));
       case 'priceDesc':
@@ -100,6 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
             slivers: [
               SliverToBoxAdapter(child: _header(scheme)),
               SliverToBoxAdapter(child: _categoryBar()),
+              SliverToBoxAdapter(child: _sortTabs()),
               ..._body(),
             ],
           ),
@@ -133,12 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
+              // Sắp xếp theo giá; các kiểu sắp xếp chính nằm ở hàng tab dưới danh mục
               PopupMenuButton<String>(
-                tooltip: 'Sắp xếp',
-                initialValue: _sort,
+                tooltip: 'Sắp xếp theo giá',
+                initialValue: _effectiveSort,
                 onSelected: (v) => setState(() => _sort = v),
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'newest', child: Text('Mới đăng')),
                   PopupMenuItem(value: 'priceAsc', child: Text('Giá thấp → cao')),
                   PopupMenuItem(value: 'priceDesc', child: Text('Giá cao → thấp')),
                 ],
@@ -197,6 +258,43 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  /// Hàng tab sắp xếp: Dành cho bạn (chỉ khi đã đăng nhập) / Được thuê nhiều nhất / Mới đăng.
+  Widget _sortTabs() {
+    final scheme = Theme.of(context).colorScheme;
+    Widget tab(String value, String label) {
+      final selected = _effectiveSort == value;
+      return InkWell(
+        onTap: () => setState(() => _sort = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: selected ? scheme.primary : Colors.transparent, width: 2),
+            ),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              )),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        children: [
+          if (_userId != null) tab('forYou', 'Dành cho bạn'),
+          tab('popular', 'Được thuê nhiều nhất'),
+          tab('newest', 'Mới đăng'),
+        ],
+      ),
     );
   }
 

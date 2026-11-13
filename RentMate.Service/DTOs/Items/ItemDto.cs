@@ -29,6 +29,9 @@ namespace RentMate.Service.DTOs.Items
 
         public string? OwnerAvatarUrl { get; set; }
 
+        // Số lần món đồ thực sự được thuê (đã thanh toán trở đi), dùng cho "Được thuê nhiều nhất"
+        public int RentCount { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         // Ảnh chính để hiện ở danh sách

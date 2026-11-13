@@ -47,6 +47,7 @@ class Item {
   final String ownerId;
   final String ownerName;
   final String? ownerAvatarUrl;
+  final int rentCount; // số lần được thuê, dùng cho "Được thuê nhiều nhất"
   final DateTime createdAt;
   final String? imageUrl; // ảnh chính, null nếu chưa có ảnh
   final List<ItemImage> images; // ảnh chính đứng đầu
@@ -66,6 +67,7 @@ class Item {
         ownerName = (j['ownerName'] ?? '') as String,
         ownerAvatarUrl = j['ownerAvatarUrl'] == null ? null : imageFullUrl(j['ownerAvatarUrl'] as String),
         createdAt = DateTime.parse(j['createdAt'] as String),
+        rentCount = (j['rentCount'] ?? 0) as int,
         imageUrl = j['imageUrl'] == null ? null : imageFullUrl(j['imageUrl'] as String),
         images = ((j['images'] ?? []) as List)
             .map((e) => ItemImage.fromJson(e as Map<String, dynamic>))

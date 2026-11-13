@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/item_service.dart';
+import '../services/view_history.dart';
 import '../widgets/ui.dart';
+import 'guest_screen.dart';
 import 'rental_screen.dart';
 import 'user_profile_screen.dart';
 
@@ -16,9 +18,17 @@ class ItemDetailScreen extends StatefulWidget {
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   late Future<(Item, String?)> _future = _load();
+  bool _guest = false;
 
-  Future<(Item, String?)> _load() async =>
-      (await ItemService().getItem(widget.itemId), await AuthService().getUserId());
+  Future<(Item, String?)> _load() async {
+    final item = await ItemService().getItem(widget.itemId);
+    final userId = await AuthService().getUserId();
+    // Ghi lượt xem để gợi ý ở trang chủ (chỉ khi đã đăng nhập, không tính đồ của chính mình)
+    if (userId != null && item.ownerId != userId) {
+      await ViewHistory.record(userId, item.id, item.categoryId);
+    }
+    return (item, userId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +45,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             );
           }
           final (item, userId) = snap.data!;
+          _guest = userId == null;
           return _content(item, item.ownerId == userId);
         },
       ),
@@ -98,9 +109,15 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   trailing: mine ? null : const Icon(Icons.chevron_right),
                   onTap: mine
                       ? null
-                      : () => Navigator.of(context).push(
+                      : () {
+                          if (_guest) {
+                            requireLogin(context, 'xem hồ sơ chủ đồ');
+                            return;
+                          }
+                          Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => UserProfileScreen(userId: item.ownerId)),
-                          ),
+                          );
+                        },
                 ),
               ),
               const SizedBox(height: 16),
@@ -136,6 +153,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         : 'Đặt thuê'),
                 onPressed: canRent
                     ? () async {
+                        if (_guest) {
+                          requireLogin(context, 'thuê đồ');
+                          return;
+                        }
                         final ok = await Navigator.of(context).push<bool>(
                           MaterialPageRoute(builder: (_) => RentalScreen(item: item)),
                         );

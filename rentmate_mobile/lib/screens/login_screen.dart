@@ -149,6 +149,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.storefront_outlined),
+                    label: const Text('Xem trước với tư cách khách'),
+                    onPressed: _loading
+                        ? null
+                        : () => Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (_) => const MainShell(guest: true)),
+                            ),
+                  ),
                 ],
               ),
             ),

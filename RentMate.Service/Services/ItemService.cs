@@ -42,6 +42,7 @@ namespace RentMate.Service.Services
             OwnerId = i.OwnerId,
             OwnerName = i.Owner.FullName,
             OwnerAvatarUrl = i.Owner.AvatarUrl,
+            RentCount = i.Rentals.Count(r => r.Status >= RentalStatus.WaitingForPickup),
 
             CreatedAt = i.CreatedAt,
 
