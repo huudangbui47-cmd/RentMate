@@ -137,16 +137,33 @@ namespace RentMate.Service.Services
 
             string temporaryPassword = GenerateTemporaryPassword();
 
-            var result = await _userManager.CreateAsync(customer, temporaryPassword);
+            // Tạo tài khoản, gán role, ghi nhật ký là 3 lần lưu: lỗi ở bước nào cũng hoàn tác hết.
+            // Gửi email nằm ngoài transaction: tài khoản đã tạo xong thì email lỗi cũng không hoàn tác.
+            await _unitOfWork.BeginTransactionAsync();
 
-            if (!result.Succeeded)
-                throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+            try
+            {
+                var result = await _userManager.CreateAsync(customer, temporaryPassword);
 
-            await _userManager.AddToRoleAsync(customer, "User");
+                if (!result.Succeeded)
+                    throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
 
-            await _auditLogService.RecordAsync("CreateCustomer", "Customer", customer.Id, $"Thêm khách hàng {customer.FullName} ({customer.Email}).", ipAddress, actorUserId);
+                var roleResult = await _userManager.AddToRoleAsync(customer, "User");
 
-            await _unitOfWork.SaveChangesAsync();
+                if (!roleResult.Succeeded)
+                    throw new InvalidOperationException(string.Join(" ", roleResult.Errors.Select(e => e.Description)));
+
+                await _auditLogService.RecordAsync("CreateCustomer", "Customer", customer.Id, $"Thêm khách hàng {customer.FullName} ({customer.Email}).", ipAddress, actorUserId);
+
+                await _unitOfWork.SaveChangesAsync();
+
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
 
             return await TrySendAsync(customer.Email!, "Tài khoản RentMate của bạn đã được tạo",
                 $"<p>Xin chào {Encode(customer.FullName)},</p>" +

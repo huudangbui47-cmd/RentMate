@@ -20,5 +20,12 @@ namespace RentMate.Core.Interfaces.Persistence
         IRepository<WalletTransaction> WalletTransactions { get; }
 
         Task<int> SaveChangesAsync();
+
+        // Dùng khi một thao tác buộc phải lưu nhiều lần (vd. UserManager.CreateAsync rồi AddToRoleAsync):
+        // lỗi ở bước sau thì Rollback để bỏ cả những bước đã lưu trước đó.
+        // Thao tác bình thường chỉ cần gom vào một lần SaveChangesAsync (EF tự bọc transaction).
+        Task BeginTransactionAsync();
+        Task CommitTransactionAsync();
+        Task RollbackTransactionAsync();
     }
 }

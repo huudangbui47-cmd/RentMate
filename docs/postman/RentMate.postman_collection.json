@@ -1,0 +1,1568 @@
+{
+  "info": {
+    "_postman_id": "317b006d-f787-4b80-8a36-40d8fb11e828",
+    "name": "RentMate API",
+    "description": "Bộ request thử API RentMate.\n\nCách dùng:\n1. Import file này và file RentMate.local.postman_environment.json, chọn environment \"RentMate local\".\n2. Chạy Api trong Visual Studio (http://localhost:5076).\n3. Sửa biến ownerEmail/ownerPassword/renterEmail/renterPassword trong tab Variables của collection thành 2 tài khoản khách của bạn (hoặc chạy 2 request Đăng ký trước).\n4. Chạy 2 request Đăng nhập: token tự lưu vào tokenOwner/tokenRenter.\n5. Chạy lần lượt từ trên xuống. itemId, rentalId, depositId được tự lưu sau mỗi bước tạo.\n\nNhững bước làm trên trang quản trị (không có API): duyệt đồ (Đồ cho thuê) và duyệt nạp tiền (Nạp / rút tiền).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "ownerEmail",
+      "value": "chu.do@example.com"
+    },
+    {
+      "key": "ownerPassword",
+      "value": "Test@123"
+    },
+    {
+      "key": "renterEmail",
+      "value": "nguoi.thue@example.com"
+    },
+    {
+      "key": "renterPassword",
+      "value": "Test@123"
+    },
+    {
+      "key": "tokenOwner",
+      "value": ""
+    },
+    {
+      "key": "tokenRenter",
+      "value": ""
+    },
+    {
+      "key": "itemId",
+      "value": ""
+    },
+    {
+      "key": "imageId",
+      "value": ""
+    },
+    {
+      "key": "rentalId",
+      "value": ""
+    },
+    {
+      "key": "depositId",
+      "value": ""
+    },
+    {
+      "key": "notificationId",
+      "value": ""
+    },
+    {
+      "key": "startDate",
+      "value": ""
+    },
+    {
+      "key": "endDate",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Đăng ký / đăng nhập",
+      "item": [
+        {
+          "name": "Đăng ký chủ đồ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "register"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Chủ Đồ Thử\",\n  \"email\": \"{{ownerEmail}}\",\n  \"phoneNumber\": \"0900000001\",\n  \"password\": \"{{ownerPassword}}\"\n}"
+            },
+            "description": "Chỉ chạy nếu chưa có tài khoản. Đổi số điện thoại nếu bị báo trùng."
+          }
+        },
+        {
+          "name": "Đăng ký người thuê",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "register"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Người Thuê Thử\",\n  \"email\": \"{{renterEmail}}\",\n  \"phoneNumber\": \"0900000002\",\n  \"password\": \"{{renterPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Đăng nhập chủ đồ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"{{ownerPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('tokenOwner', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Đăng nhập người thuê",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{renterEmail}}\",\n  \"password\": \"{{renterPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('tokenRenter', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Đăng nhập sai mật khẩu (mong đợi 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"Sai@1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Quên mật khẩu: gửi mã",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "forgot-password"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{renterEmail}}\"\n}"
+            },
+            "description": "Gửi mã 6 số tới email thật (cần cấu hình Smtp trong appsettings của Api)."
+          }
+        },
+        {
+          "name": "Quên mật khẩu: đặt lại bằng mã",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "reset-password"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{renterEmail}}\",\n  \"code\": \"123456\",\n  \"newPassword\": \"Moi@1234\"\n}"
+            },
+            "description": "Thay code bằng mã trong email."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Xem đồ (không cần đăng nhập)",
+      "item": [
+        {
+          "name": "Danh mục",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Categories"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Tỉnh/thành",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/provinces",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "provinces"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Đồ đã duyệt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Chi tiết đồ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "{{itemId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Chủ đồ: đăng và quản lý đồ",
+      "item": [
+        {
+          "name": "Đăng đồ mới",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemName\": \"Máy ảnh Canon thử\",\n  \"description\": \"Máy còn tốt, kèm thẻ nhớ và sạc.\",\n  \"pricePerDay\": 150000,\n  \"depositAmount\": 1000000,\n  \"categoryId\": 2,\n  \"condition\": 3,\n  \"province\": \"TP. Hồ Chí Minh\",\n  \"area\": \"Phường Bến Thành\"\n}"
+            },
+            "description": "categoryId phải là danh mục con (xem request Danh mục). condition: 1 Mới, 2 Như mới, 3 Tốt, 4 Khá, 5 Hư hỏng. Đồ mới ở trạng thái PendingApproval: vào trang quản trị → Đồ cho thuê để duyệt."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('itemId', pm.response.json().itemId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Đồ của tôi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/my",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "my"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sửa giá (không phải duyệt lại)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "{{itemId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemName\": \"Máy ảnh Canon thử\",\n  \"description\": \"Máy còn tốt, kèm thẻ nhớ và sạc.\",\n  \"pricePerDay\": 120000,\n  \"depositAmount\": 1000000,\n  \"categoryId\": 2,\n  \"condition\": 3,\n  \"province\": \"TP. Hồ Chí Minh\",\n  \"area\": \"Phường Bến Thành\"\n}"
+            },
+            "description": "Chỉ đổi giá nên status giữ nguyên. Đổi tên/mô tả/danh mục thì status thành PendingApproval."
+          }
+        },
+        {
+          "name": "Tải ảnh lên",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/{{itemId}}/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "{{itemId}}",
+                "images"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Tab Body → chọn file JPG/PNG (≤ 2MB) cho key files, chọn được nhiều file."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('imageId', pm.response.json()[0].imageId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Đặt ảnh chính",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/{{itemId}}/images/{{imageId}}/primary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "{{itemId}}",
+                "images",
+                "{{imageId}}",
+                "primary"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Xóa ảnh",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/{{itemId}}/images/{{imageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "{{itemId}}",
+                "images",
+                "{{imageId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Xóa đồ (xóa mềm)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Items",
+                "{{itemId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Đồ chuyển sang Hidden, không mất lịch sử đơn thuê. Chạy sau cùng."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Ví người thuê",
+      "item": [
+        {
+          "name": "Số dư",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Wallet"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Lịch sử giao dịch",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Wallet/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Wallet",
+                "transactions"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tạo yêu cầu nạp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Wallet/deposits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Wallet",
+                "deposits"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2000000\n}"
+            },
+            "description": "Sau đó vào trang quản trị → Nạp / rút tiền để duyệt, tiền mới vào ví."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('depositId', pm.response.json().transactionId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Xem yêu cầu nạp",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Wallet/deposits/{{depositId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Wallet",
+                "deposits",
+                "{{depositId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cập nhật ngân hàng",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Wallet/bank-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Wallet",
+                "bank-info"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Vietcombank\",\n  \"bankAccountNumber\": \"0123456789\",\n  \"bankAccountName\": \"NGUOI THUE THU\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Tạo yêu cầu rút",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Wallet/withdrawals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Wallet",
+                "withdrawals"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Đơn thuê (trọn một vòng)",
+      "item": [
+        {
+          "name": "Người thuê: đặt thuê",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"startDate\": \"{{startDate}}\",\n  \"endDate\": \"{{endDate}}\",\n  \"requestNote\": \"Thuê đi du lịch\"\n}"
+            },
+            "description": "Ngày thuê tự đặt là 7 đến 9 ngày tới. Đồ phải được duyệt trước."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = n => { const x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };",
+                  "pm.collectionVariables.set('startDate', d(7));",
+                  "pm.collectionVariables.set('endDate', d(9));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('rentalId', pm.response.json().rentalId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Đơn của tôi (người thuê)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/my",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "my"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chủ đồ: duyệt đơn",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "approve"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chủ đồ: từ chối đơn",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "reject"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Dùng thay cho bước duyệt nếu muốn thử luồng từ chối."
+          }
+        },
+        {
+          "name": "Người thuê: thanh toán bằng ví",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/pay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "pay"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Ví phải đủ tiền thuê + cọc."
+          }
+        },
+        {
+          "name": "Chủ đồ: biên bản trước khi giao",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rentals/{{rentalId}}/condition-reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rentals",
+                "{{rentalId}}",
+                "condition-reports"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reportType\": 1,\n  \"condition\": 3,\n  \"description\": \"Máy hoạt động tốt, không trầy.\",\n  \"imageUrls\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "Chủ đồ: đã giao đồ",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/pickup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "pickup"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Người thuê: trả đồ",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "return"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chủ đồ: biên bản sau khi trả",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rentals/{{rentalId}}/condition-reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rentals",
+                "{{rentalId}}",
+                "condition-reports"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reportType\": 2,\n  \"condition\": 3,\n  \"description\": \"Nhận lại đầy đủ, như lúc giao.\",\n  \"imageUrls\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "Chủ đồ: hoàn tất (chia tiền 95/5, hoàn cọc)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "complete"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Xem biên bản của đơn",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rentals/{{rentalId}}/condition-reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rentals",
+                "{{rentalId}}",
+                "condition-reports"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Người thuê: hủy đơn",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "cancel"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Chỉ hủy được trước khi nhận đồ. Đã thanh toán thì được hoàn 100% vào ví."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Tài khoản",
+      "item": [
+        {
+          "name": "Thông tin của tôi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Account/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Account",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sửa thông tin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Account/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Account",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Người Thuê Thử\",\n  \"phoneNumber\": \"0900000002\",\n  \"address\": \"TP. Hồ Chí Minh\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Đổi ảnh đại diện",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Account/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Account",
+                "avatar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Tab Body → chọn ảnh cho key file."
+          }
+        },
+        {
+          "name": "Đổi mật khẩu",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Account/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Account",
+                "password"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{renterPassword}}\",\n  \"newPassword\": \"Moi@1234\"\n}"
+            },
+            "description": "Thành công thì token cũ hết hiệu lực; token mới được tự lưu. Nhớ sửa biến renterPassword."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('tokenRenter', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Thông báo",
+      "item": [
+        {
+          "name": "Danh sách thông báo (chủ đồ)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Notifications"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "    pm.collectionVariables.set('notificationId', (pm.response.json()[0] || {}).notificationId || '');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Số chưa đọc",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Notifications",
+                "unread-count"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Đánh dấu đã đọc",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Đọc hết",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Notifications",
+                "read-all"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

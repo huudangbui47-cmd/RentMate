@@ -125,3 +125,16 @@ Máy ảo gần như không có ảnh sẵn. Dùng file `rentmate_mobile/tools/g
 Ảnh được chép vào `Pictures/RentMate` trên máy ảo và hiện ngay trong thư viện ảnh.
 
 Muốn kéo thả từ Desktop cho tiện: chuột phải file `.bat` → Show more options → Send to → Desktop (create shortcut), rồi kéo ảnh thả lên shortcut đó.
+
+## 6. Thử API bằng Postman
+
+File nằm trong `docs/postman/`:
+
+1. Mở Postman → **Import** → chọn cả 2 file `RentMate.postman_collection.json` và `RentMate.local.postman_environment.json`.
+2. Góc trên bên phải chọn environment **RentMate local** (`baseUrl = http://localhost:5076`).
+3. Bấm vào collection **RentMate API** → tab **Variables** → sửa `ownerEmail/ownerPassword` (chủ đồ) và `renterEmail/renterPassword` (người thuê) thành 2 tài khoản khách của bạn. Chưa có thì chạy 2 request "Đăng ký".
+4. Chạy "Đăng nhập chủ đồ" và "Đăng nhập người thuê": token tự lưu, các request sau tự dùng.
+5. Chạy từng thư mục từ trên xuống. `itemId`, `rentalId`, `depositId` tự lưu sau mỗi bước tạo.
+
+Hai bước phải làm trên trang quản trị: **duyệt đồ** (sau "Đăng đồ mới") và **duyệt nạp tiền** (sau "Tạo yêu cầu nạp").
+Request tải ảnh: tab **Body** → chọn file cho key `files`.

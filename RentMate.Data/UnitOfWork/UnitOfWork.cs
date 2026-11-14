@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Storage;
 using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
 using RentMate.Data.Context;
@@ -8,6 +9,7 @@ namespace RentMate.Data.UnitOfWork
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
+        private IDbContextTransaction? _transaction;
 
         public IRepository<Category> Categories { get; }
         public IRepository<Item> Items { get; }
@@ -47,6 +49,35 @@ namespace RentMate.Data.UnitOfWork
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
+        }
+
+        // UserManager dùng chung DbContext (cùng scope) nên các lần lưu của Identity cũng nằm trong transaction này
+        public async Task BeginTransactionAsync()
+        {
+            if (_transaction != null)
+                throw new InvalidOperationException("Đang có một transaction chưa kết thúc.");
+
+            _transaction = await _context.Database.BeginTransactionAsync();
+        }
+
+        public async Task CommitTransactionAsync()
+        {
+            if (_transaction == null)
+                throw new InvalidOperationException("Chưa bắt đầu transaction.");
+
+            await _transaction.CommitAsync();
+            await _transaction.DisposeAsync();
+            _transaction = null;
+        }
+
+        public async Task RollbackTransactionAsync()
+        {
+            if (_transaction == null)
+                return;
+
+            await _transaction.RollbackAsync();
+            await _transaction.DisposeAsync();
+            _transaction = null;
         }
     }
 }

@@ -69,34 +69,46 @@ namespace RentMate.Service.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            var result =
-                await _userManager.CreateAsync(
-                    user,
-                    dto.Password);
+            // Tạo tài khoản và gán role là 2 lần lưu riêng: bọc transaction để không sinh ra tài khoản không có role
+            await _unitOfWork.BeginTransactionAsync();
 
-            if (!result.Succeeded)
+            try
             {
-                var errors = string.Join(
-                    "; ",
-                    result.Errors.Select(e => e.Description));
+                var result =
+                    await _userManager.CreateAsync(
+                        user,
+                        dto.Password);
 
-                throw new ArgumentException(errors);
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(
+                        "; ",
+                        result.Errors.Select(e => e.Description));
+
+                    throw new ArgumentException(errors);
+                }
+
+                // Role "User" thường do DbSeeder của AdminSite tạo. Nếu Api chạy trước AdminSite thì tạo luôn ở đây.
+                if (!await _roleManager.RoleExistsAsync("User"))
+                {
+                    await _roleManager.CreateAsync(new IdentityRole("User"));
+                }
+
+                var roleResult = await _userManager.AddToRoleAsync(user, "User");
+
+                if (!roleResult.Succeeded)
+                {
+                    throw new ArgumentException(string.Join(
+                        "; ",
+                        roleResult.Errors.Select(e => e.Description)));
+                }
+
+                await _unitOfWork.CommitTransactionAsync();
             }
-
-            // Role "User" thường do DbSeeder của AdminSite tạo. Nếu Api chạy trước AdminSite
-            // thì tạo luôn ở đây, để không sinh ra tài khoản không có role.
-            if (!await _roleManager.RoleExistsAsync("User"))
+            catch
             {
-                await _roleManager.CreateAsync(new IdentityRole("User"));
-            }
-
-            var roleResult = await _userManager.AddToRoleAsync(user, "User");
-
-            if (!roleResult.Succeeded)
-            {
-                throw new ArgumentException(string.Join(
-                    "; ",
-                    roleResult.Errors.Select(e => e.Description)));
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
             }
         }
 

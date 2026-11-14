@@ -128,16 +128,32 @@ namespace RentMate.Service.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            var result = await _userManager.CreateAsync(user, model.Password);
+            // Tạo tài khoản, gán role, ghi nhật ký là 3 lần lưu: lỗi ở bước nào cũng hoàn tác hết
+            await _unitOfWork.BeginTransactionAsync();
 
-            if (!result.Succeeded)
-                throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+            try
+            {
+                var result = await _userManager.CreateAsync(user, model.Password);
 
-            await _userManager.AddToRoleAsync(user, "Manager");
+                if (!result.Succeeded)
+                    throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
 
-            await _auditLogService.RecordAsync("CreateUser", "ApplicationUser", user.Id, $"Tạo tài khoản quản lý {user.Email}.", ipAddress, actorUserId);
+                var roleResult = await _userManager.AddToRoleAsync(user, "Manager");
 
-            await _unitOfWork.SaveChangesAsync();
+                if (!roleResult.Succeeded)
+                    throw new InvalidOperationException(string.Join(" ", roleResult.Errors.Select(e => e.Description)));
+
+                await _auditLogService.RecordAsync("CreateUser", "ApplicationUser", user.Id, $"Tạo tài khoản quản lý {user.Email}.", ipAddress, actorUserId);
+
+                await _unitOfWork.SaveChangesAsync();
+
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         // Admin chỉnh sửa tài khoản Manager; mật khẩu mới để trống thì không đổi.
