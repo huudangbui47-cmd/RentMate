@@ -19,6 +19,10 @@ namespace RentMate.Service.DTOs.Items
         // Chỉ có khi bị từ chối (chủ đồ xem ở "Đồ của tôi")
         public string? RejectionReason { get; set; }
 
+        public string? Province { get; set; }
+
+        public string? Area { get; set; }
+
         public int CategoryId { get; set; }
 
         public string CategoryName { get; set; } = string.Empty;

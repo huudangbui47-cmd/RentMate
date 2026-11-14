@@ -19,6 +19,12 @@ namespace RentMate.Core.Models
         // Lý do quản lý từ chối, hiện cho chủ đồ trên app
         public string? RejectionReason { get; set; }
 
+        // Nơi nhận đồ: tỉnh/thành (để khách lọc) và khu vực tự ghi (phường/xã...). Không lưu số nhà.
+        // Null với đồ đăng trước khi có tính năng này.
+        public string? Province { get; set; }
+
+        public string? Area { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Foreign Keys

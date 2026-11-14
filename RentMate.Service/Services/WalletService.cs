@@ -21,15 +21,18 @@ namespace RentMate.Service.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
 
         public WalletService(
             IUnitOfWork unitOfWork,
             UserManager<ApplicationUser> userManager,
-            IAuditLogService auditLogService)
+            IAuditLogService auditLogService,
+            INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
         }
 
         // =========================
@@ -153,6 +156,10 @@ namespace RentMate.Service.Services
             transaction.Status = WalletTransactionStatus.Completed;
             transaction.ProcessedByUserId = processedByUserId;
             transaction.ProcessedAt = DateTime.UtcNow;
+
+            await _notificationService.AddAsync(transaction.UserId, NotificationType.Wallet,
+                "Nạp tiền thành công",
+                $"{NotificationService.Money(transaction.Amount)} đã được cộng vào ví (mã nạp {transaction.Code}).");
 
             await SaveProcessedAsync();
         }
@@ -343,6 +350,10 @@ namespace RentMate.Service.Services
             await _auditLogService.RecordAsync("CompleteWithdraw", "WalletTransaction", transaction.Id.ToString(),
                 $"Xác nhận đã chuyển {Math.Abs(transaction.Amount):N0} đ cho yêu cầu rút #{transaction.Id}.", ipAddress, adminId);
 
+            await _notificationService.AddAsync(transaction.UserId, NotificationType.Wallet,
+                "Rút tiền thành công",
+                $"RentMate đã chuyển {NotificationService.Money(transaction.Amount)} về tài khoản ngân hàng của bạn.");
+
             await SaveProcessedAsync();
         }
 
@@ -376,6 +387,11 @@ namespace RentMate.Service.Services
 
             await _auditLogService.RecordAsync("RejectWalletRequest", "WalletTransaction", transaction.Id.ToString(),
                 $"Từ chối yêu cầu {typeText} {Math.Abs(transaction.Amount):N0} đ (#{transaction.Id}). Lý do: {transaction.Note}", ipAddress, adminId);
+
+            await _notificationService.AddAsync(transaction.UserId, NotificationType.Wallet,
+                $"Yêu cầu {typeText} tiền bị từ chối",
+                $"Yêu cầu {typeText} {NotificationService.Money(transaction.Amount)} bị từ chối. Lý do: {transaction.Note}" +
+                (transaction.Type == WalletTransactionType.Withdraw ? " Số tiền đã được mở khóa trong ví." : ""));
 
             await SaveProcessedAsync();
         }

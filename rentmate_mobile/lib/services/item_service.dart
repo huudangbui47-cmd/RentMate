@@ -42,6 +42,8 @@ class Item {
   final String condition;
   final String status;
   final String? rejectionReason;
+  final String? province; // tỉnh/thành nơi nhận đồ, null với đồ đăng trước khi có tính năng này
+  final String? area; // phường/xã hoặc khu vực, không bắt buộc
   final int categoryId;
   final String categoryName;
   final String ownerId;
@@ -61,6 +63,8 @@ class Item {
         condition = (j['condition'] ?? '') as String,
         status = (j['status'] ?? '') as String,
         rejectionReason = j['rejectionReason'] as String?,
+        province = j['province'] as String?,
+        area = j['area'] as String?,
         categoryId = j['categoryId'] as int,
         categoryName = (j['categoryName'] ?? '') as String,
         ownerId = (j['ownerId'] ?? '') as String,
@@ -74,7 +78,20 @@ class Item {
             .toList();
 }
 
+extension ItemLocation on Item {
+  /// "Phường Bến Thành, TP. Hồ Chí Minh" hoặc null nếu chưa có nơi nhận đồ.
+  String? get locationText =>
+      province == null ? null : ((area ?? '').isEmpty ? province : '$area, $province');
+}
+
 class ItemService {
+  /// 34 tỉnh/thành (Api giữ danh sách để app và server luôn khớp nhau).
+  Future<List<String>> getProvinces() async {
+    final res = await http.get(Uri.parse('$apiBaseUrl/api/Items/provinces'));
+    if (res.statusCode != 200) throw Exception('Không tải được danh sách tỉnh/thành (${res.statusCode})');
+    return (jsonDecode(res.body) as List).cast<String>();
+  }
+
   /// Đồ đã được duyệt (trang chủ).
   Future<List<Item>> getItems() async {
     final res = await http.get(Uri.parse('$apiBaseUrl/api/Items'));
@@ -112,8 +129,8 @@ class ItemService {
   }
 
   /// id == null: đăng đồ mới (POST); có id: sửa đồ (PUT). Cả hai đều phải chờ duyệt lại.
-  /// Trả về id của món đồ (để tải ảnh lên sau đó).
-  Future<int> saveItem({
+  /// Trả về món đồ sau khi lưu (có id để tải ảnh, có status để biết có phải chờ duyệt lại không).
+  Future<Item> saveItem({
     int? id,
     required String name,
     required String description,
@@ -121,6 +138,8 @@ class ItemService {
     required num depositAmount,
     required int categoryId,
     required String condition,
+    required String province,
+    String? area,
   }) async {
     final body = jsonEncode({
       'itemName': name,
@@ -129,13 +148,15 @@ class ItemService {
       'depositAmount': depositAmount,
       'categoryId': categoryId,
       'condition': conditionValues[condition],
+      'province': province,
+      'area': area,
     });
     final headers = await AuthService().authHeaders();
     final res = id == null
         ? await http.post(Uri.parse('$apiBaseUrl/api/Items'), headers: headers, body: body)
         : await http.put(Uri.parse('$apiBaseUrl/api/Items/$id'), headers: headers, body: body);
     checkResponse(res);
-    return id ?? (jsonDecode(res.body) as Map<String, dynamic>)['itemId'] as int;
+    return Item.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
   /// Tải nhiều ảnh lên một lần (multipart, field "files").

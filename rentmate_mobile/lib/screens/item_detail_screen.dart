@@ -95,6 +95,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   child: Column(
                     children: [
                       InfoRow('Tiền cọc', formatVnd(item.depositAmount)),
+                      if (item.locationText != null) InfoRow('Nơi nhận đồ', item.locationText!),
                       InfoRow('Đăng ngày', fmtDate(item.createdAt)),
                     ],
                   ),

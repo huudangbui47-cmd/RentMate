@@ -76,6 +76,7 @@ class RentMateApp extends StatelessWidget {
     return MaterialApp(
       title: 'RentMate',
       navigatorKey: navigatorKey,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: _theme(),
       // Kiểm tra userId (lưu cùng token khi đăng nhập): phiên cũ chưa có userId sẽ phải đăng nhập lại.

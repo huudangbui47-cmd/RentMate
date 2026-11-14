@@ -42,10 +42,16 @@ namespace RentMate.Service.Services
                     (r.Status == RentalStatus.Rented && r.EndDate < today))
                 .CountAsync();
 
-            // Doanh thu = phí thuê đã thanh toán (tiền cọc không tính là doanh thu)
-            decimal totalRevenue = await _unitOfWork.Payments
-                .BuildQuery(p => p.Status == PaymentStatus.Paid && p.PaymentType == PaymentType.RentalFee)
-                .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+            // Doanh thu của RentMate = phí nền tảng trên tiền thuê của các đơn đã hoàn tất.
+            // Tiền thuê còn lại thuộc về chủ đồ, tiền cọc trả lại người thuê nên không tính.
+            // Tính phí trong bộ nhớ bằng đúng công thức lúc chia tiền (RentalService.PlatformFee) để khớp từng đồng.
+            var completedRentals = await _unitOfWork.Rentals
+                .BuildQuery(r => r.Status == RentalStatus.Completed)
+                .Select(r => new { r.TotalPrice, Date = r.CompletedAt ?? r.RequestedAt })
+                .ToListAsync();
+
+            decimal totalRevenue = completedRentals.Sum(r => RentalService.PlatformFee(r.TotalPrice));
+            decimal totalRentalValue = completedRentals.Sum(r => r.TotalPrice);
 
             var latestRentals = await _unitOfWork.Rentals
                 .BuildQuery(r => true)
@@ -68,13 +74,10 @@ namespace RentMate.Service.Services
             // Doanh thu 6 tháng gần nhất, tháng không có giao dịch hiển thị 0
             DateTime firstMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-5);
 
-            var revenueRaw = await _unitOfWork.Payments
-                .BuildQuery(p => p.Status == PaymentStatus.Paid && p.PaymentType == PaymentType.RentalFee)
-                .Select(p => new { Date = p.PaidAt ?? p.CreatedAt, p.Amount })
-                .Where(x => x.Date >= firstMonth)
-                .GroupBy(x => new { x.Date.Year, x.Date.Month })
-                .Select(g => new { g.Key.Year, g.Key.Month, Amount = g.Sum(x => x.Amount) })
-                .ToListAsync();
+            var revenueRaw = completedRentals
+                .Where(r => r.Date >= firstMonth)
+                .Select(r => new { r.Date.Year, r.Date.Month, Amount = RentalService.PlatformFee(r.TotalPrice) })
+                .ToList();
 
             var monthlyRevenue = Enumerable.Range(0, 6)
                 .Select(i => firstMonth.AddMonths(i))
@@ -121,6 +124,7 @@ namespace RentMate.Service.Services
                 ActiveRentals = activeRentals,
                 OverdueRentals = overdueRentals,
                 TotalRevenue = totalRevenue,
+                TotalRentalValue = totalRentalValue,
                 LatestRentals = latestRentals,
                 MonthlyRevenue = monthlyRevenue,
                 TopItems = topItems,

@@ -5,6 +5,7 @@ import '../services/item_service.dart';
 import '../services/rental_service.dart';
 import '../services/wallet_service.dart';
 import '../widgets/ui.dart';
+import 'notifications_screen.dart';
 import 'condition_report_screen.dart';
 import 'wallet_screen.dart';
 
@@ -94,6 +95,7 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Đơn thuê'),
+          actions: const [NotificationBell()],
           bottom: const TabBar(tabs: [Tab(text: 'Tôi đi thuê'), Tab(text: 'Đồ tôi cho thuê')]),
         ),
         body: FutureBuilder<(List<Rental>, String)>(

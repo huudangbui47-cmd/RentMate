@@ -65,8 +65,11 @@
     <div class="col-sm-6 col-xl">
         <div class="card dashboard-stat">
             <div class="card-body">
-                <div class="dashboard-stat-label">Doanh thu</div>
+                <div class="dashboard-stat-label">Doanh thu (phí 5%)</div>
                 <div class="dashboard-stat-value">@Model.TotalRevenue.ToString("N0") đ</div>
+                <small class="text-muted" title="Tổng tiền thuê của các đơn đã hoàn tất, gồm cả phần chủ đồ nhận">
+                    Giá trị đơn thuê: @Model.TotalRentalValue.ToString("N0") đ
+                </small>
             </div>
         </div>
     </div>
@@ -78,6 +81,7 @@
             <div class="card-header">
                 <div>
                     <h4 class="mb-1">Doanh thu theo tháng</h4>
+                    <small class="text-muted">Phí nền tảng 5% trên tiền thuê, tính theo tháng đơn thuê hoàn tất</small>
                 </div>
             </div>
             <div class="card-body">

@@ -404,6 +404,10 @@ namespace RentMate.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Area")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
@@ -432,6 +436,10 @@ namespace RentMate.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Province")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -444,6 +452,8 @@ namespace RentMate.Data.Migrations
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("OwnerId");
+
+                    b.HasIndex("Province");
 
                     b.ToTable("Items");
                 });

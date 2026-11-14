@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/item_service.dart';
@@ -8,6 +9,7 @@ import '../services/rental_service.dart';
 import '../services/view_history.dart';
 import '../widgets/ui.dart';
 import 'item_detail_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _service = ItemService();
   List<Item> _items = [];
   List<Category> _categories = [];
+  List<String> _provinces = [];
+  String? _province; // tỉnh/thành đang lọc, null = toàn quốc (nhớ cho lần mở app sau)
+  static const _provinceKey = 'home_province';
   int? _parentId; // danh mục cha đang chọn, null = tất cả
   int? _childId; // danh mục con đang chọn trong danh mục cha
   String _search = '';
@@ -42,18 +47,23 @@ class _HomeScreenState extends State<HomeScreen> {
       _error = null;
     });
     try {
-      final results = await Future.wait([_service.getItems(), _service.getCategories()]);
+      final results = await Future.wait([_service.getItems(), _service.getCategories(), _service.getProvinces()]);
+      final prefs = await SharedPreferences.getInstance();
       final auth = AuthService();
       _name = await auth.getFullName() ?? '';
       _userId = await auth.getUserId();
       final items = results[0] as List<Item>;
       final categories = results[1] as List<Category>;
+      final provinces = results[2] as List<String>;
+      final savedProvince = prefs.getString(_provinceKey);
       final scores = _userId == null ? <int, double>{} : await _buildCategoryScore(_userId!, items, categories);
       if (!mounted) return;
       setState(() {
         _items = items;
         _categories = categories;
         _categoryScore = scores;
+        _provinces = provinces;
+        _province = provinces.contains(savedProvince) ? savedProvince : null;
         // Danh mục đang chọn vừa bị ẩn thì quay về "Tất cả"
         if (!_categories.any((c) => c.id == _parentId)) _parentId = null;
         if (!_categories.any((c) => c.id == _childId)) _childId = null;
@@ -117,9 +127,60 @@ class _HomeScreenState extends State<HomeScreen> {
     return _categories.any((c) => c.id == item.categoryId && c.parentId == _parentId);
   }
 
+  Future<void> _pickProvince() async {
+    // Đếm số đồ mỗi tỉnh để khách biết chỗ nào có đồ
+    final counts = <String, int>{};
+    for (final i in _items) {
+      if (i.province != null) counts[i.province!] = (counts[i.province!] ?? 0) + 1;
+    }
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        builder: (context, controller) => ListView(
+          controller: controller,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text('Khu vực nhận đồ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.public),
+              title: const Text('Toàn quốc'),
+              trailing: Text('${_items.length}'),
+              selected: _province == null,
+              onTap: () => Navigator.pop(context, ''),
+            ),
+            for (final p in _provinces)
+              ListTile(
+                leading: const Icon(Icons.location_on_outlined),
+                title: Text(p),
+                trailing: Text('${counts[p] ?? 0}'),
+                selected: _province == p,
+                onTap: () => Navigator.pop(context, p),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    final value = picked.isEmpty ? null : picked;
+    setState(() { _province = value; });
+    final prefs = await SharedPreferences.getInstance();
+    if (value == null) {
+      await prefs.remove(_provinceKey);
+    } else {
+      await prefs.setString(_provinceKey, value);
+    }
+  }
+
   List<Item> get _visibleItems {
     final keyword = _search.trim().toLowerCase();
     final list = _items
+        .where((i) => _province == null || i.province == _province)
         .where(_matchesCategory)
         .where((i) =>
             keyword.isEmpty ||
@@ -175,12 +236,38 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_name.isEmpty ? 'Xin chào 👋' : 'Xin chào, ${_name.split(' ').last} 👋',
-              style: TextStyle(color: scheme.onSurfaceVariant)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(_name.isEmpty ? 'Xin chào 👋' : 'Xin chào, ${_name.split(' ').last} 👋',
+                    style: TextStyle(color: scheme.onSurfaceVariant)),
+              ),
+              if (_userId != null) const NotificationBell(),
+            ],
+          ),
           const SizedBox(height: 2),
           const Text('Hôm nay bạn muốn thuê gì?',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
+          // Lọc theo tỉnh/thành nơi nhận đồ
+          InkWell(
+            onTap: _provinces.isEmpty ? null : _pickProvince,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.location_on, size: 18, color: scheme.primary),
+                  const SizedBox(width: 4),
+                  Text(_province ?? 'Toàn quốc',
+                      style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)),
+                  Icon(Icons.keyboard_arrow_down_rounded, color: scheme.primary),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -324,7 +411,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: EmptyView(
             icon: Icons.search_off_rounded,
             title: _items.isEmpty ? 'Chưa có đồ nào được đăng' : 'Không tìm thấy đồ phù hợp',
-            subtitle: _items.isEmpty ? 'Hãy là người đầu tiên đăng đồ cho thuê!' : 'Thử từ khóa hoặc danh mục khác.',
+            subtitle: _items.isEmpty
+                ? 'Hãy là người đầu tiên đăng đồ cho thuê!'
+                : _province != null
+                    ? 'Thử khu vực khác (bấm "$_province" ở trên), từ khóa hoặc danh mục khác.'
+                    : 'Thử từ khóa hoặc danh mục khác.',
           ),
         ),
       ];
@@ -340,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         sliver: SliverList.separated(
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (context, i) => _itemCard(items[i]),
         ),
       ),
@@ -399,6 +490,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                      if (item.locationText != null) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 13, color: scheme.onSurfaceVariant),
+                            const SizedBox(width: 2),
+                            Expanded(
+                              child: Text(item.locationText!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                            ),
+                          ],
+                        ),
+                      ],
                       const Spacer(),
                       Text.rich(
                         TextSpan(children: [

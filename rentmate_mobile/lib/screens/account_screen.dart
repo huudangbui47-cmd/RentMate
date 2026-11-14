@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/ui.dart';
+import 'notifications_screen.dart';
 import 'login_screen.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -85,7 +86,7 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tài khoản')),
+      appBar: AppBar(title: const Text('Tài khoản'), actions: const [NotificationBell()]),
       body: FutureBuilder<Profile>(
         future: _future,
         builder: (context, snap) {

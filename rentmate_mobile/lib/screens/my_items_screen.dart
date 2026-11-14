@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/item_service.dart';
 import '../widgets/ui.dart';
+import 'notifications_screen.dart';
 import 'item_detail_screen.dart';
 import 'item_form_screen.dart';
 
@@ -21,11 +22,12 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
   }
 
   Future<void> _openForm([Item? item]) async {
-    final saved = await Navigator.of(context).push<bool>(
+    // Màn hình sửa đồ trả về câu thông báo (đã lưu luôn / đang chờ duyệt lại)
+    final message = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => ItemFormScreen(item: item)),
     );
-    if (saved == true) {
-      if (mounted) showSnack(context, 'Đã gửi. Đồ sẽ hiện trên app sau khi được duyệt.');
+    if (message != null) {
+      if (mounted) showSnack(context, message);
       await _reload();
     }
   }
@@ -51,7 +53,7 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đồ của tôi')),
+      appBar: AppBar(title: const Text('Đồ của tôi'), actions: const [NotificationBell()]),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add),

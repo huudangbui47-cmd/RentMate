@@ -11,18 +11,25 @@ namespace RentMate.Service.Services
     public class RentalService : IRentalService
     {
         // Phí nền tảng trừ trên tiền thuê lúc hoàn tất (không tính trên tiền cọc)
-        private const decimal PlatformFeeRate = 0.05m;
+        public const decimal PlatformFeeRate = 0.05m;
+
+        // Phần chủ đồ nhận và phần RentMate giữ lại của một đơn (Dashboard dùng để tính doanh thu)
+        public static decimal OwnerIncome(decimal totalPrice) => Math.Round(totalPrice * (1 - PlatformFeeRate), 0);
+
+        public static decimal PlatformFee(decimal totalPrice) => totalPrice - OwnerIncome(totalPrice);
 
         // Đơn đã duyệt mà người thuê chưa thanh toán sau ngần này thì chủ đồ được hủy
         private static readonly TimeSpan PaymentTimeout = TimeSpan.FromHours(24);
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IWalletService _walletService;
+        private readonly INotificationService _notificationService;
 
-        public RentalService(IUnitOfWork unitOfWork, IWalletService walletService)
+        public RentalService(IUnitOfWork unitOfWork, IWalletService walletService, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _walletService = walletService;
+            _notificationService = notificationService;
         }
 
         // =========================
@@ -89,6 +96,10 @@ namespace RentMate.Service.Services
             };
 
             await _unitOfWork.Rentals.AddAsync(rental);
+
+            await _notificationService.AddAsync(item.OwnerId, NotificationType.RentalRequest,
+                "Có yêu cầu thuê mới",
+                $"Có người muốn thuê '{item.ItemName}' từ {rental.StartDate:dd/MM} đến {rental.EndDate:dd/MM}. Vào Đơn thuê để duyệt.");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -189,6 +200,10 @@ namespace RentMate.Service.Services
             rental.Status = RentalStatus.Approved;
             rental.ApprovedAt = DateTime.UtcNow;
 
+            await _notificationService.AddAsync(rental.RenterId, NotificationType.RentalApproved,
+                "Đơn thuê đã được đồng ý",
+                $"Chủ đồ đã đồng ý cho thuê '{rental.Item.ItemName}'. Hãy thanh toán trong 24 giờ để giữ lịch.");
+
             await _unitOfWork.SaveChangesAsync();
 
             return true;
@@ -220,6 +235,10 @@ namespace RentMate.Service.Services
             }
 
             rental.Status = RentalStatus.Rejected;
+
+            await _notificationService.AddAsync(rental.RenterId, NotificationType.RentalRejected,
+                "Đơn thuê bị từ chối",
+                $"Chủ đồ đã từ chối yêu cầu thuê '{rental.Item.ItemName}'. Bạn có thể tìm món đồ khác trên trang Khám phá.");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -273,6 +292,10 @@ namespace RentMate.Service.Services
 
             rental.Item.Status = ItemStatus.Rented;
 
+            await _notificationService.AddAsync(rental.RenterId, NotificationType.System,
+                "Đã nhận đồ",
+                $"Bạn đã nhận '{rental.Item.ItemName}'. Nhớ trả đồ đúng hạn ngày {rental.EndDate:dd/MM/yyyy}.");
+
             await _unitOfWork.SaveChangesAsync();
 
             return true;
@@ -285,7 +308,7 @@ namespace RentMate.Service.Services
             int rentalId,
             string renterId)
         {
-            var rental = await _unitOfWork.Rentals.GetByIdAsync(rentalId);
+            var rental = await GetRentalWithItemAsync(rentalId);
 
             if (rental == null)
             {
@@ -305,6 +328,10 @@ namespace RentMate.Service.Services
 
             rental.Status = RentalStatus.Returned;
             rental.ReturnedAt = DateTime.UtcNow;
+
+            await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.ReturnReminder,
+                "Người thuê đã trả đồ",
+                $"Đơn #{rental.Id} '{rental.Item.ItemName}': hãy kiểm tra đồ, lập biên bản sau khi trả rồi bấm Hoàn tất.");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -359,7 +386,7 @@ namespace RentMate.Service.Services
 
             // Chia tiền: chủ đồ nhận tiền thuê trừ phí, người thuê nhận lại tiền cọc.
             // shortcut: chưa trừ tiền bồi thường (luôn 0); thêm khi biên bản sau khi trả có ô tiền bồi thường.
-            var ownerIncome = Math.Round(rental.TotalPrice * (1 - PlatformFeeRate), 0);
+            var ownerIncome = OwnerIncome(rental.TotalPrice);
 
             await AddWalletEntryAsync(
                 rental.Item.OwnerId,
@@ -377,6 +404,16 @@ namespace RentMate.Service.Services
 
             await AddPaymentAsync(rental.Id, rental.DepositAmount, PaymentType.DepositRefund);
 
+            await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.Payment,
+                "Bạn nhận được tiền thuê",
+                $"Đơn #{rental.Id} '{rental.Item.ItemName}' đã hoàn tất. {NotificationService.Money(ownerIncome)} đã được cộng vào ví (đã trừ phí {PlatformFeeRate:P0}).");
+
+            await _notificationService.AddAsync(rental.RenterId, NotificationType.Payment,
+                "Đơn thuê đã hoàn tất",
+                rental.DepositAmount > 0
+                    ? $"Cảm ơn bạn đã thuê '{rental.Item.ItemName}'. Đã hoàn {NotificationService.Money(rental.DepositAmount)} tiền cọc vào ví."
+                    : $"Cảm ơn bạn đã thuê '{rental.Item.ItemName}'.");
+
             // Một lần SaveChanges: đổi trạng thái đơn và cộng tiền cùng thành công hoặc cùng thất bại
             await _unitOfWork.SaveChangesAsync();
 
@@ -390,7 +427,7 @@ namespace RentMate.Service.Services
             int rentalId,
             string renterId)
         {
-            var rental = await _unitOfWork.Rentals.GetByIdAsync(rentalId);
+            var rental = await GetRentalWithItemAsync(rentalId);
 
             if (rental == null)
             {
@@ -428,6 +465,10 @@ namespace RentMate.Service.Services
             await AddPaymentAsync(rental.Id, rental.DepositAmount, PaymentType.Deposit);
 
             rental.Status = RentalStatus.WaitingForPickup;
+
+            await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.Payment,
+                "Người thuê đã thanh toán",
+                $"Đơn #{rental.Id} '{rental.Item.ItemName}' đã được thanh toán. Hãy lập biên bản trước khi giao đồ rồi bấm Đã giao.");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -490,7 +531,24 @@ namespace RentMate.Service.Services
                     $"Hoàn tiền đơn #{rental.Id} bị hủy");
             }
 
+            bool wasPaid = rental.Status == RentalStatus.WaitingForPickup;
+
             rental.Status = RentalStatus.Cancelled;
+
+            // Báo cho bên còn lại
+            if (isRenter)
+            {
+                await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.System,
+                    "Đơn thuê đã bị hủy",
+                    $"Người thuê đã hủy đơn #{rental.Id} '{rental.Item.ItemName}'.");
+            }
+            else
+            {
+                await _notificationService.AddAsync(rental.RenterId, NotificationType.System,
+                    "Đơn thuê đã bị hủy",
+                    $"Chủ đồ đã hủy đơn #{rental.Id} '{rental.Item.ItemName}' vì quá 24 giờ chưa thanh toán." +
+                    (wasPaid ? $" Đã hoàn {NotificationService.Money(rental.TotalPrice + rental.DepositAmount)} vào ví." : ""));
+            }
 
             await _unitOfWork.SaveChangesAsync();
 

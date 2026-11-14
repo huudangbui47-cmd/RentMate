@@ -13,5 +13,11 @@ namespace RentMate.Service.DTOs.Items
         public int CategoryId { get; set; }
 
         public int Condition { get; set; }
+
+        // Một trong VietnamProvinces.All
+        public string Province { get; set; } = string.Empty;
+
+        // Phường/xã hoặc khu vực, không bắt buộc
+        public string? Area { get; set; }
     }
 }

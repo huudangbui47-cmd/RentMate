@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../services/notification_service.dart';
+
 import 'account_screen.dart';
 import 'guest_screen.dart';
 import 'home_screen.dart';
 import 'my_items_screen.dart';
 import 'my_rentals_screen.dart';
+import 'notifications_screen.dart';
 import 'wallet_screen.dart';
 
 /// Khung chính sau khi đăng nhập: thanh điều hướng dưới với 5 mục.
@@ -19,8 +22,43 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   late int _index = widget.initialIndex;
+  final _notifications = NotificationCenter.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.guest) return;
+    // Đã đăng nhập: theo dõi thông báo mới, chạm thông báo thì chuyển đúng tab
+    NotificationsScreen.register();
+    _notifications.openTab = (tab) {
+      if (mounted) setState(() { _index = tab; });
+    };
+    _notifications.start();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Chỉ hỏi server khi app đang mở trên màn hình; mở lại app thì kiểm tra ngay
+    if (state == AppLifecycleState.resumed) {
+      _notifications.start();
+    } else if (state == AppLifecycleState.paused) {
+      _notifications.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (!widget.guest) {
+      // MainShell chỉ bị bỏ khi đăng xuất hoặc hết phiên
+      WidgetsBinding.instance.removeObserver(this);
+      _notifications.openTab = null;
+      _notifications.reset();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

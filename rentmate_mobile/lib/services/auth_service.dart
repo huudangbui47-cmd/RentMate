@@ -11,6 +11,9 @@ const String apiBaseUrl = 'http://10.0.2.2:5076';
 // Dùng để quay về màn hình đăng nhập từ bất kỳ đâu khi phiên hết hạn.
 final navigatorKey = GlobalKey<NavigatorState>();
 
+// Để hiện thông báo (SnackBar) từ bất kỳ đâu, kể cả khi không có BuildContext (vd. thông báo mới)
+final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 // main.dart gán hàm này: đăng xuất rồi mở màn hình đăng nhập.
 VoidCallback? onSessionExpired;
 

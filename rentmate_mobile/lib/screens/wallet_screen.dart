@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/item_service.dart';
 import '../services/wallet_service.dart';
 import '../widgets/ui.dart';
+import 'notifications_screen.dart';
 import 'deposit_screen.dart';
 import 'withdraw_screen.dart';
 
@@ -37,7 +38,11 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ví RentMate'), automaticallyImplyLeading: widget.standalone),
+      appBar: AppBar(
+        title: const Text('Ví RentMate'),
+        automaticallyImplyLeading: widget.standalone,
+        actions: [if (!widget.standalone) const NotificationBell()],
+      ),
       body: FutureBuilder<(WalletSummary, List<WalletTransaction>)>(
         future: _future,
         builder: (context, snap) {

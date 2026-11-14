@@ -13,11 +13,13 @@ namespace RentMate.Service.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
 
-        public ItemService(IUnitOfWork unitOfWork, IAuditLogService auditLogService)
+        public ItemService(IUnitOfWork unitOfWork, IAuditLogService auditLogService, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
         }
 
         // Đồ khách khác nhìn thấy trên app: đã được duyệt và chưa bị tạm ngưng/ẩn
@@ -35,6 +37,9 @@ namespace RentMate.Service.Services
             Condition = i.Condition.ToString(),
             Status = i.Status.ToString(),
             RejectionReason = i.RejectionReason,
+
+            Province = i.Province,
+            Area = i.Area,
 
             CategoryId = i.CategoryId,
             CategoryName = i.Category.CategoryName,
@@ -109,6 +114,7 @@ namespace RentMate.Service.Services
             string ownerId)
         {
             await ValidateAsync(dto.ItemName, dto.PricePerDay, dto.DepositAmount, dto.CategoryId, dto.Condition);
+            ValidateLocation(dto.Province, dto.Area);
 
             var item = new Item
             {
@@ -121,6 +127,9 @@ namespace RentMate.Service.Services
                 CategoryId = dto.CategoryId,
 
                 Condition = (ItemCondition)dto.Condition,
+
+                Province = dto.Province,
+                Area = NormalizeArea(dto.Area),
 
                 // Đồ mới phải chờ quản lý duyệt mới hiện trên app
                 Status = ItemStatus.PendingApproval,
@@ -154,9 +163,23 @@ namespace RentMate.Service.Services
             }
 
             await ValidateAsync(dto.ItemName, dto.PricePerDay, dto.DepositAmount, dto.CategoryId, dto.Condition);
+            ValidateLocation(dto.Province, dto.Area);
 
-            item.ItemName = dto.ItemName.Trim();
-            item.Description = dto.Description?.Trim();
+            // Chỉ đổi tên, mô tả, danh mục mới phải duyệt lại (tránh đăng đồ sạch để được duyệt rồi sửa thành nội dung khác).
+            // Đổi giá, cọc, tình trạng, nơi nhận đồ thì lưu luôn, đồ vẫn hiện trên app.
+            string newName = dto.ItemName.Trim();
+            string? newDescription = dto.Description?.Trim();
+
+            bool contentChanged =
+                item.ItemName != newName ||
+                (item.Description ?? string.Empty) != (newDescription ?? string.Empty) ||
+                item.CategoryId != dto.CategoryId;
+
+            item.ItemName = newName;
+            item.Description = newDescription;
+
+            item.Province = dto.Province;
+            item.Area = NormalizeArea(dto.Area);
 
             item.PricePerDay = dto.PricePerDay;
             item.DepositAmount = dto.DepositAmount;
@@ -165,7 +188,11 @@ namespace RentMate.Service.Services
 
             item.Condition = (ItemCondition)dto.Condition;
 
-            MarkForReapproval(item);
+            // Đồ bị từ chối: chủ đồ sửa lại là gửi duyệt lần nữa
+            if (contentChanged || item.Status == ItemStatus.Rejected)
+            {
+                MarkForReapproval(item);
+            }
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -255,10 +282,7 @@ namespace RentMate.Service.Services
             if (item == null)
                 return null;
 
-            var images = await _unitOfWork.ItemImages
-                .BuildQuery(img => img.ItemId == itemId)
-                .OrderBy(img => img.Id)
-                .ToListAsync();
+            var images = await GetTrackedImagesAsync(itemId);
 
             var image = images.FirstOrDefault(img => img.Id == imageId);
 
@@ -288,9 +312,7 @@ namespace RentMate.Service.Services
             if (item == null)
                 return false;
 
-            var images = await _unitOfWork.ItemImages
-                .BuildQuery(img => img.ItemId == itemId)
-                .ToListAsync();
+            var images = await GetTrackedImagesAsync(itemId);
 
             if (!images.Any(img => img.Id == imageId))
                 return false;
@@ -301,6 +323,19 @@ namespace RentMate.Service.Services
             await _unitOfWork.SaveChangesAsync();
 
             return true;
+        }
+
+        // BuildQuery không tracking, nên lấy Id trước rồi tải bản có tracking để sửa IsPrimary lưu được
+        private async Task<List<ItemImage>> GetTrackedImagesAsync(int itemId)
+        {
+            var ids = await _unitOfWork.ItemImages
+                .BuildQuery(img => img.ItemId == itemId)
+                .Select(img => img.Id)
+                .ToListAsync();
+
+            return (await _unitOfWork.ItemImages.GetByIdsAsync(ids))
+                .OrderBy(img => img.Id)
+                .ToList();
         }
 
         // Null nếu đồ không tồn tại/đã xóa. Không phải chủ đồ hoặc đồ đang được thuê thì báo lỗi.
@@ -386,6 +421,8 @@ namespace RentMate.Service.Services
                     Condition = i.Condition,
                     Status = i.Status,
                     RejectionReason = i.RejectionReason,
+                    Province = i.Province,
+                    Area = i.Area,
                     RentalCount = i.Rentals.Count,
                     CreatedAt = i.CreatedAt
                 })
@@ -456,6 +493,15 @@ namespace RentMate.Service.Services
                 ipAddress,
                 actorUserId);
 
+            var (title, message) = status switch
+            {
+                ItemStatus.Unavailable => ("Đồ bị tạm ngưng", $"Quản lý đã tạm ngưng '{item.ItemName}', đồ tạm ẩn khỏi trang Khám phá."),
+                ItemStatus.Hidden => ("Đồ đã bị ẩn", $"Quản lý đã ẩn '{item.ItemName}' khỏi RentMate."),
+                _ => ("Đồ được mở lại", $"'{item.ItemName}' đã hiện lại trên trang Khám phá.")
+            };
+
+            await _notificationService.AddAsync(item.OwnerId, NotificationType.Item, title, message);
+
             await _unitOfWork.SaveChangesAsync();
         }
 
@@ -468,6 +514,9 @@ namespace RentMate.Service.Services
 
             await _auditLogService.RecordAsync("ApproveItem", "Item", item.Id.ToString(),
                 $"Duyệt đồ '{item.ItemName}'.", ipAddress, actorUserId);
+
+            await _notificationService.AddAsync(item.OwnerId, NotificationType.Item,
+                "Đồ đã được duyệt", $"'{item.ItemName}' đã hiện trên trang Khám phá, khách có thể đặt thuê ngay.");
 
             await _unitOfWork.SaveChangesAsync();
         }
@@ -490,6 +539,9 @@ namespace RentMate.Service.Services
             await _auditLogService.RecordAsync("RejectItem", "Item", item.Id.ToString(),
                 $"Từ chối đồ '{item.ItemName}'. Lý do: {reason}", ipAddress, actorUserId);
 
+            await _notificationService.AddAsync(item.OwnerId, NotificationType.Item,
+                "Đồ bị từ chối", $"'{item.ItemName}': {reason}. Sửa lại trong Đồ của tôi để gửi duyệt lần nữa.");
+
             await _unitOfWork.SaveChangesAsync();
         }
 
@@ -504,6 +556,18 @@ namespace RentMate.Service.Services
 
             return item;
         }
+
+        private static void ValidateLocation(string? province, string? area)
+        {
+            if (!VietnamProvinces.IsValid(province))
+                throw new ArgumentException("Vui lòng chọn tỉnh/thành nơi nhận đồ.");
+
+            if (area != null && area.Trim().Length > 100)
+                throw new ArgumentException("Khu vực tối đa 100 ký tự.");
+        }
+
+        private static string? NormalizeArea(string? area)
+            => string.IsNullOrWhiteSpace(area) ? null : area.Trim();
 
         private async Task ValidateAsync(string itemName, decimal pricePerDay, decimal depositAmount, int categoryId, int condition)
         {

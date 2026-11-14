@@ -24,7 +24,10 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   late final _deposit = TextEditingController(text: widget.item?.depositAmount.round().toString());
   late int? _categoryId = widget.item?.categoryId;
   late String _condition = widget.item?.condition ?? 'Good';
+  late String? _province = widget.item?.province;
+  late final _area = TextEditingController(text: widget.item?.area);
   late final Future<List<Category>> _categories = ItemService().getCategories();
+  late final Future<List<String>> _provinces = ItemService().getProvinces();
   bool _saving = false;
 
   // Ảnh: ảnh cũ đang giữ, ảnh cũ bấm xóa, ảnh mới chọn từ máy. Chỉ gửi lên khi bấm Lưu.
@@ -112,7 +115,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [_name, _description, _price, _deposit]) {
+    for (final c in [_name, _description, _price, _deposit, _area]) {
       c.dispose();
     }
     super.dispose();
@@ -129,7 +132,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      final itemId = await ItemService().saveItem(
+      final saved = await ItemService().saveItem(
         id: widget.item?.id,
         name: _name.text.trim(),
         description: _description.text.trim(),
@@ -137,9 +140,15 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
         depositAmount: num.parse(_deposit.text),
         categoryId: _categoryId!,
         condition: _condition,
+        province: _province!,
+        area: _area.text.trim().isEmpty ? null : _area.text.trim(),
       );
+      final itemId = saved.id;
+      var status = saved.status;
       try {
         await _syncImages(itemId);
+        // Thêm ảnh mới cũng phải duyệt lại, lấy trạng thái cuối cùng để báo đúng
+        if (_picked.isNotEmpty) status = (await ItemService().getItem(itemId)).status;
       } catch (e) {
         // Thông tin đồ đã lưu rồi, chỉ phần ảnh lỗi: vẫn quay lại danh sách và báo để sửa lại
         if (mounted) {
@@ -147,7 +156,14 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
               'Bấm Sửa để thử lại.', error: true);
         }
       }
-      if (mounted) Navigator.of(context).pop(true);
+      final message = widget.item == null
+          ? 'Đã đăng. Đồ sẽ hiện trên app sau khi được duyệt.'
+          : widget.item!.status == 'Rejected'
+              ? 'Đã lưu và gửi duyệt lại.'
+              : status == 'PendingApproval' && widget.item!.status != 'PendingApproval'
+              ? 'Đã lưu. Bạn đổi tên, mô tả, danh mục hoặc ảnh nên đồ đang chờ duyệt lại.'
+              : 'Đã lưu thay đổi.';
+      if (mounted) Navigator.of(context).pop(message);
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
     } finally {
@@ -167,7 +183,8 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             NoticeBox(editing
-                ? 'Sau khi lưu, đồ sẽ tạm ẩn khỏi trang Khám phá để quản lý duyệt lại.'
+                ? 'Đổi giá, tiền cọc, tình trạng hoặc nơi nhận đồ thì lưu ngay. '
+                    'Đổi tên, mô tả, danh mục hoặc thêm ảnh thì đồ tạm ẩn để quản lý duyệt lại.'
                 : 'Đồ mới sẽ được quản lý duyệt trước khi hiện trên trang Khám phá (thường trong ngày).'),
             if (widget.item?.status == 'Rejected' && (widget.item?.rejectionReason ?? '').isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -255,6 +272,8 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
               onChanged: (v) => setState(() => _condition = v!),
             ),
             const SizedBox(height: 16),
+            _locationFields(),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _description,
               maxLines: 5,
@@ -271,6 +290,46 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Nơi nhận đồ: tỉnh/thành (bắt buộc, để khách lọc) + khu vực tự ghi. Không ghi số nhà.
+  Widget _locationFields() {
+    return FutureBuilder<List<String>>(
+      future: _provinces,
+      builder: (context, snap) {
+        if (snap.hasError) return Text('Không tải được danh sách tỉnh/thành: ${errorText(snap.error!)}');
+        final provinces = snap.data ?? [];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<String>(
+              key: ValueKey(provinces.length),
+              initialValue: provinces.contains(_province) ? _province : null,
+              isExpanded: true,
+              menuMaxHeight: 400,
+              decoration: InputDecoration(
+                labelText: 'Tỉnh/thành nơi nhận đồ',
+                prefixIcon: const Icon(Icons.location_on_outlined),
+                helperText: snap.hasData ? null : 'Đang tải danh sách...',
+              ),
+              items: [for (final p in provinces) DropdownMenuItem(value: p, child: Text(p))],
+              onChanged: (v) => setState(() { _province = v; }),
+              validator: (v) => v == null ? 'Vui lòng chọn tỉnh/thành' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _area,
+              maxLength: 100,
+              decoration: const InputDecoration(
+                labelText: 'Khu vực (không bắt buộc)',
+                hintText: 'Ví dụ: Phường Bến Thành, gần chợ Bến Thành',
+                helperText: 'Không cần ghi số nhà, hai bên trao đổi khi nhận đồ.',
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

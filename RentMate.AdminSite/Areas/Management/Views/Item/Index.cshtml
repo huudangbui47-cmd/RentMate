@@ -128,7 +128,7 @@
                                 }
                                 <div>
                                     <div class="fw-semibold">@item.ItemName</div>
-                                    <small class="text-muted">@item.CategoryName · @item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</small>
+                                    <small class="text-muted">@item.CategoryName · @item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")@(item.Province != null ? " · " + (item.Area != null ? item.Area + ", " : "") + item.Province : "")</small>
                                     @if (!string.IsNullOrWhiteSpace(item.Description))
                                     {
                                         <div class="rm-item-description" title="@item.Description">@item.Description</div>

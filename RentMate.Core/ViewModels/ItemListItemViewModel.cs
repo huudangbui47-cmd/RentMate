@@ -17,6 +17,8 @@ namespace RentMate.Core.ViewModels
         public ItemCondition Condition { get; set; }
         public ItemStatus Status { get; set; }
         public string? RejectionReason { get; set; }
+        public string? Province { get; set; }
+        public string? Area { get; set; }
         public int RentalCount { get; set; }
         public DateTime CreatedAt { get; set; }
 

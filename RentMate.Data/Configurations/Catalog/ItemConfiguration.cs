@@ -15,6 +15,12 @@ namespace RentMate.Data.Configurations.Catalog
 
             builder.Property(i => i.RejectionReason).HasMaxLength(500);
 
+            builder.Property(i => i.Province).HasMaxLength(50);
+            builder.Property(i => i.Area).HasMaxLength(100);
+
+            // Khách lọc đồ theo tỉnh/thành
+            builder.HasIndex(i => i.Province);
+
             // User 1 - N Item
             builder.HasOne(i => i.Owner)
                 .WithMany(u => u.Items)

@@ -27,7 +27,14 @@ namespace RentMate.Api.Controllers
             return Ok(await _itemService.GetAllAsync());
         }
 
-        // GET: api/items/my  (đồ của tôi, mọi trạng thái kể cả chờ duyệt / bị từ chối)
+        // GET: api/items/provinces  (34 tỉnh/thành để chọn nơi nhận đồ và lọc)
+        [HttpGet("provinces")]
+        public IActionResult GetProvinces()
+        {
+            return Ok(VietnamProvinces.All);
+        }
+
+        // GET: api/items/my (đồ của tôi, mọi trạng thái kể cả chờ duyệt / bị từ chối)
         [Authorize]
         [HttpGet("my")]
         public async Task<IActionResult> GetMine()
@@ -79,7 +86,8 @@ namespace RentMate.Api.Controllers
                     return NotFound();
                 }
 
-                return NoContent();
+                // Trả lại món đồ để app biết có phải chờ duyệt lại không (chỉ khi đổi tên, mô tả, danh mục)
+                return Ok(await _itemService.GetByIdAsync(id, GetUserId()));
             }
             catch (UnauthorizedAccessException)
             {
