@@ -30,6 +30,15 @@ namespace RentMate.Core.ViewModels
         public DateTime? ReturnedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
 
+        public decimal DamageAmount { get; set; }
+        public string? DamageNote { get; set; }
+        public DateTime? DamageClaimedAt { get; set; }
+        public string? DisputeReason { get; set; }
+        public DateTime? DisputedAt { get; set; }
+        public string? ResolutionNote { get; set; }
+
+        public bool HasDamageClaim => DamageClaimedAt.HasValue;
+
         public List<PaymentViewModel> Payments { get; set; } = new();
         public List<ConditionReportViewModel> ConditionReports { get; set; } = new();
 
@@ -46,6 +55,8 @@ namespace RentMate.Core.ViewModels
             RentalStatus.Returned => "Đã trả đồ",
             RentalStatus.Completed => "Hoàn tất",
             RentalStatus.Overdue => "Quá hạn",
+            RentalStatus.DamageClaimed => "Chờ xác nhận bồi thường",
+            RentalStatus.Disputed => "Đang khiếu nại",
             _ => "Không xác định"
         };
     }

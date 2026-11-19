@@ -11,5 +11,7 @@ namespace RentMate.Core.Enums
         Returned = 7,
         Completed = 8,
         Overdue = 9,
+        DamageClaimed = 10, // Chủ đồ đề nghị trừ cọc, chờ người thuê đồng ý hoặc khiếu nại
+        Disputed = 11,      // Người thuê khiếu nại, chờ quản trị viên phân xử
     }
 }

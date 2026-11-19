@@ -13,6 +13,10 @@ namespace RentMate.Data.Configurations.Rentals
             builder.Property(r => r.PricePerDay).HasPrecision(18, 2);
             builder.Property(r => r.DepositAmount).HasPrecision(18, 2);
             builder.Property(r => r.TotalPrice).HasPrecision(18, 2);
+            builder.Property(r => r.DamageAmount).HasPrecision(18, 2);
+            builder.Property(r => r.DamageNote).HasMaxLength(1000);
+            builder.Property(r => r.DisputeReason).HasMaxLength(1000);
+            builder.Property(r => r.ResolutionNote).HasMaxLength(1000);
 
             // User 1 - N Rental
             builder.HasOne(r => r.Renter)

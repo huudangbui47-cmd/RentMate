@@ -13,6 +13,20 @@ namespace RentMate.Core.Models
         public DateTime CreatedAt { get; set; }
             = DateTime.UtcNow;
 
+        // AI xem ảnh và đánh giá (chỉ là gợi ý). Null khi chưa bật AI hoặc AI lỗi.
+        public string? AiSummary { get; set; }
+
+        // Mỗi dòng một hư hỏng AI thấy
+        public string? AiDamages { get; set; }
+
+        public ItemCondition? AiSuggestedCondition { get; set; }
+
+        public bool? AiNewDamageFound { get; set; }
+
+        public decimal? AiSuggestedDeduction { get; set; }
+
+        public DateTime? AiAnalyzedAt { get; set; }
+
         // Foreign Keys
         public int RentalId { get; set; }
 

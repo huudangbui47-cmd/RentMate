@@ -15,11 +15,14 @@ namespace RentMate.Service.Services
         private readonly IAuditLogService _auditLogService;
         private readonly INotificationService _notificationService;
 
-        public ItemService(IUnitOfWork unitOfWork, IAuditLogService auditLogService, INotificationService notificationService)
+        private readonly IRentalService _rentalService;
+
+        public ItemService(IUnitOfWork unitOfWork, IAuditLogService auditLogService, INotificationService notificationService, IRentalService rentalService)
         {
             _unitOfWork = unitOfWork;
             _auditLogService = auditLogService;
             _notificationService = notificationService;
+            _rentalService = rentalService;
         }
 
         // Đồ khách khác nhìn thấy trên app: đã được duyệt và chưa bị tạm ngưng/ẩn
@@ -223,8 +226,27 @@ namespace RentMate.Service.Services
                 throw new ArgumentException("Đồ đang được thuê, không xóa được.");
             }
 
+            // Người thuê đã trả tiền thì chủ đồ phải giao hoặc chờ người thuê hủy, không được xóa ngang
+            var hasPaidRental = await _unitOfWork.Rentals
+                .BuildQuery(r =>
+                    r.ItemId == id &&
+                    (r.Status == RentalStatus.WaitingForPickup ||
+                     r.Status == RentalStatus.Rented ||
+                     r.Status == RentalStatus.Returned ||
+                     r.Status == RentalStatus.DamageClaimed ||
+                     r.Status == RentalStatus.Disputed))
+                .AnyAsync();
+
+            if (hasPaidRental)
+            {
+                throw new ArgumentException("Đồ còn đơn thuê đã thanh toán hoặc chưa hoàn tất, chưa xóa được.");
+            }
+
             // Không xóa cứng vì còn lịch sử đơn thuê
             item.Status = ItemStatus.Hidden;
+
+            // Các yêu cầu chưa thanh toán: tự từ chối/hủy và báo người thuê (lưu chung lần SaveChanges bên dưới)
+            await _rentalService.CloseOpenRentalsAsync(item.Id, item.ItemName, "chủ đồ đã ngừng cho thuê món này");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -485,11 +507,21 @@ namespace RentMate.Service.Services
 
             item.Status = status;
 
+            // Ẩn/tạm ngưng: hủy các đơn chưa giao, đơn đã thanh toán được hoàn tiền vào ví người thuê
+            int closedRentals = 0;
+
+            if (status == ItemStatus.Hidden || status == ItemStatus.Unavailable)
+            {
+                closedRentals = await _rentalService.CloseOpenRentalsAsync(item.Id, item.ItemName,
+                    status == ItemStatus.Hidden ? "đồ đã bị quản lý ẩn" : "đồ đang bị quản lý tạm ngưng");
+            }
+
             await _auditLogService.RecordAsync(
                 "UpdateItemStatus",
                 "Item",
                 item.Id.ToString(),
-                $"Đổi trạng thái '{item.ItemName}': {oldStatus} → {status}",
+                $"Đổi trạng thái '{item.ItemName}': {oldStatus} → {status}" +
+                    (closedRentals > 0 ? $". Đã hủy {closedRentals} đơn chưa giao." : ""),
                 ipAddress,
                 actorUserId);
 

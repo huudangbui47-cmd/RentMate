@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import 'auth_service.dart';
 import 'item_service.dart';
@@ -12,20 +13,37 @@ class ConditionReport {
   final List<String> imageUrls;
   final DateTime createdAt;
 
+  // AI nhận xét (null khi chưa bật AI hoặc AI lỗi)
+  final String? aiSummary;
+  final List<String> aiDamages;
+  final String? aiSuggestedCondition;
+  final bool? aiNewDamageFound;
+  final num? aiSuggestedDeduction;
+
   ConditionReport.fromJson(Map<String, dynamic> j)
       : reportType = (j['reportType'] ?? '') as String,
         condition = (j['condition'] ?? '') as String,
         description = (j['description'] ?? '') as String,
         imageUrls = ((j['imageUrls'] ?? []) as List).cast<String>(),
-        createdAt = DateTime.parse(j['createdAt'] as String);
+        createdAt = DateTime.parse(j['createdAt'] as String),
+        aiSummary = j['aiSummary'] as String?,
+        aiDamages = ((j['aiDamages'] ?? []) as List).cast<String>(),
+        aiSuggestedCondition = j['aiSuggestedCondition'] as String?,
+        aiNewDamageFound = j['aiNewDamageFound'] as bool?,
+        aiSuggestedDeduction = j['aiSuggestedDeduction'] as num?;
+
+  bool get hasAi => aiSummary != null && aiSummary!.isNotEmpty;
 }
 
 // Theo enum ConditionReportType trong RentMate.Core.
 const reportTypeValues = {'BeforeRental': 1, 'AfterRental': 2};
 const reportTypeLabels = {
-  'BeforeRental': 'Biên bản trước khi giao',
-  'AfterRental': 'Biên bản sau khi trả',
+  'BeforeRental': 'Biên bản lúc giao',
+  'AfterRental': 'Biên bản lúc nhận lại',
 };
+
+/// Khớp ConditionReportService.MaxImages trên Api.
+const maxReportImages = 6;
 
 class ConditionReportService {
   Uri _url(int rentalId) => Uri.parse('$apiBaseUrl/api/rentals/$rentalId/condition-reports');
@@ -38,23 +56,26 @@ class ConditionReportService {
         .toList();
   }
 
-  Future<void> create({
+  /// Gửi ảnh thật (multipart). AI xem ảnh nên có thể mất 10-30 giây.
+  Future<ConditionReport> create({
     required int rentalId,
     required String reportType,
     required String condition,
     required String description,
-    required List<String> imageUrls,
+    required List<XFile> images,
   }) async {
-    final res = await http.post(
-      _url(rentalId),
-      headers: await AuthService().authHeaders(),
-      body: jsonEncode({
-        'reportType': reportTypeValues[reportType],
-        'condition': conditionValues[condition],
-        'description': description,
-        'imageUrls': imageUrls,
-      }),
-    );
+    final headers = await AuthService().authHeaders();
+    headers.remove('Content-Type'); // MultipartRequest tự đặt Content-Type
+    final req = http.MultipartRequest('POST', _url(rentalId))
+      ..headers.addAll(headers)
+      ..fields['reportType'] = '${reportTypeValues[reportType]}'
+      ..fields['condition'] = '${conditionValues[condition]}'
+      ..fields['description'] = description;
+    for (final f in images) {
+      req.files.add(await http.MultipartFile.fromPath('files', f.path, filename: f.name));
+    }
+    final res = await http.Response.fromStream(await req.send().timeout(const Duration(seconds: 90)));
     checkResponse(res);
+    return ConditionReport.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 }

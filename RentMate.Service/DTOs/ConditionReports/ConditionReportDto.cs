@@ -21,5 +21,16 @@ namespace RentMate.Service.DTOs.ConditionReports
 
         public List<string> ImageUrls { get; set; }
             = new List<string>();
+
+        // AI đánh giá (null khi chưa bật AI hoặc AI lỗi)
+        public string? AiSummary { get; set; }
+
+        public List<string> AiDamages { get; set; } = new();
+
+        public string? AiSuggestedCondition { get; set; }
+
+        public bool? AiNewDamageFound { get; set; }
+
+        public decimal? AiSuggestedDeduction { get; set; }
     }
 }

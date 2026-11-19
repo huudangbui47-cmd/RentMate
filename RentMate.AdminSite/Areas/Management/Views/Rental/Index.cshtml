@@ -23,6 +23,8 @@
             <option value="@RentalStatus.WaitingForPickup" selected="@(Model.Status == RentalStatus.WaitingForPickup)">Chờ nhận đồ</option>
             <option value="@RentalStatus.Rented" selected="@(Model.Status == RentalStatus.Rented)">Đang thuê</option>
             <option value="@RentalStatus.Returned" selected="@(Model.Status == RentalStatus.Returned)">Đã trả đồ</option>
+            <option value="@RentalStatus.DamageClaimed" selected="@(Model.Status == RentalStatus.DamageClaimed)">Chờ xác nhận bồi thường</option>
+            <option value="@RentalStatus.Disputed" selected="@(Model.Status == RentalStatus.Disputed)">Đang khiếu nại</option>
             <option value="@RentalStatus.Completed" selected="@(Model.Status == RentalStatus.Completed)">Hoàn tất</option>
             <option value="@RentalStatus.Overdue" selected="@(Model.Status == RentalStatus.Overdue)">Quá hạn</option>
             <option value="@RentalStatus.Rejected" selected="@(Model.Status == RentalStatus.Rejected)">Từ chối</option>
@@ -64,7 +66,8 @@
                         RentalStatus.Approved or RentalStatus.WaitingForPickup or RentalStatus.Returned => "admin-badge-info",
                         RentalStatus.Rented => "admin-badge-primary",
                         RentalStatus.Completed => "admin-badge-success",
-                        RentalStatus.Rejected or RentalStatus.Overdue => "admin-badge-danger",
+                        RentalStatus.DamageClaimed => "admin-badge-warning",
+                        RentalStatus.Rejected or RentalStatus.Overdue or RentalStatus.Disputed => "admin-badge-danger",
                         _ => "admin-badge-muted"
                     };
                     <tr>

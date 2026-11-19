@@ -45,10 +45,15 @@ Hai file này không có trên GitHub nên phải tự tạo.
     "BankId": "",
     "AccountNumber": "",
     "AccountName": ""
+  },
+  "Ai": {
+    "ApiKey": "",
+    "Model": "claude-opus-5-5"
   }
 }
 ```
 
+- `Ai`: AI (Claude) xem ảnh biên bản lúc giao/nhận lại, ghi khuyết điểm và gợi ý mức trừ cọc. Lấy khóa ở https://console.anthropic.com → API Keys (cần nạp credit). Để trống `ApiKey` thì biên bản vẫn lưu bình thường, chỉ không có phần nhận xét AI. Mỗi lần so sánh tốn khoảng vài nghìn đồng.
 - `Smtp` của Api dùng để gửi mã 6 số khi khách quên mật khẩu trên app, điền giống AdminSite (xem bên dưới).
 - `Wallet` là tài khoản ngân hàng nhận tiền nạp ví. Để trống vẫn chạy được (app không hiện mã QR, Admin duyệt nạp thủ công). Muốn có QR: `BankId` là mã ngân hàng theo VietQR, ví dụ `VCB`, `MB`, `TCB`; `AccountName` viết in hoa không dấu.
 

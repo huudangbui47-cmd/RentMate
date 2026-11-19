@@ -1054,12 +1054,7 @@
           "name": "Chủ đồ: biên bản trước khi giao",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/rentals/{{rentalId}}/condition-reports",
               "host": [
@@ -1083,13 +1078,38 @@
               ]
             },
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reportType\": 1,\n  \"condition\": 3,\n  \"description\": \"Máy hoạt động tốt, không trầy.\",\n  \"imageUrls\": []\n}"
-            }
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reportType",
+                  "value": "1",
+                  "type": "text",
+                  "description": "1 = lúc giao, 2 = lúc nhận lại"
+                },
+                {
+                  "key": "condition",
+                  "value": "3",
+                  "type": "text",
+                  "description": "1 Mới, 2 Như mới, 3 Tốt, 4 Khá, 5 Hư hỏng"
+                },
+                {
+                  "key": "description",
+                  "value": "Đủ phụ kiện, có vết xước nhỏ ở góc",
+                  "type": "text"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "Chọn 1-6 ảnh JPG/PNG; thêm dòng \"files\" để gửi nhiều ảnh"
+                }
+              ]
+            },
+            "description": "Gửi ảnh thật (form-data). Có cấu hình AI thì phản hồi kèm nhận xét AI, có thể mất 10-30 giây."
           }
         },
         {
-          "name": "Chủ đồ: đã giao đồ",
+          "name": "Người thuê: đã nhận đồ",
           "request": {
             "method": "PUT",
             "header": [],
@@ -1110,7 +1130,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{tokenOwner}}",
+                  "value": "{{tokenRenter}}",
                   "type": "string"
                 }
               ]
@@ -1150,12 +1170,7 @@
           "name": "Chủ đồ: biên bản sau khi trả",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/rentals/{{rentalId}}/condition-reports",
               "host": [
@@ -1179,13 +1194,196 @@
               ]
             },
             "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "reportType",
+                  "value": "2",
+                  "type": "text",
+                  "description": "1 = lúc giao, 2 = lúc nhận lại"
+                },
+                {
+                  "key": "condition",
+                  "value": "3",
+                  "type": "text",
+                  "description": "1 Mới, 2 Như mới, 3 Tốt, 4 Khá, 5 Hư hỏng"
+                },
+                {
+                  "key": "description",
+                  "value": "Nhận lại đồ",
+                  "type": "text"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "Chọn 1-6 ảnh JPG/PNG; thêm dòng \"files\" để gửi nhiều ảnh"
+                }
+              ]
+            },
+            "description": "Gửi ảnh thật (form-data). Có cấu hình AI thì phản hồi kèm nhận xét AI, có thể mất 10-30 giây."
+          }
+        },
+        {
+          "name": "Chủ đồ: hoàn tất, không trừ cọc",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "complete"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
               "mode": "raw",
-              "raw": "{\n  \"reportType\": 2,\n  \"condition\": 3,\n  \"description\": \"Nhận lại đầy đủ, như lúc giao.\",\n  \"imageUrls\": []\n}"
+              "raw": "{\n  \"damageAmount\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           }
         },
         {
-          "name": "Chủ đồ: hoàn tất (chia tiền 95/5, hoàn cọc)",
+          "name": "Chủ đồ: hoàn tất, đề nghị trừ cọc",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "complete"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOwner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"damageAmount\": 50000,\n  \"damageNote\": \"Màn hình có vết nứt mới\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Người thuê: đồng ý bồi thường",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/accept-damage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "accept-damage"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Người thuê: khiếu nại bồi thường",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Rentals/{{rentalId}}/dispute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Rentals",
+                "{{rentalId}}",
+                "dispute"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenRenter}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Vết nứt đã có từ lúc giao, có trong ảnh biên bản\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Người thuê: tự hoàn tất khi chủ đồ quá 3 ngày",
           "request": {
             "method": "PUT",
             "header": [],
@@ -1206,7 +1404,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{tokenOwner}}",
+                  "value": "{{tokenRenter}}",
                   "type": "string"
                 }
               ]

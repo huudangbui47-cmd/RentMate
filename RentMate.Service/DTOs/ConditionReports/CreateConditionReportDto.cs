@@ -10,7 +10,6 @@ namespace RentMate.Service.DTOs.ConditionReports
 
         public string? Description { get; set; }
 
-        public List<string> ImageUrls { get; set; }
-            = new List<string>();
+        // Ảnh gửi kèm dạng multipart (field "files"), không còn nhận link ảnh gõ tay
     }
 }

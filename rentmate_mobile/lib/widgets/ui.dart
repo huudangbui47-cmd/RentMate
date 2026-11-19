@@ -198,10 +198,10 @@ class StatusBadge extends StatelessWidget {
 
 // Màu nhãn theo trạng thái (đơn thuê, đồ, giao dịch ví).
 Color statusColor(String status) => switch (status) {
-      'Pending' || 'PendingApproval' || 'Approved' => const Color(0xFFE08A00),
+      'Pending' || 'PendingApproval' || 'Approved' || 'DamageClaimed' => const Color(0xFFE08A00),
       'WaitingForPickup' || 'Rented' => const Color(0xFF2563EB),
       'Available' || 'Completed' || 'Returned' => const Color(0xFF16A34A),
-      'Rejected' || 'Cancelled' || 'Overdue' || 'Unavailable' => const Color(0xFFDC2626),
+      'Rejected' || 'Cancelled' || 'Overdue' || 'Unavailable' || 'Disputed' => const Color(0xFFDC2626),
       _ => const Color(0xFF6B7280),
     };
 

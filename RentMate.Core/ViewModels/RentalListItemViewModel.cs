@@ -25,6 +25,8 @@ namespace RentMate.Core.ViewModels
             RentalStatus.Returned => "Đã trả đồ",
             RentalStatus.Completed => "Hoàn tất",
             RentalStatus.Overdue => "Quá hạn",
+            RentalStatus.DamageClaimed => "Chờ xác nhận bồi thường",
+            RentalStatus.Disputed => "Đang khiếu nại",
             _ => "Không xác định"
         };
     }

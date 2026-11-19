@@ -46,6 +46,9 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 // Cấu hình gửi email (mục "Smtp" trong appsettings, giống AdminSite)
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
+// AI xem ảnh biên bản (mục "Ai" trong appsettings, không có ApiKey thì bỏ qua phần AI)
+builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ai"));
+
 // =========================
 // 4. Repository / UnitOfWork + Services
 // =========================
@@ -60,6 +63,7 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IRentalService, RentalService>();
 builder.Services.AddScoped<IConditionReportService, ConditionReportService>();
+builder.Services.AddScoped<IConditionAiService, ConditionAiService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
 // Ảnh đồ cho thuê lưu trong wwwroot/uploads/items (giống ảnh đại diện ở AdminSite)

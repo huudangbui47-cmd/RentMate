@@ -1,7 +1,23 @@
 @model RentalDetailsViewModel
+@inject IConfiguration Configuration
 
 @{
     ViewData["Title"] = $"Đơn thuê #{Model.Id}";
+
+    // Ảnh biên bản nằm trên Api (wwwroot/uploads/reports); chỉ nhận ảnh upload hoặc link http(s)
+    string apiBaseUrl = (Configuration["ApiBaseUrl"] ?? "https://localhost:7130").TrimEnd('/');
+
+    string? ToImageSrc(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return null;
+
+        if (url.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            return apiBaseUrl + url;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) ? url : null;
+    }
 
     var timeline = new (string Label, DateTime? At)[]
     {
@@ -9,6 +25,8 @@
         ("Chủ đồ duyệt", Model.ApprovedAt),
         ("Người thuê nhận đồ", Model.ReceivedAt),
         ("Người thuê trả đồ", Model.ReturnedAt),
+        ("Chủ đồ yêu cầu bồi thường", Model.DamageClaimedAt),
+        ("Người thuê khiếu nại", Model.DisputedAt),
         ("Hoàn tất", Model.CompletedAt)
     };
 }
@@ -92,6 +110,54 @@
     </div>
 </div>
 
+@if (Model.HasDamageClaim)
+{
+    <div class="card mb-4 @(Model.Status == RentalStatus.Disputed ? "border border-danger" : "")">
+        <div class="card-header"><h4 class="mb-0">Bồi thường hư hỏng</h4></div>
+        <div class="card-body">
+            <dl class="row mb-0 rm-detail-list">
+                <dt class="col-sm-4">Chủ đồ đề nghị trừ</dt>
+                <dd class="col-sm-8 fw-bold">@Model.DamageAmount.ToString("N0") đ <small class="text-muted">/ cọc @Model.DepositAmount.ToString("N0") đ</small></dd>
+
+                <dt class="col-sm-4">Lý do của chủ đồ</dt>
+                <dd class="col-sm-8">@(Model.DamageNote ?? "—")</dd>
+
+                @if (!string.IsNullOrWhiteSpace(Model.DisputeReason))
+                {
+                    <dt class="col-sm-4">Người thuê khiếu nại</dt>
+                    <dd class="col-sm-8">@Model.DisputeReason</dd>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Model.ResolutionNote))
+                {
+                    <dt class="col-sm-4">Kết luận phân xử</dt>
+                    <dd class="col-sm-8">@Model.ResolutionNote</dd>
+                }
+            </dl>
+
+            @if (Model.Status == RentalStatus.Disputed)
+            {
+                <hr />
+                <p class="text-muted mb-3">Xem ảnh hai biên bản và nhận xét của AI bên dưới, rồi chốt số tiền trừ cọc. Phần cọc còn lại hoàn cho người thuê, chủ đồ nhận tiền thuê (trừ phí 5%) cộng tiền bồi thường.</p>
+                <form asp-action="ResolveDispute" asp-route-id="@Model.Id" method="post" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-4">
+                        <label class="form-label" for="damageAmount">Số tiền trừ cọc (đ)</label>
+                        <input type="number" class="form-control" id="damageAmount" name="damageAmount" min="0" max="@Model.DepositAmount.ToString("0")" step="1000" value="@Model.DamageAmount.ToString("0")" required />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label" for="note">Kết luận gửi hai bên</label>
+                        <textarea class="form-control" id="note" name="note" rows="2" maxlength="1000" required></textarea>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Chốt kết quả và chia tiền</button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+}
+
 <div class="card mb-4">
     <div class="card-header"><h4 class="mb-0">Thanh toán</h4></div>
     <div class="table-responsive admin-table-responsive">
@@ -137,10 +203,9 @@
         <div class="row g-3">
             @foreach (var report in Model.ConditionReports)
             {
-                // Ảnh do người dùng app gửi lên: chỉ nhận link http(s) để tránh chèn "javascript:"
                 var safeImageUrls = report.ImageUrls
-                    .Where(url => Uri.TryCreate(url, UriKind.Absolute, out var uri)
-                        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                    .Select(ToImageSrc)
+                    .Where(src => src != null)
                     .ToList();
 
                 <div class="col-md-6">
@@ -151,6 +216,27 @@
                         </div>
                         <p class="mb-2">@(string.IsNullOrWhiteSpace(report.Description) ? "Không có mô tả." : report.Description)</p>
                         <small class="text-muted">@report.CreatedByName · @report.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                        @if (!string.IsNullOrWhiteSpace(report.AiSummary))
+                        {
+                            <div class="rm-ai-box mt-2">
+                                <div class="fw-semibold mb-1">AI nhận xét @(report.AiConditionText != null ? $"· gợi ý tình trạng: {report.AiConditionText}" : "")</div>
+                                <p class="mb-1">@report.AiSummary</p>
+                                @if (report.AiDamageList.Count > 0)
+                                {
+                                    <ul class="mb-1">
+                                        @foreach (var damage in report.AiDamageList)
+                                        {
+                                            <li>@damage</li>
+                                        }
+                                    </ul>
+                                }
+                                @if (report.AiSuggestedDeduction.HasValue)
+                                {
+                                    <div>Gợi ý trừ cọc: <strong>@report.AiSuggestedDeduction.Value.ToString("N0") đ</strong></div>
+                                }
+                                <small class="text-muted">Chỉ là gợi ý, có thể sai do ánh sáng hoặc góc chụp.</small>
+                            </div>
+                        }
                         @if (safeImageUrls.Count > 0)
                         {
                             <div class="d-flex flex-wrap gap-2 mt-2">

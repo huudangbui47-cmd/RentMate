@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
+import '../services/condition_report_service.dart';
 import '../services/item_service.dart';
 import '../services/rental_service.dart';
 import '../services/wallet_service.dart';
@@ -86,6 +88,129 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
           'Số dư sau thanh toán: ${formatVnd(wallet.availableBalance - r.amountToPay)}.',
       confirmText: 'Thanh toán',
     );
+  }
+
+  // Chạy một thao tác có gọi API, khóa nút của đơn trong lúc chờ
+  Future<void> _run(Rental r, Future<void> Function() call, String doneText) async {
+    setState(() => _busy.add(r.id));
+    try {
+      await call();
+      if (!mounted) return;
+      showSnack(context, doneText);
+      await _reload();
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _busy.remove(r.id));
+    }
+  }
+
+  // Chủ đồ hoàn tất: xem nhận xét AI của biên bản nhận lại, nhập số tiền trừ cọc (0 = hoàn đủ)
+  Future<void> _complete(Rental r) async {
+    ConditionReport? after;
+    try {
+      final reports = await ConditionReportService().getReports(r.id);
+      after = reports.where((x) => x.reportType == 'AfterRental').firstOrNull;
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e), error: true);
+      return;
+    }
+    if (!mounted) return;
+    if (after == null) {
+      showSnack(context, 'Hãy chụp ảnh lập biên bản lúc nhận lại trước (nút "Biên bản")', error: true);
+      return;
+    }
+
+    final report = after;
+    final suggested = report.aiSuggestedDeduction ?? 0;
+    final amount = TextEditingController(text: suggested > 0 ? '${suggested.round()}' : '0');
+    final note = TextEditingController(text: suggested > 0 ? report.aiDamages.join('; ') : '');
+    final result = await showModalBottomSheet<(num, String)>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Hoàn tất đơn #${r.id}', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              if (report.hasAi) ...[AiReviewBox(report: report), const SizedBox(height: 12)],
+              TextField(
+                controller: amount,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
+                  labelText: 'Trừ cọc bồi thường (đ)',
+                  helperText: 'Từ 0 đến ${formatVnd(r.depositAmount)}. Nhập 0 nếu đồ không hư hỏng.',
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: note,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    labelText: 'Lý do trừ cọc (bắt buộc nếu trừ)', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, (num.tryParse(amount.text) ?? 0, note.text.trim())),
+                child: const Text('Xác nhận'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    amount.dispose();
+    note.dispose();
+    if (result == null || !mounted) return;
+    final (damage, reason) = result;
+    if (damage > r.depositAmount) {
+      showSnack(context, 'Không trừ quá tiền cọc ${formatVnd(r.depositAmount)}', error: true);
+      return;
+    }
+    if (damage > 0 && reason.isEmpty) {
+      showSnack(context, 'Hãy ghi lý do trừ cọc để người thuê biết', error: true);
+      return;
+    }
+    await _run(
+      r,
+      () => RentalService().complete(r.id, damageAmount: damage, damageNote: damage > 0 ? reason : null),
+      damage > 0 ? 'Đã gửi yêu cầu bồi thường. Chờ người thuê đồng ý (tối đa 2 ngày).' : 'Đơn đã hoàn tất. Tiền đã vào ví.',
+    );
+  }
+
+  // Người thuê không đồng ý mức trừ cọc: gửi lý do, quản trị viên phân xử
+  Future<void> _dispute(Rental r) async {
+    final reason = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Khiếu nại bồi thường'),
+        content: TextField(
+          controller: reason,
+          maxLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+              hintText: 'Vì sao bạn không đồng ý? (vd. vết xước đã có từ lúc giao)', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
+          FilledButton(onPressed: () => Navigator.pop(context, reason.text.trim()), child: const Text('Gửi khiếu nại')),
+        ],
+      ),
+    );
+    reason.dispose();
+    if (text == null || !mounted) return;
+    if (text.isEmpty) {
+      showSnack(context, 'Hãy nhập lý do khiếu nại', error: true);
+      return;
+    }
+    await _run(r, () => RentalService().dispute(r.id, text), 'Đã gửi khiếu nại. Quản trị viên sẽ xem ảnh biên bản và phân xử.');
   }
 
   @override
@@ -193,6 +318,17 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
                 ],
               ),
             ],
+            if (r.damageAmount > 0 && r.damageNote != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.build_circle_outlined, size: 18, color: muted),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text('Bồi thường ${formatVnd(r.damageAmount)}: ${r.damageNote}')),
+                ],
+              ),
+            ],
             if (hint != null) ...[
               const SizedBox(height: 10),
               NoticeBox(hint, color: statusColor(r.status)),
@@ -212,20 +348,32 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
         'Approved' => r.ownerCanCancel
             ? 'Người thuê chưa thanh toán sau 24 giờ. Bạn có thể hủy đơn.'
             : 'Chờ người thuê thanh toán (trong 24 giờ). Bạn có thể lập biên bản trước.',
-        'WaitingForPickup' => 'Người thuê đã thanh toán. Lập biên bản tình trạng đồ rồi bấm "Đã giao đồ".',
+        'WaitingForPickup' => 'Người thuê đã thanh toán. Chụp ảnh lập biên bản lúc giao, khi nhận đồ người thuê sẽ bấm "Đã nhận đồ".',
         'Rented' => 'Đang cho thuê, hạn trả ${fmtDate(r.endDate)}.',
-        'Returned' => 'Người thuê đã trả đồ. Kiểm tra, lập biên bản sau khi trả rồi bấm "Hoàn tất".',
-        'Completed' => 'Đã hoàn tất. Tiền thuê (trừ 5% phí) đã vào ví của bạn.',
+        'Returned' => 'Người thuê đã trả đồ. Trong 3 ngày, chụp ảnh lập biên bản nhận lại (AI so sánh với lúc giao) rồi bấm "Hoàn tất".',
+        'DamageClaimed' => r.ownerCanFinalizeDamage
+            ? 'Người thuê không phản hồi sau 2 ngày. Bạn có thể chốt mức bồi thường.'
+            : 'Chờ người thuê đồng ý hoặc khiếu nại mức bồi thường (tối đa 2 ngày).',
+        'Disputed' => 'Người thuê khiếu nại: ${r.disputeReason ?? ''}. Quản trị viên đang phân xử.',
+        'Completed' => r.damageAmount > 0
+            ? 'Đã hoàn tất. Tiền thuê (trừ 5% phí) và ${formatVnd(r.damageAmount)} bồi thường đã vào ví.${r.resolutionNote != null ? ' Kết luận: ${r.resolutionNote}' : ''}'
+            : 'Đã hoàn tất. Tiền thuê (trừ 5% phí) đã vào ví của bạn.',
         _ => null,
       };
     }
     return switch (r.status) {
       'Pending' => 'Đang chờ chủ đồ duyệt.',
       'Approved' => 'Chủ đồ đã duyệt! Thanh toán ${formatVnd(r.amountToPay)} trong 24 giờ để giữ đơn.',
-      'WaitingForPickup' => 'Đã thanh toán. Liên hệ chủ đồ để nhận đồ.',
+      'WaitingForPickup' => 'Đã thanh toán. Khi nhận đồ, xem ảnh biên bản lúc giao rồi bấm "Đã nhận đồ".',
       'Rented' => 'Bạn đang thuê, hạn trả ${fmtDate(r.endDate)}. Trả đồ xong bấm "Đã trả đồ".',
-      'Returned' => 'Chờ chủ đồ kiểm tra. Tiền cọc sẽ hoàn vào ví khi đơn hoàn tất.',
-      'Completed' => 'Đã hoàn tất. Tiền cọc ${formatVnd(r.depositAmount)} đã hoàn vào ví.',
+      'Returned' => r.renterCanForceComplete
+          ? 'Chủ đồ chưa kiểm tra sau 3 ngày. Bạn có thể tự hoàn tất để nhận lại đủ cọc.'
+          : 'Chờ chủ đồ kiểm tra (tối đa 3 ngày). Tiền cọc sẽ hoàn vào ví khi đơn hoàn tất.',
+      'DamageClaimed' => 'Chủ đồ đề nghị trừ ${formatVnd(r.damageAmount)} tiền cọc. Xem ảnh biên bản rồi đồng ý hoặc khiếu nại trong 2 ngày.',
+      'Disputed' => 'Bạn đã khiếu nại. Quản trị viên đang xem ảnh biên bản để phân xử.',
+      'Completed' => r.damageAmount > 0
+          ? 'Đã hoàn tất. Trừ ${formatVnd(r.damageAmount)} bồi thường, hoàn ${formatVnd(r.depositAmount - r.damageAmount)} cọc vào ví.${r.resolutionNote != null ? ' Kết luận: ${r.resolutionNote}' : ''}'
+          : 'Đã hoàn tất. Tiền cọc ${formatVnd(r.depositAmount)} đã hoàn vào ví.',
       _ => null,
     };
   }
@@ -263,6 +411,30 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
         ),
       if (!isOwner && s == 'Approved')
         FilledButton(onPressed: guard(() => _pay(r)), child: const Text('Thanh toán')),
+      if (!isOwner && s == 'WaitingForPickup')
+        FilledButton(
+          onPressed: guard(() => _confirmAndAct(r, 'pickup', 'Đã xác nhận nhận đồ. Nhớ trả đúng hạn.',
+              title: 'Bạn đã nhận đồ?',
+              message: 'Chỉ bấm khi đã cầm đồ trên tay và thấy đúng như ảnh biên bản lúc giao. '
+                  'Không đúng thì đừng nhận, có thể hủy đơn để được hoàn tiền.',
+              confirmText: 'Đã nhận đồ')),
+          child: const Text('Đã nhận đồ'),
+        ),
+      if (!isOwner && r.renterCanForceComplete)
+        FilledButton(
+          onPressed: guard(() => _run(r, () => RentalService().complete(r.id), 'Đơn đã hoàn tất, tiền cọc đã hoàn vào ví.')),
+          child: const Text('Tự hoàn tất'),
+        ),
+      if (!isOwner && s == 'DamageClaimed') ...[
+        OutlinedButton(onPressed: guard(() => _dispute(r)), child: const Text('Khiếu nại')),
+        FilledButton(
+          onPressed: guard(() => _confirmAndAct(r, 'accept-damage', 'Đã đồng ý. Phần cọc còn lại đã hoàn vào ví.',
+              title: 'Đồng ý trừ ${formatVnd(r.damageAmount)}?',
+              message: 'Bạn nhận lại ${formatVnd(r.depositAmount - r.damageAmount)} tiền cọc. Không hoàn tác được.',
+              confirmText: 'Đồng ý')),
+          child: const Text('Đồng ý'),
+        ),
+      ],
       if (!isOwner && s == 'Rented')
         FilledButton(
           onPressed: guard(() => _confirmAndAct(r, 'return', 'Đã báo trả đồ. Chờ chủ đồ kiểm tra.',
@@ -285,15 +457,15 @@ class _MyRentalsScreenState extends State<MyRentalsScreen> {
               title: 'Hủy đơn #${r.id}?', message: 'Người thuê chưa thanh toán sau 24 giờ.', confirmText: 'Hủy đơn', danger: true)),
           child: const Text('Hủy đơn'),
         ),
-      if (isOwner && s == 'WaitingForPickup')
-        FilledButton(onPressed: guard(() => _act(r, 'pickup', 'Đã xác nhận giao đồ')), child: const Text('Đã giao đồ')),
       if (isOwner && s == 'Returned')
+        FilledButton(onPressed: guard(() => _complete(r)), child: const Text('Hoàn tất')),
+      if (isOwner && r.ownerCanFinalizeDamage)
         FilledButton(
-          onPressed: guard(() => _confirmAndAct(r, 'complete', 'Đơn đã hoàn tất. Tiền đã vào ví.',
-              title: 'Hoàn tất đơn?',
-              message: 'Tiền thuê (trừ 5% phí) vào ví của bạn, tiền cọc hoàn cho người thuê. Không hoàn tác được.',
-              confirmText: 'Hoàn tất')),
-          child: const Text('Hoàn tất'),
+          onPressed: guard(() => _confirmAndAct(r, 'complete', 'Đã chốt bồi thường. Tiền đã vào ví.',
+              title: 'Chốt bồi thường ${formatVnd(r.damageAmount)}?',
+              message: 'Người thuê không phản hồi sau 2 ngày nên áp dụng mức bạn đã đề nghị.',
+              confirmText: 'Chốt')),
+          child: const Text('Chốt bồi thường'),
         ),
     ];
     if (buttons.isEmpty) return [];

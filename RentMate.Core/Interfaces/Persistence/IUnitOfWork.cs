@@ -1,3 +1,4 @@
+using System.Data;
 using RentMate.Core.Models;
 
 namespace RentMate.Core.Interfaces.Persistence
@@ -24,7 +25,8 @@ namespace RentMate.Core.Interfaces.Persistence
         // Dùng khi một thao tác buộc phải lưu nhiều lần (vd. UserManager.CreateAsync rồi AddToRoleAsync):
         // lỗi ở bước sau thì Rollback để bỏ cả những bước đã lưu trước đó.
         // Thao tác bình thường chỉ cần gom vào một lần SaveChangesAsync (EF tự bọc transaction).
-        Task BeginTransactionAsync();
+        // Serializable: dùng cho thao tác kiểm tra số dư rồi trừ tiền, để 2 lệnh gửi cùng lúc không cùng qua bước kiểm tra
+        Task BeginTransactionAsync(IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
         Task CommitTransactionAsync();
         Task RollbackTransactionAsync();
     }

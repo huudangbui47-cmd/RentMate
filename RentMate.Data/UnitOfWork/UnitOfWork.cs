@@ -1,3 +1,5 @@
+using System.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
@@ -52,12 +54,12 @@ namespace RentMate.Data.UnitOfWork
         }
 
         // UserManager dùng chung DbContext (cùng scope) nên các lần lưu của Identity cũng nằm trong transaction này
-        public async Task BeginTransactionAsync()
+        public async Task BeginTransactionAsync(IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
         {
             if (_transaction != null)
                 throw new InvalidOperationException("Đang có một transaction chưa kết thúc.");
 
-            _transaction = await _context.Database.BeginTransactionAsync();
+            _transaction = await _context.Database.BeginTransactionAsync(isolationLevel);
         }
 
         public async Task CommitTransactionAsync()

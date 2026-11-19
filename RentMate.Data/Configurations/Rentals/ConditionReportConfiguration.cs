@@ -10,6 +10,10 @@ namespace RentMate.Data.Configurations.Rentals
         {
             builder.Property(c => c.Id).HasColumnName("ConditionReportId");
 
+            builder.Property(c => c.AiSummary).HasMaxLength(1000);
+            builder.Property(c => c.AiDamages).HasMaxLength(2000);
+            builder.Property(c => c.AiSuggestedDeduction).HasPrecision(18, 2);
+
             // Rental 1 - N ConditionReport
             builder.HasOne(c => c.Rental)
                 .WithMany(r => r.ConditionReports)

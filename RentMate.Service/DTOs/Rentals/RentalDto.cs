@@ -34,5 +34,27 @@ namespace RentMate.Service.DTOs.Rentals
 
         // Chủ đồ được hủy đơn đã duyệt nếu người thuê chưa thanh toán sau 24 giờ kể từ lúc này
         public DateTime? ApprovedAt { get; set; }
+
+        public DateTime? ReceivedAt { get; set; }
+
+        public DateTime? ReturnedAt { get; set; }
+
+        public DateTime? CompletedAt { get; set; }
+
+        // Bồi thường / khiếu nại
+        public decimal DamageAmount { get; set; }
+
+        public string? DamageNote { get; set; }
+
+        public DateTime? DamageClaimedAt { get; set; }
+
+        public string? DisputeReason { get; set; }
+
+        public string? ResolutionNote { get; set; }
+
+        // Hạn chót để app hiện nút đúng lúc: chủ đồ kiểm tra đồ / người thuê phản hồi bồi thường
+        public DateTime? OwnerInspectionDeadline { get; set; }
+
+        public DateTime? RenterResponseDeadline { get; set; }
     }
 }

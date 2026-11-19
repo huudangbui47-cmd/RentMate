@@ -60,5 +60,21 @@ namespace RentMate.Api.Infrastructure.Storage
             if (File.Exists(fullPath))
                 File.Delete(fullPath);
         }
+
+        public async Task<byte[]?> ReadAsync(string? relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+                return null;
+
+            string root = Path.GetFullPath(_environment.WebRootPath);
+            string fullPath = Path.GetFullPath(Path.Combine(root,
+                relativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+
+            // Chặn "../" đi ra ngoài wwwroot
+            if (!fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
+                return null;
+
+            return await File.ReadAllBytesAsync(fullPath);
+        }
     }
 }

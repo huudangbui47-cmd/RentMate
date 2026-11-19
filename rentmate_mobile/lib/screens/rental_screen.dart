@@ -34,6 +34,9 @@ class _RentalScreenState extends State<RentalScreen> {
     super.dispose();
   }
 
+  static const _maxRentalDays = 30;
+  static const _maxDaysAhead = 90;
+
   // API tính cả ngày nhận lẫn ngày trả: thuê 12 → 14 = 3 ngày.
   int get _days => _range == null ? 0 : _range!.end.difference(_range!.start).inDays + 1;
 
@@ -42,7 +45,8 @@ class _RentalScreenState extends State<RentalScreen> {
     final picked = await showDateRangePicker(
       context: context,
       firstDate: today,
-      lastDate: today.add(const Duration(days: 365)),
+      // Khớp giới hạn của Api: bắt đầu trong 90 ngày tới, mỗi đơn tối đa 30 ngày
+      lastDate: today.add(const Duration(days: _maxDaysAhead + _maxRentalDays - 1)),
       initialDateRange: _range,
       helpText: 'Chọn ngày nhận và ngày trả',
       saveText: 'Xong',
@@ -53,6 +57,15 @@ class _RentalScreenState extends State<RentalScreen> {
   Future<void> _submit() async {
     if (_range == null) {
       showSnack(context, 'Vui lòng chọn ngày thuê', error: true);
+      return;
+    }
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (_range!.start.isAfter(today.add(const Duration(days: _maxDaysAhead)))) {
+      showSnack(context, 'Chỉ đặt thuê trước tối đa $_maxDaysAhead ngày', error: true);
+      return;
+    }
+    if (_days > _maxRentalDays) {
+      showSnack(context, 'Mỗi đơn thuê tối đa $_maxRentalDays ngày', error: true);
       return;
     }
     setState(() => _loading = true);

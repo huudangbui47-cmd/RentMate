@@ -32,5 +32,23 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
             return View(model);
         }
+
+        // Phân xử khiếu nại bồi thường: chốt số tiền trừ cọc
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResolveDispute(int id, decimal damageAmount, string? note)
+        {
+            try
+            {
+                await _rentalService.ResolveDisputeAsync(id, damageAmount, note, GetCurrentUserId(), GetIpAddress());
+                TempData["Success"] = $"Đã phân xử đơn #{id}, tiền đã được chia cho hai bên.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
     }
 }

@@ -30,6 +30,20 @@ namespace RentMate.Core.Models
 
         public DateTime? CompletedAt { get; set; }
 
+        // Bồi thường hư hỏng: trừ vào tiền cọc, chủ đồ nhận phần này
+        public decimal DamageAmount { get; set; }
+
+        public string? DamageNote { get; set; }
+
+        public DateTime? DamageClaimedAt { get; set; }
+
+        // Người thuê khiếu nại mức bồi thường, quản trị viên phân xử
+        public string? DisputeReason { get; set; }
+
+        public DateTime? DisputedAt { get; set; }
+
+        public string? ResolutionNote { get; set; }
+
         // Foreign Keys
         public int ItemId { get; set; }
 

@@ -1,3 +1,4 @@
+using System.Data;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -17,6 +18,9 @@ namespace RentMate.Service.Services
         private const string CodePrefix = "RM";
         // Bỏ 0/O, 1/I để người dùng không gõ nhầm mã nạp
         private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+        // Chống tạo hàng loạt yêu cầu nạp rồi bỏ đó
+        private const int MaxPendingDeposits = 3;
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -84,6 +88,19 @@ namespace RentMate.Service.Services
             if (amount < 10_000 || amount > 50_000_000)
             {
                 throw new ArgumentException("Số tiền nạp từ 10.000 đến 50.000.000 đ.");
+            }
+
+            var pendingDeposits = await _unitOfWork.WalletTransactions
+                .BuildQuery(w =>
+                    w.UserId == userId &&
+                    w.Type == WalletTransactionType.Deposit &&
+                    w.Status == WalletTransactionStatus.Pending)
+                .CountAsync();
+
+            if (pendingDeposits >= MaxPendingDeposits)
+            {
+                throw new InvalidOperationException(
+                    $"Bạn đang có {MaxPendingDeposits} yêu cầu nạp chờ duyệt. Hãy chuyển khoản theo mã đã tạo hoặc chờ quản trị viên xử lý.");
             }
 
             var transaction = new WalletTransaction
@@ -216,28 +233,44 @@ namespace RentMate.Service.Services
                 throw new InvalidOperationException("Vui lòng nhập thông tin ngân hàng trước khi rút tiền.");
             }
 
-            var (balance, pendingWithdraw) = await GetBalanceAsync(userId);
+            // Serializable: 2 yêu cầu rút gửi cùng lúc không cùng qua được bước kiểm tra số dư
+            await _unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable);
 
-            // shortcut: 2 yêu cầu rút gửi đúng cùng lúc có thể cùng qua bước kiểm tra này; cần khóa ví (transaction Serializable) nếu dùng thật.
-            if (amount > balance - pendingWithdraw)
+            try
             {
-                throw new InvalidOperationException("Số dư khả dụng không đủ.");
+                var (balance, pendingWithdraw) = await GetBalanceAsync(userId);
+
+                if (amount > balance - pendingWithdraw)
+                {
+                    throw new InvalidOperationException("Số dư khả dụng không đủ.");
+                }
+
+                // Lưu số âm, trạng thái Pending: số tiền bị khóa ngay, chưa trừ khỏi Balance
+                var transaction = new WalletTransaction
+                {
+                    UserId = userId,
+                    Amount = -amount,
+                    Type = WalletTransactionType.Withdraw,
+                    Status = WalletTransactionStatus.Pending,
+                    Note = $"Rút về {user.BankName} {Mask(user.BankAccountNumber)}"
+                };
+
+                await _unitOfWork.WalletTransactions.AddAsync(transaction);
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                return ToDto(transaction);
             }
-
-            // Lưu số âm, trạng thái Pending: số tiền bị khóa ngay, chưa trừ khỏi Balance
-            var transaction = new WalletTransaction
+            catch (DbUpdateException)
             {
-                UserId = userId,
-                Amount = -amount,
-                Type = WalletTransactionType.Withdraw,
-                Status = WalletTransactionStatus.Pending,
-                Note = $"Rút về {user.BankName} {Mask(user.BankAccountNumber)}"
-            };
-
-            await _unitOfWork.WalletTransactions.AddAsync(transaction);
-            await _unitOfWork.SaveChangesAsync();
-
-            return ToDto(transaction);
+                await _unitOfWork.RollbackTransactionAsync();
+                throw new InvalidOperationException("Ví đang có giao dịch khác cùng lúc. Vui lòng thử lại.");
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         // =========================

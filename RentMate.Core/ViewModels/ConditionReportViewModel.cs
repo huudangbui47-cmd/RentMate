@@ -12,6 +12,26 @@ namespace RentMate.Core.ViewModels
         public DateTime CreatedAt { get; set; }
         public List<string> ImageUrls { get; set; } = new();
 
+        public string? AiSummary { get; set; }
+        public string? AiDamages { get; set; }
+        public ItemCondition? AiSuggestedCondition { get; set; }
+        public bool? AiNewDamageFound { get; set; }
+        public decimal? AiSuggestedDeduction { get; set; }
+
+        public List<string> AiDamageList => string.IsNullOrWhiteSpace(AiDamages)
+            ? new List<string>()
+            : AiDamages.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+        public string? AiConditionText => AiSuggestedCondition switch
+        {
+            ItemCondition.New => "Mới",
+            ItemCondition.LikeNew => "Như mới",
+            ItemCondition.Good => "Tốt",
+            ItemCondition.Fair => "Khá",
+            ItemCondition.Damaged => "Hư hỏng",
+            _ => null
+        };
+
         public string ReportTypeText => ReportType switch
         {
             ConditionReportType.BeforeRental => "Trước khi thuê",

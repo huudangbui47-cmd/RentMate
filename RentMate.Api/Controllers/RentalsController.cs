@@ -114,7 +114,7 @@ namespace RentMate.Api.Controllers
                     GetUserId()));
         }
 
-        // PUT api/rentals/1/pickup
+        // PUT api/rentals/1/pickup  (người thuê xác nhận đã nhận đồ)
         [HttpPut("{id}/pickup")]
         public async Task<IActionResult> Pickup(int id)
         {
@@ -134,14 +134,34 @@ namespace RentMate.Api.Controllers
                     GetUserId()));
         }
 
-        // PUT api/rentals/1/complete
+        // PUT api/rentals/1/complete  body (không bắt buộc): { damageAmount, damageNote }
+        // Chủ đồ: damageAmount = 0 hoàn đủ cọc; > 0 chờ người thuê đồng ý/khiếu nại.
+        // Người thuê: tự hoàn tất khi chủ đồ quá 3 ngày không kiểm tra.
         [HttpPut("{id}/complete")]
-        public async Task<IActionResult> Complete(int id)
+        public async Task<IActionResult> Complete(int id, [FromBody] CompleteRentalDto? dto)
         {
             return await ExecuteAction(
                 () => _rentalService.CompleteAsync(
                     id,
-                    GetUserId()));
+                    GetUserId(),
+                    dto?.DamageAmount ?? 0,
+                    dto?.DamageNote));
+        }
+
+        // PUT api/rentals/1/accept-damage  (người thuê đồng ý mức bồi thường)
+        [HttpPut("{id}/accept-damage")]
+        public async Task<IActionResult> AcceptDamage(int id)
+        {
+            return await ExecuteAction(
+                () => _rentalService.AcceptDamageAsync(id, GetUserId()));
+        }
+
+        // PUT api/rentals/1/dispute  body: { reason }  (người thuê khiếu nại, quản trị viên phân xử)
+        [HttpPut("{id}/dispute")]
+        public async Task<IActionResult> Dispute(int id, DisputeRentalDto dto)
+        {
+            return await ExecuteAction(
+                () => _rentalService.DisputeAsync(id, GetUserId(), dto.Reason));
         }
 
         private string GetUserId()

@@ -23,7 +23,9 @@ namespace RentMate.Service.Services
             RentalStatus.WaitingForPickup,
             RentalStatus.Rented,
             RentalStatus.Returned,
-            RentalStatus.Overdue
+            RentalStatus.Overdue,
+            RentalStatus.DamageClaimed,
+            RentalStatus.Disputed
         };
 
         private readonly UserManager<ApplicationUser> _userManager;
