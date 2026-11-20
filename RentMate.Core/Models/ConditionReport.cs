@@ -23,6 +23,9 @@ namespace RentMate.Core.Models
 
         public bool? AiNewDamageFound { get; set; }
 
+        // AI thấy đồ trong ảnh khác món đã đăng / đã giao
+        public bool? AiSameItem { get; set; }
+
         public decimal? AiSuggestedDeduction { get; set; }
 
         public DateTime? AiAnalyzedAt { get; set; }

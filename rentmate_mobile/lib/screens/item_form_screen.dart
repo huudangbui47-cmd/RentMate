@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/item_service.dart';
 import '../widgets/ui.dart';
+import '../l10n/l10n.dart';
 
 /// item == null: đăng đồ mới; có item: sửa đồ. Cả hai đều phải chờ quản lý duyệt.
 class ItemFormScreen extends StatefulWidget {
@@ -20,8 +20,8 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.item?.name);
   late final _description = TextEditingController(text: widget.item?.description);
-  late final _price = TextEditingController(text: widget.item?.pricePerDay.round().toString());
-  late final _deposit = TextEditingController(text: widget.item?.depositAmount.round().toString());
+  late final _price = TextEditingController(text: widget.item == null ? null : moneyText(widget.item!.pricePerDay));
+  late final _deposit = TextEditingController(text: widget.item == null ? null : moneyText(widget.item!.depositAmount));
   late int? _categoryId = widget.item?.categoryId;
   late String _condition = widget.item?.condition ?? 'Good';
   late String? _province = widget.item?.province;
@@ -41,7 +41,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   Future<void> _addImages() async {
     final remaining = maxItemImages - _imageCount;
     if (remaining <= 0) {
-      showSnack(context, 'Mỗi món đồ tối đa $maxItemImages ảnh', error: true);
+      showSnack(context, tr('Mỗi món đồ tối đa {0} ảnh', [maxItemImages]), error: true);
       return;
     }
     final source = await showModalBottomSheet<ImageSource>(
@@ -53,12 +53,12 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Chọn từ thư viện (chọn được nhiều ảnh)'),
+              title: Text(tr('Chọn từ thư viện (chọn được nhiều ảnh)')),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Chụp ảnh'),
+              title: Text(tr('Chụp ảnh')),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
           ],
@@ -82,11 +82,11 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           : [?await picker.pickImage(source: source, maxWidth: maxSide, maxHeight: maxSide, imageQuality: quality)];
       if (files.isEmpty || !mounted) return;
       if (files.length > remaining) {
-        showSnack(context, 'Chỉ thêm được $remaining ảnh nữa, đã bỏ bớt ảnh thừa');
+        showSnack(context, tr('Chỉ thêm được {0} ảnh nữa, đã bỏ bớt ảnh thừa', [remaining]));
       }
       setState(() { _picked.addAll(files.take(remaining)); });
     } catch (e) {
-      if (mounted) showSnack(context, 'Không mở được ảnh: ${errorText(e)}', error: true);
+      if (mounted) showSnack(context, tr('Không mở được ảnh: {0}', [errorText(e)]), error: true);
     }
   }
 
@@ -122,9 +122,9 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   }
 
   String? _money(String? v, {bool allowZero = false}) {
-    final n = num.tryParse(v ?? '');
-    if (n == null) return 'Nhập số tiền';
-    if (!allowZero && n <= 0) return 'Phải lớn hơn 0';
+    final n = parseMoney(v);
+    if (n == null) return tr('Nhập số tiền');
+    if (!allowZero && n <= 0) return tr('Phải lớn hơn 0');
     return null;
   }
 
@@ -136,8 +136,8 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
         id: widget.item?.id,
         name: _name.text.trim(),
         description: _description.text.trim(),
-        pricePerDay: num.parse(_price.text),
-        depositAmount: num.parse(_deposit.text),
+        pricePerDay: parseMoney(_price.text)!,
+        depositAmount: parseMoney(_deposit.text)!,
         categoryId: _categoryId!,
         condition: _condition,
         province: _province!,
@@ -152,17 +152,16 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
       } catch (e) {
         // Thông tin đồ đã lưu rồi, chỉ phần ảnh lỗi: vẫn quay lại danh sách và báo để sửa lại
         if (mounted) {
-          showSnack(context, 'Đã lưu thông tin đồ nhưng ảnh chưa cập nhật được: ${errorText(e)}. '
-              'Bấm Sửa để thử lại.', error: true);
+          showSnack(context, tr('Đã lưu thông tin đồ nhưng ảnh chưa cập nhật được: {0}. Bấm Sửa để thử lại.', [errorText(e)]), error: true);
         }
       }
       final message = widget.item == null
-          ? 'Đã đăng. Đồ sẽ hiện trên app sau khi được duyệt.'
+          ? tr('Đã đăng. Đồ sẽ hiện trên app sau khi được duyệt.')
           : widget.item!.status == 'Rejected'
-              ? 'Đã lưu và gửi duyệt lại.'
+              ? tr('Đã lưu và gửi duyệt lại.')
               : status == 'PendingApproval' && widget.item!.status != 'PendingApproval'
-              ? 'Đã lưu. Bạn đổi tên, mô tả, danh mục hoặc ảnh nên đồ đang chờ duyệt lại.'
-              : 'Đã lưu thay đổi.';
+              ? tr('Đã lưu. Bạn đổi tên, mô tả, danh mục hoặc ảnh nên đồ đang chờ duyệt lại.')
+              : tr('Đã lưu thay đổi.');
       if (mounted) Navigator.of(context).pop(message);
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -174,21 +173,20 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   @override
   Widget build(BuildContext context) {
     final editing = widget.item != null;
-    final digits = [FilteringTextInputFormatter.digitsOnly];
+    final digits = [MoneyInputFormatter()];
     return Scaffold(
-      appBar: AppBar(title: Text(editing ? 'Sửa đồ' : 'Đăng đồ cho thuê')),
+      appBar: AppBar(title: Text(editing ? tr('Sửa đồ') : tr('Đăng đồ cho thuê'))),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             NoticeBox(editing
-                ? 'Đổi giá, tiền cọc, tình trạng hoặc nơi nhận đồ thì lưu ngay. '
-                    'Đổi tên, mô tả, danh mục hoặc thêm ảnh thì đồ tạm ẩn để quản lý duyệt lại.'
-                : 'Đồ mới sẽ được quản lý duyệt trước khi hiện trên trang Khám phá (thường trong ngày).'),
+                ? tr('Đổi giá, tiền cọc, tình trạng hoặc nơi nhận đồ thì lưu ngay. Đổi tên, mô tả, danh mục hoặc thêm ảnh thì đồ tạm ẩn để quản lý duyệt lại.')
+                : tr('Đồ mới sẽ được quản lý duyệt trước khi hiện trên trang Khám phá (thường trong ngày).')),
             if (widget.item?.status == 'Rejected' && (widget.item?.rejectionReason ?? '').isNotEmpty) ...[
               const SizedBox(height: 8),
-              NoticeBox('Lý do bị từ chối lần trước: ${widget.item!.rejectionReason}',
+              NoticeBox(tr('Lý do bị từ chối lần trước: {0}', [widget.item!.rejectionReason]),
                   icon: Icons.feedback_outlined, color: statusColor('Rejected')),
             ],
             const SizedBox(height: 16),
@@ -197,14 +195,14 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
             TextFormField(
               controller: _name,
               maxLength: 200,
-              decoration: const InputDecoration(labelText: 'Tên đồ', hintText: 'Ví dụ: Máy ảnh Sony A7 III'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên đồ' : null,
+              decoration: InputDecoration(labelText: tr('Tên đồ'), hintText: tr('Ví dụ: Máy ảnh Sony A7 III')),
+              validator: (v) => (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập tên đồ') : null,
             ),
             const SizedBox(height: 8),
             FutureBuilder<List<Category>>(
               future: _categories,
               builder: (context, snap) {
-                if (snap.hasError) return Text('Không tải được danh mục: ${errorText(snap.error!)}');
+                if (snap.hasError) return Text(tr('Không tải được danh mục: {0}', [errorText(snap.error!)]));
                 final cats = snap.data ?? [];
                 // Danh mục cha đã có danh mục con thì chỉ làm tiêu đề nhóm, không chọn được (theo ItemService.cs)
                 final parentsWithChildren = cats.where((c) => c.parentId != null).map((c) => c.parentId).toSet();
@@ -214,8 +212,8 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                   initialValue: selectable.contains(_categoryId) ? _categoryId : null,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: 'Danh mục',
-                    helperText: snap.hasData ? null : 'Đang tải danh mục...',
+                    labelText: tr('Danh mục'),
+                    helperText: snap.hasData ? null : tr('Đang tải danh mục...'),
                   ),
                   items: [
                     for (final c in cats)
@@ -233,7 +231,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                       ),
                   ],
                   onChanged: (v) => setState(() => _categoryId = v),
-                  validator: (v) => v == null ? 'Vui lòng chọn danh mục' : null,
+                  validator: (v) => v == null ? tr('Vui lòng chọn danh mục') : null,
                 );
               },
             ),
@@ -246,7 +244,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                     controller: _price,
                     keyboardType: TextInputType.number,
                     inputFormatters: digits,
-                    decoration: const InputDecoration(labelText: 'Giá thuê / ngày', suffixText: 'đ'),
+                    decoration: InputDecoration(labelText: tr('Giá thuê / ngày'), suffixText: tr('đ')),
                     validator: _money,
                   ),
                 ),
@@ -256,7 +254,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                     controller: _deposit,
                     keyboardType: TextInputType.number,
                     inputFormatters: digits,
-                    decoration: const InputDecoration(labelText: 'Tiền cọc', suffixText: 'đ'),
+                    decoration: InputDecoration(labelText: tr('Tiền cọc'), suffixText: tr('đ')),
                     validator: (v) => _money(v, allowZero: true),
                   ),
                 ),
@@ -265,7 +263,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _condition,
-              decoration: const InputDecoration(labelText: 'Tình trạng'),
+              decoration: InputDecoration(labelText: tr('Tình trạng')),
               items: [
                 for (final e in conditionLabels.entries) DropdownMenuItem(value: e.key, child: Text(e.value)),
               ],
@@ -277,16 +275,16 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
             TextFormField(
               controller: _description,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Mô tả',
+              decoration: InputDecoration(
+                labelText: tr('Mô tả'),
                 alignLabelWithHint: true,
-                hintText: 'Tình trạng chi tiết, phụ kiện kèm theo, nơi nhận đồ...',
+                hintText: tr('Tình trạng chi tiết, phụ kiện kèm theo, nơi nhận đồ...'),
               ),
               validator: (v) =>
-                  (v == null || v.trim().length < 10) ? 'Mô tả ít nhất 10 ký tự để dễ được duyệt' : null,
+                  (v == null || v.trim().length < 10) ? tr('Mô tả ít nhất 10 ký tự để dễ được duyệt') : null,
             ),
             const SizedBox(height: 24),
-            BusyButton(busy: _saving, onPressed: _save, label: editing ? 'Lưu và gửi duyệt lại' : 'Đăng đồ'),
+            BusyButton(busy: _saving, onPressed: _save, label: editing ? tr('Lưu và gửi duyệt lại') : tr('Đăng đồ')),
           ],
         ),
       ),
@@ -298,7 +296,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
     return FutureBuilder<List<String>>(
       future: _provinces,
       builder: (context, snap) {
-        if (snap.hasError) return Text('Không tải được danh sách tỉnh/thành: ${errorText(snap.error!)}');
+        if (snap.hasError) return Text(tr('Không tải được danh sách tỉnh/thành: {0}', [errorText(snap.error!)]));
         final provinces = snap.data ?? [];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,22 +307,22 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
               isExpanded: true,
               menuMaxHeight: 400,
               decoration: InputDecoration(
-                labelText: 'Tỉnh/thành nơi nhận đồ',
+                labelText: tr('Tỉnh/thành nơi nhận đồ'),
                 prefixIcon: const Icon(Icons.location_on_outlined),
-                helperText: snap.hasData ? null : 'Đang tải danh sách...',
+                helperText: snap.hasData ? null : tr('Đang tải danh sách...'),
               ),
               items: [for (final p in provinces) DropdownMenuItem(value: p, child: Text(p))],
               onChanged: (v) => setState(() { _province = v; }),
-              validator: (v) => v == null ? 'Vui lòng chọn tỉnh/thành' : null,
+              validator: (v) => v == null ? tr('Vui lòng chọn tỉnh/thành') : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _area,
               maxLength: 100,
-              decoration: const InputDecoration(
-                labelText: 'Khu vực (không bắt buộc)',
-                hintText: 'Ví dụ: Phường Bến Thành, gần chợ Bến Thành',
-                helperText: 'Không cần ghi số nhà, hai bên trao đổi khi nhận đồ.',
+              decoration: InputDecoration(
+                labelText: tr('Khu vực (không bắt buộc)'),
+                hintText: tr('Ví dụ: Phường Bến Thành, gần chợ Bến Thành'),
+                helperText: tr('Không cần ghi số nhà, hai bên trao đổi khi nhận đồ.'),
               ),
             ),
           ],
@@ -342,7 +340,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
       children: [
         Row(
           children: [
-            const Text('Ảnh', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(tr('Ảnh'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(width: 8),
             Text('$_imageCount/$maxItemImages', style: TextStyle(color: scheme.onSurfaceVariant)),
           ],
@@ -350,8 +348,8 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
         const SizedBox(height: 4),
         Text(
           _existing.isEmpty
-              ? 'Ảnh đầu tiên là ảnh chính. Đồ có ảnh rõ ràng được duyệt nhanh hơn.'
-              : 'Chạm vào ảnh đã đăng để đặt làm ảnh chính.',
+              ? tr('Ảnh đầu tiên là ảnh chính. Đồ có ảnh rõ ràng được duyệt nhanh hơn.')
+              : tr('Chạm vào ảnh đã đăng để đặt làm ảnh chính.'),
           style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
         ),
         const SizedBox(height: 10),
@@ -389,7 +387,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                       children: [
                         Icon(Icons.add_a_photo_outlined, color: scheme.primary),
                         const SizedBox(height: 4),
-                        Text('Thêm ảnh', style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w600)),
+                        Text(tr('Thêm ảnh'), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -431,7 +429,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                     color: scheme.primary,
                     borderRadius: const BorderRadius.vertical(bottom: Radius.circular(9)),
                   ),
-                  child: const Text('Ảnh chính',
+                  child: Text(tr('Ảnh chính'),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),

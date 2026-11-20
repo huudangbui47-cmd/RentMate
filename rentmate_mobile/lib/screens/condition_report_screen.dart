@@ -7,6 +7,7 @@ import '../services/condition_report_service.dart';
 import '../services/item_service.dart';
 import '../services/rental_service.dart';
 import '../widgets/ui.dart';
+import '../l10n/l10n.dart';
 
 /// Xem biên bản của một đơn; chủ đồ chụp ảnh lập biên bản, AI nhận xét ảnh.
 class ConditionReportScreen extends StatefulWidget {
@@ -31,11 +32,16 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
     super.dispose();
   }
 
-  // Loại biên bản chủ đồ được lập lúc này, theo kiểm tra trong ConditionReportService.cs.
+  // Loại biên bản được lập lúc này, theo kiểm tra trong ConditionReportService.cs.
+  // Chủ đồ: lúc giao + lúc nhận lại. Người thuê: lúc nhận (sau khi chủ đồ đã chụp lúc giao).
   String? _typeToCreate(List<ConditionReport> existing) {
-    if (!widget.isOwner) return null;
     final s = widget.rental.status;
     final has = existing.map((r) => r.reportType).toSet();
+    if (!widget.isOwner) {
+      return s == 'WaitingForPickup' && has.contains('BeforeRental') && !has.contains('RenterReceived')
+          ? 'RenterReceived'
+          : null;
+    }
     if ((s == 'Approved' || s == 'WaitingForPickup') && !has.contains('BeforeRental')) return 'BeforeRental';
     if (s == 'Returned' && !has.contains('AfterRental')) return 'AfterRental';
     return null;
@@ -50,12 +56,12 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Chụp ảnh'),
+              title: Text(tr('Chụp ảnh')),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Chọn từ thư viện'),
+              title: Text(tr('Chọn từ thư viện')),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
           ],
@@ -75,16 +81,16 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
               maxWidth: maxSide, maxHeight: maxSide, imageQuality: quality, limit: remaining >= 2 ? remaining : null)
           : [?await picker.pickImage(source: source, maxWidth: maxSide, maxHeight: maxSide, imageQuality: quality)];
       if (files.isEmpty || !mounted) return;
-      if (files.length > remaining) showSnack(context, 'Chỉ thêm được $remaining ảnh nữa, đã bỏ bớt ảnh thừa');
+      if (files.length > remaining) showSnack(context, tr('Chỉ thêm được {0} ảnh nữa, đã bỏ bớt ảnh thừa', [remaining]));
       setState(() { _images.addAll(files.take(remaining)); });
     } catch (e) {
-      if (mounted) showSnack(context, 'Không mở được ảnh: ${errorText(e)}', error: true);
+      if (mounted) showSnack(context, tr('Không mở được ảnh: {0}', [errorText(e)]), error: true);
     }
   }
 
   Future<void> _submit(String type) async {
     if (_images.isEmpty) {
-      showSnack(context, 'Chụp ít nhất 1 ảnh món đồ', error: true);
+      showSnack(context, tr('Chụp ít nhất 1 ảnh món đồ'), error: true);
       return;
     }
     setState(() { _saving = true; });
@@ -97,10 +103,14 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
         images: _images,
       );
       if (!mounted) return;
-      final next = type == 'BeforeRental'
-          ? 'Khi giao đồ, người thuê sẽ bấm "Đã nhận đồ".'
-          : 'Giờ bấm "Hoàn tất" để chốt tiền cọc.';
-      showSnack(context, report.hasAi ? 'Đã lưu biên bản, AI đã nhận xét. $next' : 'Đã lưu biên bản. $next');
+      final next = switch (type) {
+        'BeforeRental' => widget.rental.isShipping ? tr('Giờ bấm "Gửi hàng GHN".') : tr('Khi giao đồ, người thuê sẽ chụp ảnh đối chiếu.'),
+        'RenterReceived' => report.aiSameItem == false
+            ? tr('AI thấy đồ có thể KHÁC tin đăng, hãy kiểm tra kỹ trước khi bấm "Đã nhận đồ".')
+            : tr('Đúng đồ thì bấm "Đã nhận đồ".'),
+        _ => tr('Giờ bấm "Hoàn tất" để chốt tiền cọc.'),
+      };
+      showSnack(context, report.hasAi ? tr('Đã lưu biên bản, AI đã nhận xét. {0}', [next]) : tr('Đã lưu biên bản. {0}', [next]));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -112,7 +122,7 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Biên bản · ${widget.rental.itemName}')),
+      appBar: AppBar(title: Text(tr('Biên bản · {0}', [widget.rental.itemName]))),
       body: FutureBuilder<List<ConditionReport>>(
         future: _future,
         builder: (context, snap) {
@@ -129,10 +139,10 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               if (reports.isEmpty && type == null)
-                const EmptyView(
+                EmptyView(
                   icon: Icons.fact_check_outlined,
-                  title: 'Chưa có biên bản',
-                  subtitle: 'Chủ đồ chụp ảnh lập biên bản trước khi giao và khi nhận lại đồ.',
+                  title: tr('Chưa có biên bản'),
+                  subtitle: tr('Chủ đồ chụp lúc giao, người thuê chụp lúc nhận, chủ đồ chụp lúc nhận lại.'),
                 ),
               for (final r in reports) _reportCard(r),
               if (type != null) ..._form(type),
@@ -156,7 +166,7 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             Text(fmtDateTime(r.createdAt), style: TextStyle(color: muted, fontSize: 13)),
             const SizedBox(height: 8),
-            Text('Chủ đồ ghi: ${conditionLabels[r.condition] ?? r.condition}'),
+            Text(tr('Chủ đồ ghi: {0}', [conditionLabels[r.condition] ?? r.condition])),
             if (r.description.isNotEmpty) Text(r.description, style: TextStyle(color: muted)),
             if (r.imageUrls.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -205,16 +215,15 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
 
   List<Widget> _form(String type) {
     const border = OutlineInputBorder();
-    final isBefore = type == 'BeforeRental';
     return [
       const SizedBox(height: 8),
-      Text('Lập ${reportTypeLabels[type]!.toLowerCase()}', style: Theme.of(context).textTheme.titleMedium),
+      Text(tr('Lập {0}', [reportTypeLabels[type]!.toLowerCase()]), style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 4),
-      NoticeBox(
-        isBefore
-            ? 'Chụp rõ các mặt của món đồ và phụ kiện. AI sẽ ghi lại khuyết điểm có sẵn để làm mốc khi nhận lại.'
-            : 'Chụp cùng các góc như lúc giao. AI so sánh với ảnh lúc giao và gợi ý mức trừ cọc nếu có hư hỏng mới.',
-      ),
+      NoticeBox(switch (type) {
+        'BeforeRental' => tr('Chụp rõ các mặt của món đồ và phụ kiện. AI so với ảnh tin đăng và ghi lại khuyết điểm có sẵn để làm mốc.'),
+        'RenterReceived' => tr('Chụp món đồ bạn vừa nhận. AI so với ảnh tin đăng và ảnh chủ đồ chụp lúc giao: đồ khác món hoặc hư hỏng thì đừng bấm "Đã nhận đồ", hãy bấm "Từ chối nhận" để được hoàn tiền.'),
+        _ => tr('Chụp cùng các góc như lúc giao. AI so với ảnh lúc người thuê nhận và gợi ý mức trừ cọc nếu có hư hỏng mới.'),
+      }),
       const SizedBox(height: 16),
       Wrap(
         spacing: 8,
@@ -263,7 +272,7 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
       const SizedBox(height: 16),
       DropdownButtonFormField<String>(
         initialValue: _condition,
-        decoration: const InputDecoration(labelText: 'Tình trạng theo bạn', border: border),
+        decoration: InputDecoration(labelText: tr('Tình trạng theo bạn'), border: border),
         items: [for (final e in conditionLabels.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
         onChanged: _saving ? null : (v) => setState(() { _condition = v!; }),
       ),
@@ -272,14 +281,14 @@ class _ConditionReportScreenState extends State<ConditionReportScreen> {
         controller: _description,
         maxLines: 3,
         enabled: !_saving,
-        decoration: const InputDecoration(labelText: 'Ghi chú (phụ kiện đi kèm, vết xước có sẵn...)', border: border),
+        decoration: InputDecoration(labelText: tr('Ghi chú (phụ kiện đi kèm, vết xước có sẵn...)'), border: border),
       ),
       const SizedBox(height: 20),
-      BusyButton(busy: _saving, onPressed: () => _submit(type), label: 'Lưu biên bản', icon: Icons.check),
+      BusyButton(busy: _saving, onPressed: () => _submit(type), label: tr('Lưu biên bản'), icon: Icons.check),
       if (_saving)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 10),
-          child: Text('AI đang xem ảnh, có thể mất 10-30 giây...', textAlign: TextAlign.center),
+          child: Text(tr('AI đang xem ảnh, có thể mất 10-30 giây...'), textAlign: TextAlign.center),
         ),
     ];
   }
@@ -309,11 +318,16 @@ class AiReviewBox extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'AI nhận xét${r.aiSuggestedCondition != null ? ' · ${conditionLabels[r.aiSuggestedCondition] ?? r.aiSuggestedCondition}' : ''}',
+                tr('AI nhận xét{0}', [r.aiSuggestedCondition != null ? ' · ${conditionLabels[r.aiSuggestedCondition] ?? r.aiSuggestedCondition}' : '']),
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ]),
+          if (r.aiSameItem == false) ...[
+            const SizedBox(height: 6),
+            Text(tr('⚠ Đồ trong ảnh có thể KHÁC món đã đăng / đã giao'),
+                style: TextStyle(color: scheme.error, fontWeight: FontWeight.w700)),
+          ],
           const SizedBox(height: 6),
           Text(r.aiSummary!),
           for (final d in r.aiDamages)
@@ -322,13 +336,13 @@ class AiReviewBox extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               r.aiSuggestedDeduction == 0
-                  ? 'Không thấy hư hỏng mới, gợi ý hoàn đủ cọc.'
-                  : 'Gợi ý trừ cọc: ${formatVnd(r.aiSuggestedDeduction!)}',
+                  ? tr('Không thấy hư hỏng mới, gợi ý hoàn đủ cọc.')
+                  : tr('Gợi ý trừ cọc: {0}', [formatVnd(r.aiSuggestedDeduction!)]),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ],
           const SizedBox(height: 6),
-          Text('Chỉ là gợi ý, có thể sai do ánh sáng hoặc góc chụp.',
+          Text(tr('Chỉ là gợi ý, có thể sai do ánh sáng hoặc góc chụp.'),
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
         ],
       ),

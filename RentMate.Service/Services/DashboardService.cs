@@ -47,10 +47,10 @@ namespace RentMate.Service.Services
             // Tính phí trong bộ nhớ bằng đúng công thức lúc chia tiền (RentalService.PlatformFee) để khớp từng đồng.
             var completedRentals = await _unitOfWork.Rentals
                 .BuildQuery(r => r.Status == RentalStatus.Completed)
-                .Select(r => new { r.TotalPrice, Date = r.CompletedAt ?? r.RequestedAt })
+                .Select(r => new { r.TotalPrice, r.PlatformFeeRate, Date = r.CompletedAt ?? r.RequestedAt })
                 .ToListAsync();
 
-            decimal totalRevenue = completedRentals.Sum(r => RentalService.PlatformFee(r.TotalPrice));
+            decimal totalRevenue = completedRentals.Sum(r => RentalService.PlatformFee(r.TotalPrice, r.PlatformFeeRate));
             decimal totalRentalValue = completedRentals.Sum(r => r.TotalPrice);
 
             var latestRentals = await _unitOfWork.Rentals
@@ -76,7 +76,7 @@ namespace RentMate.Service.Services
 
             var revenueRaw = completedRentals
                 .Where(r => r.Date >= firstMonth)
-                .Select(r => new { r.Date.Year, r.Date.Month, Amount = RentalService.PlatformFee(r.TotalPrice) })
+                .Select(r => new { r.Date.Year, r.Date.Month, Amount = RentalService.PlatformFee(r.TotalPrice, r.PlatformFeeRate) })
                 .ToList();
 
             var monthlyRevenue = Enumerable.Range(0, 6)

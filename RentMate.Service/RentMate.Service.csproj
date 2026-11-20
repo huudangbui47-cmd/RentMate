@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Câu chữ gốc của app kèm bản tiếng Anh, nạp vào database ở trang quản trị Ngôn ngữ -->
+    <EmbeddedResource Include="Resources\app-texts.en.json" LogicalName="RentMate.Service.Resources.app-texts.en.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\RentMate.Core\RentMate.Core.csproj" />
   </ItemGroup>
 

@@ -8,6 +8,7 @@ using RentMate.Core.Enums;
 using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
 using RentMate.Core.ViewModels;
+using RentMate.Service.DTOs.Settings;
 using RentMate.Service.DTOs.Wallet;
 using RentMate.Service.Interfaces;
 
@@ -19,20 +20,20 @@ namespace RentMate.Service.Services
         // Bỏ 0/O, 1/I để người dùng không gõ nhầm mã nạp
         private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-        // Chống tạo hàng loạt yêu cầu nạp rồi bỏ đó
-        private const int MaxPendingDeposits = 3;
-
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditLogService _auditLogService;
         private readonly INotificationService _notificationService;
+        private readonly ISystemSettingService _settingService;
 
         public WalletService(
             IUnitOfWork unitOfWork,
             UserManager<ApplicationUser> userManager,
             IAuditLogService auditLogService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ISystemSettingService settingService)
         {
+            _settingService = settingService;
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _auditLogService = auditLogService;
@@ -83,24 +84,30 @@ namespace RentMate.Service.Services
         // =========================
         // TẠO YÊU CẦU NẠP
         // =========================
-        public async Task<DepositRequestDto> CreateDepositAsync(string userId, decimal amount)
+        public async Task<DepositRequestDto> CreateDepositAsync(string userId, decimal amount, int? rentalId = null, string? note = null)
         {
-            if (amount < 10_000 || amount > 50_000_000)
+            // Giới hạn số tiền và số yêu cầu chờ lấy từ cài đặt hệ thống
+            var settings = await _settingService.GetAsync();
+
+            if (amount < settings.MinWalletAmount || amount > settings.MaxWalletAmount)
             {
-                throw new ArgumentException("Số tiền nạp từ 10.000 đến 50.000.000 đ.");
+                throw new ArgumentException(
+                    $"Số tiền nạp từ {NotificationService.Money(settings.MinWalletAmount)} đến {NotificationService.Money(settings.MaxWalletAmount)}.");
             }
 
             var pendingDeposits = await _unitOfWork.WalletTransactions
                 .BuildQuery(w =>
                     w.UserId == userId &&
                     w.Type == WalletTransactionType.Deposit &&
-                    w.Status == WalletTransactionStatus.Pending)
+                    w.Status == WalletTransactionStatus.Pending &&
+                    (w.Note == null || w.Note != VnPayService.OnlineNote))
                 .CountAsync();
 
-            if (pendingDeposits >= MaxPendingDeposits)
+            // Nạp qua VNPay được xác nhận tự động nên không giới hạn như chuyển khoản tay
+            if (note != VnPayService.OnlineNote && pendingDeposits >= settings.MaxPendingDeposits)
             {
                 throw new InvalidOperationException(
-                    $"Bạn đang có {MaxPendingDeposits} yêu cầu nạp chờ duyệt. Hãy chuyển khoản theo mã đã tạo hoặc chờ quản trị viên xử lý.");
+                    $"Bạn đang có {settings.MaxPendingDeposits} yêu cầu nạp chờ duyệt. Hãy chuyển khoản theo mã đã tạo hoặc chờ quản trị viên xử lý.");
             }
 
             var transaction = new WalletTransaction
@@ -109,23 +116,29 @@ namespace RentMate.Service.Services
                 Amount = amount,
                 Type = WalletTransactionType.Deposit,
                 Status = WalletTransactionStatus.Pending,
-                Code = await GenerateUniqueCodeAsync()
+                Code = await GenerateUniqueCodeAsync(),
+                RentalId = rentalId,
+                Note = note
             };
 
             await _unitOfWork.WalletTransactions.AddAsync(transaction);
             await _unitOfWork.SaveChangesAsync();
 
-            return new DepositRequestDto
+            var deposit = new DepositRequestDto
             {
                 TransactionId = transaction.Id,
                 Code = transaction.Code!,
                 Amount = transaction.Amount
             };
+
+            FillReceiverInfo(deposit, settings);
+
+            return deposit;
         }
 
         public async Task<DepositRequestDto?> GetPendingDepositAsync(string userId, int transactionId)
         {
-            return await _unitOfWork.WalletTransactions
+            var deposit = await _unitOfWork.WalletTransactions
                 .BuildQuery(w =>
                     w.Id == transactionId &&
                     w.UserId == userId &&
@@ -138,6 +151,29 @@ namespace RentMate.Service.Services
                     Amount = w.Amount
                 })
                 .FirstOrDefaultAsync();
+
+            if (deposit != null)
+                FillReceiverInfo(deposit, await _settingService.GetAsync());
+
+            return deposit;
+        }
+
+        // Tài khoản nhận tiền của RentMate: quản trị viên nhập ở trang Cài đặt hệ thống.
+        // Có mã ngân hàng VietQR thì kèm ảnh QR điền sẵn số tiền và nội dung chuyển khoản.
+        private static void FillReceiverInfo(DepositRequestDto deposit, RentMateSettings settings)
+        {
+            deposit.ReceiverBankName = settings.BankName;
+            deposit.ReceiverAccountNumber = settings.BankAccountNumber;
+            deposit.ReceiverAccountName = settings.BankAccountName;
+
+            if (!string.IsNullOrEmpty(settings.BankId) && !string.IsNullOrEmpty(settings.BankAccountNumber))
+            {
+                deposit.QrImageUrl =
+                    $"https://img.vietqr.io/image/{Uri.EscapeDataString(settings.BankId)}-{Uri.EscapeDataString(settings.BankAccountNumber)}-compact2.png" +
+                    $"?amount={deposit.Amount:0}" +
+                    $"&addInfo={Uri.EscapeDataString(deposit.Code)}" +
+                    $"&accountName={Uri.EscapeDataString(settings.BankAccountName ?? string.Empty)}";
+            }
         }
 
         // =========================
@@ -220,9 +256,12 @@ namespace RentMate.Service.Services
         // =========================
         public async Task<WalletTransactionDto> CreateWithdrawAsync(string userId, decimal amount)
         {
-            if (amount < 10_000 || amount > 50_000_000)
+            var settings = await _settingService.GetAsync();
+
+            if (amount < settings.MinWalletAmount || amount > settings.MaxWalletAmount)
             {
-                throw new ArgumentException("Số tiền rút từ 10.000 đến 50.000.000 đ.");
+                throw new ArgumentException(
+                    $"Số tiền rút từ {NotificationService.Money(settings.MinWalletAmount)} đến {NotificationService.Money(settings.MaxWalletAmount)}.");
             }
 
             var user = await _userManager.FindByIdAsync(userId)
@@ -357,7 +396,7 @@ namespace RentMate.Service.Services
                 throw new InvalidOperationException("Yêu cầu nạp tiền không tồn tại.");
 
             await _auditLogService.RecordAsync("ApproveDeposit", "WalletTransaction", transaction.Id.ToString(),
-                $"Duyệt nạp {transaction.Amount:N0} đ, mã {transaction.Code}.", ipAddress, adminId);
+                $"Duyệt nạp {NotificationService.Money(transaction.Amount)}, mã {transaction.Code}.", ipAddress, adminId);
 
             // Admin đã đối chiếu sao kê đúng số tiền yêu cầu; hàm này lưu luôn nhật ký ở trên
             await ConfirmDepositAsync(transaction.Code!, transaction.Amount, adminId);
@@ -381,7 +420,7 @@ namespace RentMate.Service.Services
             transaction.ProcessedAt = DateTime.UtcNow;
 
             await _auditLogService.RecordAsync("CompleteWithdraw", "WalletTransaction", transaction.Id.ToString(),
-                $"Xác nhận đã chuyển {Math.Abs(transaction.Amount):N0} đ cho yêu cầu rút #{transaction.Id}.", ipAddress, adminId);
+                $"Xác nhận đã chuyển {NotificationService.Money(transaction.Amount)} cho yêu cầu rút #{transaction.Id}.", ipAddress, adminId);
 
             await _notificationService.AddAsync(transaction.UserId, NotificationType.Wallet,
                 "Rút tiền thành công",
@@ -419,7 +458,7 @@ namespace RentMate.Service.Services
             string typeText = transaction.Type == WalletTransactionType.Deposit ? "nạp" : "rút";
 
             await _auditLogService.RecordAsync("RejectWalletRequest", "WalletTransaction", transaction.Id.ToString(),
-                $"Từ chối yêu cầu {typeText} {Math.Abs(transaction.Amount):N0} đ (#{transaction.Id}). Lý do: {transaction.Note}", ipAddress, adminId);
+                $"Từ chối yêu cầu {typeText} {NotificationService.Money(transaction.Amount)} (#{transaction.Id}). Lý do: {transaction.Note}", ipAddress, adminId);
 
             await _notificationService.AddAsync(transaction.UserId, NotificationType.Wallet,
                 $"Yêu cầu {typeText} tiền bị từ chối",

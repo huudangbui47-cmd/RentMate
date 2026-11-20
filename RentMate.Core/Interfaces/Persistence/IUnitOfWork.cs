@@ -20,6 +20,11 @@ namespace RentMate.Core.Interfaces.Persistence
 
         IRepository<WalletTransaction> WalletTransactions { get; }
 
+        IRepository<SystemSetting> SystemSettings { get; }
+        IRepository<AppLanguage> AppLanguages { get; }
+        IRepository<TextResource> TextResources { get; }
+        IRepository<TextTranslation> TextTranslations { get; }
+
         Task<int> SaveChangesAsync();
 
         // Dùng khi một thao tác buộc phải lưu nhiều lần (vd. UserManager.CreateAsync rồi AddToRoleAsync):

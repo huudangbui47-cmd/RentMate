@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/ui.dart';
+import '../l10n/l10n.dart';
 
 /// Chuông thông báo có số chưa đọc, đặt ở AppBar các tab chính.
 class NotificationBell extends StatelessWidget {
@@ -13,7 +14,7 @@ class NotificationBell extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: NotificationCenter.instance.unread,
       builder: (context, count, _) => IconButton(
-        tooltip: 'Thông báo',
+        tooltip: tr('Thông báo'),
         onPressed: () => NotificationsScreen.open(),
         icon: Badge(
           isLabelVisible: count > 0,
@@ -87,9 +88,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thông báo'),
+        title: Text(tr('Thông báo')),
         actions: [
-          TextButton(onPressed: _markAll, child: const Text('Đọc hết')),
+          TextButton(onPressed: _markAll, child: Text(tr('Đọc hết'))),
         ],
       ),
       body: FutureBuilder<List<AppNotification>>(
@@ -101,11 +102,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: list.isEmpty
-                ? ListView(children: const [
+                ? ListView(children: [
                     EmptyView(
                       icon: Icons.notifications_none_rounded,
-                      title: 'Chưa có thông báo',
-                      subtitle: 'Khi đơn thuê, ví hoặc đồ của bạn có thay đổi, thông báo sẽ hiện ở đây.',
+                      title: tr('Chưa có thông báo'),
+                      subtitle: tr('Khi đơn thuê, ví hoặc đồ của bạn có thay đổi, thông báo sẽ hiện ở đây.'),
                     ),
                   ])
                 : ListView.separated(
@@ -148,10 +149,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   static String _timeAgo(DateTime utc) {
     final diff = DateTime.now().toUtc().difference(utc);
-    if (diff.inMinutes < 1) return 'Vừa xong';
-    if (diff.inHours < 1) return '${diff.inMinutes} phút trước';
-    if (diff.inDays < 1) return '${diff.inHours} giờ trước';
-    if (diff.inDays < 7) return '${diff.inDays} ngày trước';
+    if (diff.inMinutes < 1) return tr('Vừa xong');
+    if (diff.inHours < 1) return tr('{0} phút trước', [diff.inMinutes]);
+    if (diff.inDays < 1) return tr('{0} giờ trước', [diff.inHours]);
+    if (diff.inDays < 7) return tr('{0} ngày trước', [diff.inDays]);
     return fmtDateTime(utc);
   }
 }

@@ -5,6 +5,7 @@ using Anthropic.Models.Beta;
 using Anthropic.Models.Beta.Messages;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RentMate.Core.Enums;
 using RentMate.Service.DTOs;
 using RentMate.Service.DTOs.ConditionReports;
 using RentMate.Service.Interfaces;
@@ -45,41 +46,61 @@ namespace RentMate.Service.Services
             }
 
             var content = new List<BetaContentBlockParam>();
+            string info =
+                $"Món đồ: {request.ItemName}. Người chụp ghi tình trạng: {request.ReportedCondition}. " +
+                $"Ghi chú: {request.Description ?? "không có"}. Tiền cọc: {request.DepositAmount:N0} đ.\n";
 
-            if (request.IsAfterRental)
+            if (request.ListingImages.Count > 0)
             {
-                content.Add(new BetaTextBlockParam { Text = "NHÓM 1 – ảnh chụp LÚC GIAO đồ cho người thuê:" });
-                content.AddRange(request.BeforeImages.Select(ToImageBlock));
+                content.Add(new BetaTextBlockParam { Text = "ẢNH TIN ĐĂNG – món đồ chủ đồ đăng cho thuê:" });
+                content.AddRange(request.ListingImages.Select(ToImageBlock));
+            }
 
-                if (!string.IsNullOrWhiteSpace(request.BeforeSummary))
+            if (request.ReferenceImages.Count > 0)
+            {
+                content.Add(new BetaTextBlockParam
                 {
-                    content.Add(new BetaTextBlockParam { Text = $"Đánh giá lúc giao: {request.BeforeSummary}" });
+                    Text = request.Mode == ConditionReportType.AfterRental
+                        ? "ẢNH LÚC NGƯỜI THUÊ NHẬN ĐỒ (mốc so sánh):"
+                        : "ẢNH CHỦ ĐỒ CHỤP LÚC GIAO (mốc so sánh):"
+                });
+                content.AddRange(request.ReferenceImages.Select(ToImageBlock));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ReferenceSummary))
+            {
+                content.Add(new BetaTextBlockParam { Text = $"Đánh giá ở mốc so sánh: {request.ReferenceSummary}" });
+            }
+
+            content.Add(new BetaTextBlockParam
+            {
+                Text = request.Mode switch
+                {
+                    ConditionReportType.BeforeRental => "ẢNH CHỦ ĐỒ CHỤP LÚC GIAO CHO NGƯỜI THUÊ:",
+                    ConditionReportType.RenterReceived => "ẢNH NGƯỜI THUÊ CHỤP LÚC NHẬN ĐỒ:",
+                    _ => "ẢNH CHỦ ĐỒ CHỤP LÚC NHẬN LẠI ĐỒ:"
                 }
+            });
+            content.AddRange(request.Images.Select(ToImageBlock));
 
-                content.Add(new BetaTextBlockParam { Text = "NHÓM 2 – ảnh chụp LÚC NHẬN LẠI đồ:" });
-                content.AddRange(request.Images.Select(ToImageBlock));
-                content.Add(new BetaTextBlockParam
-                {
-                    Text =
-                        $"Món đồ: {request.ItemName}. Chủ đồ ghi tình trạng lúc nhận lại: {request.ReportedCondition}. " +
-                        $"Ghi chú của chủ đồ: {request.Description ?? "không có"}. Tiền cọc: {request.DepositAmount:N0} đ.\n" +
-                        "So sánh hai nhóm ảnh. Chỉ đưa vào damages những hư hỏng MỚI có ở nhóm 2 mà nhóm 1 không có. " +
-                        "suggestedDeductionPercent là phần trăm tiền cọc nên trừ để bù chi phí sửa chữa ước tính: " +
-                        "0 nếu không có hư hỏng mới, 100 nếu đồ hỏng nặng không dùng được hoặc mất."
-                });
-            }
-            else
+            content.Add(new BetaTextBlockParam
             {
-                content.AddRange(request.Images.Select(ToImageBlock));
-                content.Add(new BetaTextBlockParam
+                Text = info + request.Mode switch
                 {
-                    Text =
-                        $"Đây là ảnh chụp LÚC GIAO đồ cho người thuê. Món đồ: {request.ItemName}. " +
-                        $"Chủ đồ ghi tình trạng: {request.ReportedCondition}. Ghi chú: {request.Description ?? "không có"}.\n" +
-                        "Mô tả tình trạng hiện tại và liệt kê vào damages mọi khuyết điểm có sẵn, để làm mốc so sánh khi nhận lại. " +
-                        "Với ảnh lúc giao: newDamageFound = false, suggestedDeductionPercent = 0."
-                });
-            }
+                    ConditionReportType.BeforeRental =>
+                        "Mô tả tình trạng hiện tại và liệt kê vào damages mọi khuyết điểm có sẵn để làm mốc. " +
+                        "sameItem = false nếu đồ trong ảnh rõ ràng là món khác với ảnh tin đăng (khác loại, khác mẫu, khác màu), " +
+                        "không có ảnh tin đăng thì true. newDamageFound = false, suggestedDeductionPercent = 0.",
+                    ConditionReportType.RenterReceived =>
+                        "Kiểm tra món người thuê nhận có đúng là món trong ảnh lúc giao và ảnh tin đăng không (sameItem). " +
+                        "Liệt kê vào damages khuyết điểm đang có; newDamageFound = true nếu có hư hỏng hoặc thiếu phụ kiện " +
+                        "mà ảnh lúc giao không có. suggestedDeductionPercent = 0.",
+                    _ =>
+                        "So sánh với mốc. Chỉ đưa vào damages những hư hỏng MỚI mà mốc không có. sameItem = false nếu món trả lại " +
+                        "rõ ràng không phải món đã giao. suggestedDeductionPercent là phần trăm tiền cọc nên trừ để bù chi phí sửa " +
+                        "ước tính: 0 nếu không có hư hỏng mới, 100 nếu hỏng nặng, mất hoặc trả sai món."
+                }
+            });
 
             try
             {
@@ -126,7 +147,7 @@ namespace RentMate.Service.Services
                 }
 
                 result.SuggestedCondition = Math.Clamp(result.SuggestedCondition, 1, 5);
-                result.SuggestedDeductionPercent = request.IsAfterRental ? Math.Clamp(result.SuggestedDeductionPercent, 0, 100) : 0;
+                result.SuggestedDeductionPercent = request.Mode == ConditionReportType.AfterRental ? Math.Clamp(result.SuggestedDeductionPercent, 0, 100) : 0;
                 result.Damages = result.Damages.Where(d => !string.IsNullOrWhiteSpace(d)).Take(20).ToList();
 
                 return result;
@@ -162,14 +183,15 @@ namespace RentMate.Service.Services
             ["additionalProperties"] = JsonSerializer.SerializeToElement(false),
             ["required"] = JsonSerializer.SerializeToElement(new[]
             {
-                "summary", "suggestedCondition", "damages", "newDamageFound", "suggestedDeductionPercent"
+                "summary", "suggestedCondition", "damages", "newDamageFound", "sameItem", "suggestedDeductionPercent"
             }),
             ["properties"] = JsonSerializer.SerializeToElement(new Dictionary<string, object>
             {
                 ["summary"] = new { type = "string", description = "Tóm tắt tình trạng, 1-3 câu tiếng Việt" },
                 ["suggestedCondition"] = new { type = "integer", description = "1 Mới, 2 Như mới, 3 Tốt, 4 Khá, 5 Hư hỏng" },
                 ["damages"] = new { type = "array", items = new { type = "string" }, description = "Mỗi dòng một hư hỏng: vị trí và mức độ" },
-                ["newDamageFound"] = new { type = "boolean", description = "Có hư hỏng mới so với lúc giao hay không" },
+                ["newDamageFound"] = new { type = "boolean", description = "Có hư hỏng mới so với mốc hay không" },
+                ["sameItem"] = new { type = "boolean", description = "Có đúng là cùng một món với ảnh tin đăng / ảnh mốc không" },
                 ["suggestedDeductionPercent"] = new { type = "integer", description = "Phần trăm tiền cọc gợi ý trừ, 0-100" }
             })
         };

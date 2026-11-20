@@ -10,6 +10,7 @@ import '../services/view_history.dart';
 import '../widgets/ui.dart';
 import 'item_detail_screen.dart';
 import 'notifications_screen.dart';
+import '../l10n/l10n.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -143,13 +144,13 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context, controller) => ListView(
           controller: controller,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('Khu vực nhận đồ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              child: Text(tr('Khu vực nhận đồ'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
             ListTile(
               leading: const Icon(Icons.public),
-              title: const Text('Toàn quốc'),
+              title: Text(tr('Toàn quốc')),
               trailing: Text('${_items.length}'),
               selected: _province == null,
               onTap: () => Navigator.pop(context, ''),
@@ -239,14 +240,14 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(_name.isEmpty ? 'Xin chào 👋' : 'Xin chào, ${_name.split(' ').last} 👋',
+                child: Text(_name.isEmpty ? tr('Xin chào 👋') : tr('Xin chào, {0} 👋', [_name.split(' ').last]),
                     style: TextStyle(color: scheme.onSurfaceVariant)),
               ),
               if (_userId != null) const NotificationBell(),
             ],
           ),
           const SizedBox(height: 2),
-          const Text('Hôm nay bạn muốn thuê gì?',
+          Text(tr('Hôm nay bạn muốn thuê gì?'),
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           // Lọc theo tỉnh/thành nơi nhận đồ
@@ -260,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Icon(Icons.location_on, size: 18, color: scheme.primary),
                   const SizedBox(width: 4),
-                  Text(_province ?? 'Toàn quốc',
+                  Text(_province ?? tr('Toàn quốc'),
                       style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)),
                   Icon(Icons.keyboard_arrow_down_rounded, color: scheme.primary),
                 ],
@@ -272,8 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Tìm laptop, máy ảnh, lều...',
+                  decoration: InputDecoration(
+                    hintText: tr('Tìm laptop, máy ảnh, lều...'),
                     prefixIcon: Icon(Icons.search),
                     isDense: true,
                   ),
@@ -283,12 +284,12 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 8),
               // Sắp xếp theo giá; các kiểu sắp xếp chính nằm ở hàng tab dưới danh mục
               PopupMenuButton<String>(
-                tooltip: 'Sắp xếp theo giá',
+                tooltip: tr('Sắp xếp theo giá'),
                 initialValue: _effectiveSort,
                 onSelected: (v) => setState(() => _sort = v),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'priceAsc', child: Text('Giá thấp → cao')),
-                  PopupMenuItem(value: 'priceDesc', child: Text('Giá cao → thấp')),
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'priceAsc', child: Text(tr('Giá thấp → cao'))),
+                  PopupMenuItem(value: 'priceDesc', child: Text(tr('Giá cao → thấp'))),
                 ],
                 child: Container(
                   height: 48,
@@ -318,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
-              _chip('Tất cả', _parentId == null, () => setState(() {
+              _chip(tr('Tất cả'), _parentId == null, () => setState(() {
                     _parentId = null;
                     _childId = null;
                   })),
@@ -338,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                _chip('Tất cả', _childId == null, () => setState(() => _childId = null), small: true),
+                _chip(tr('Tất cả'), _childId == null, () => setState(() => _childId = null), small: true),
                 for (final c in _children)
                   _chip(c.name, _childId == c.id, () => setState(() => _childId = c.id), small: true),
               ],
@@ -377,9 +378,9 @@ class _HomeScreenState extends State<HomeScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 4),
         children: [
-          if (_userId != null) tab('forYou', 'Dành cho bạn'),
-          tab('popular', 'Được thuê nhiều nhất'),
-          tab('newest', 'Mới đăng'),
+          if (_userId != null) tab('forYou', tr('Dành cho bạn')),
+          tab('popular', tr('Được thuê nhiều nhất')),
+          tab('newest', tr('Mới đăng')),
         ],
       ),
     );
@@ -410,12 +411,12 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverToBoxAdapter(
           child: EmptyView(
             icon: Icons.search_off_rounded,
-            title: _items.isEmpty ? 'Chưa có đồ nào được đăng' : 'Không tìm thấy đồ phù hợp',
+            title: _items.isEmpty ? tr('Chưa có đồ nào được đăng') : tr('Không tìm thấy đồ phù hợp'),
             subtitle: _items.isEmpty
-                ? 'Hãy là người đầu tiên đăng đồ cho thuê!'
+                ? tr('Hãy là người đầu tiên đăng đồ cho thuê!')
                 : _province != null
-                    ? 'Thử khu vực khác (bấm "$_province" ở trên), từ khóa hoặc danh mục khác.'
-                    : 'Thử từ khóa hoặc danh mục khác.',
+                    ? tr('Thử khu vực khác (bấm "{0}" ở trên), từ khóa hoặc danh mục khác.', [_province])
+                    : tr('Thử từ khóa hoặc danh mục khác.'),
           ),
         ),
       ];
@@ -424,7 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
       SliverPadding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         sliver: SliverToBoxAdapter(
-          child: Text('${items.length} món đồ', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          child: Text(tr('{0} món đồ', [items.length]), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ),
       ),
       SliverPadding(
@@ -468,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: mine ? scheme.primary : Colors.black54,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(mine ? 'Đồ của bạn' : 'Đang được thuê',
+                        child: Text(mine ? tr('Đồ của bạn') : tr('Đang được thuê'),
                             style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
                       ),
                     ),
@@ -512,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             text: formatVnd(item.pricePerDay),
                             style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 15),
                           ),
-                          TextSpan(text: ' /ngày', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+                          TextSpan(text: tr(' /ngày'), style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                         ]),
                       ),
                     ],

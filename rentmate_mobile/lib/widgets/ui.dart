@@ -1,6 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../l10n/l10n.dart';
+import '../services/item_service.dart';
 
 // Các mảnh giao diện dùng chung cho mọi màn hình.
+
+/// Ô nhập tiền: chỉ nhận số và tự thêm dấu chấm hàng nghìn khi gõ (6000 -> 6.000).
+class MoneyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return const TextEditingValue();
+    final text = moneyText(num.parse(digits));
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}
+
+/// 6000 -> "6.000" (không kèm đơn vị, dùng cho ô nhập tiền).
+String moneyText(num value) {
+  final s = value.abs().round().toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+    buf.write(s[i]);
+  }
+  return buf.toString();
+}
+
+/// Đọc số từ ô nhập tiền đã có dấu chấm ("6.000" -> 6000).
+num? parseMoney(String? text) => num.tryParse((text ?? '').replaceAll('.', ''));
 
 /// Mở ảnh toàn màn hình, chụm 2 ngón để phóng to.
 void showImageViewer(BuildContext context, String url) {
@@ -40,7 +68,8 @@ class UserAvatar extends StatelessWidget {
 }
 
 /// "Exception: abc" -> "abc"
-String errorText(Object e) => e.toString().replaceFirst('Exception: ', '');
+/// Câu lỗi từ server là tiếng Việt; quản trị viên thêm câu đó ở trang Ngôn ngữ thì app hiện bản dịch.
+String errorText(Object e) => tr(e.toString().replaceFirst('Exception: ', ''));
 
 void showSnack(BuildContext context, String message, {bool error = false}) {
   final scheme = Theme.of(context).colorScheme;
@@ -57,7 +86,7 @@ Future<bool> confirmDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmText = 'Đồng ý',
+  String? confirmText,
   bool danger = false,
 }) async {
   final ok = await showDialog<bool>(
@@ -66,11 +95,11 @@ Future<bool> confirmDialog(
       title: Text(title),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Thôi')),
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Thôi'))),
         FilledButton(
           style: danger ? FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error) : null,
           onPressed: () => Navigator.pop(ctx, true),
-          child: Text(confirmText),
+          child: Text(confirmText ?? tr('Đồng ý')),
         ),
       ],
     ),
@@ -94,17 +123,17 @@ String fmtDateTime(DateTime d) {
 
 /// Giống quy tắc mật khẩu mặc định của ASP.NET Identity bên server.
 String? passwordError(String? v) {
-  if (v == null || v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
-  if (!RegExp(r'[A-Z]').hasMatch(v)) return 'Cần ít nhất 1 chữ hoa';
-  if (!RegExp(r'[a-z]').hasMatch(v)) return 'Cần ít nhất 1 chữ thường';
-  if (!RegExp(r'\d').hasMatch(v)) return 'Cần ít nhất 1 chữ số';
-  if (!RegExp(r'[^A-Za-z0-9]').hasMatch(v)) return 'Cần ít nhất 1 ký tự đặc biệt (vd. @ # !)';
+  if (v == null || v.length < 6) return tr('Mật khẩu tối thiểu 6 ký tự');
+  if (!RegExp(r'[A-Z]').hasMatch(v)) return tr('Cần ít nhất 1 chữ hoa');
+  if (!RegExp(r'[a-z]').hasMatch(v)) return tr('Cần ít nhất 1 chữ thường');
+  if (!RegExp(r'\d').hasMatch(v)) return tr('Cần ít nhất 1 chữ số');
+  if (!RegExp(r'[^A-Za-z0-9]').hasMatch(v)) return tr('Cần ít nhất 1 ký tự đặc biệt (vd. @ # !)');
   return null;
 }
 
 String? phoneError(String? v) {
-  if (v == null || v.trim().isEmpty) return 'Vui lòng nhập số điện thoại';
-  if (!RegExp(r'^0\d{9}$').hasMatch(v.trim())) return 'Số điện thoại gồm 10 số, bắt đầu bằng 0';
+  if (v == null || v.trim().isEmpty) return tr('Vui lòng nhập số điện thoại');
+  if (!RegExp(r'^0\d{9}$').hasMatch(v.trim())) return tr('Số điện thoại gồm 10 số, bắt đầu bằng 0');
   return null;
 }
 
@@ -135,7 +164,7 @@ class ErrorView extends StatelessWidget {
             FilledButton.tonalIcon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Thử lại'),
+              label: Text(tr('Thử lại')),
             ),
           ],
         ),
@@ -223,8 +252,34 @@ class ItemThumb extends StatelessWidget {
     Color(0xFF0891B2),
   ];
 
+  /// Icon theo lựa chọn của quản trị viên (CategoryIconOption trên Api); chưa chọn thì đoán theo tên.
+  static const _iconByKey = <String, IconData>{
+    'smartphone': Icons.smartphone_rounded,
+    'laptop': Icons.laptop_mac_rounded,
+    'headphones': Icons.headphones_rounded,
+    'camera': Icons.photo_camera_rounded,
+    'devices': Icons.devices_other_rounded,
+    'game': Icons.sports_esports_rounded,
+    'bike': Icons.pedal_bike_rounded,
+    'motorbike': Icons.two_wheeler_rounded,
+    'car': Icons.directions_car_rounded,
+    'camping': Icons.forest_rounded,
+    'sports': Icons.sports_soccer_rounded,
+    'fashion': Icons.checkroom_rounded,
+    'book': Icons.menu_book_rounded,
+    'kitchen': Icons.kitchen_rounded,
+    'tools': Icons.handyman_rounded,
+    'music': Icons.music_note_rounded,
+    'baby': Icons.child_friendly_rounded,
+    'party': Icons.celebration_rounded,
+    'furniture': Icons.chair_rounded,
+    'other': Icons.inventory_2_rounded,
+  };
+
   static IconData iconFor(String category) {
     final c = category.toLowerCase();
+    final chosen = _iconByKey[categoryIconKeys[c]];
+    if (chosen != null) return chosen;
     if (c.contains('điện thoại') || c.contains('phone')) return Icons.smartphone_rounded;
     if (c.contains('laptop') || c.contains('máy tính')) return Icons.laptop_mac_rounded;
     if (c.contains('tai nghe') || c.contains('loa') || c.contains('âm thanh')) return Icons.headphones_rounded;

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'auth_service.dart';
+import 'config_service.dart';
+import '../l10n/l10n.dart';
 
 class Rental {
   final int id;
@@ -32,6 +34,20 @@ class Rental {
   final DateTime? ownerInspectionDeadline;
   final DateTime? renterResponseDeadline;
 
+  // Giao nhận
+  final String deliveryMethod; // "Meetup" | "Ghn"
+  final String? shippingOrderCode;
+  final DateTime? expectedDeliveryAt;
+  final int shiftedDays;
+  final num lateDeliveryRefund;
+  final num platformFeePercent;
+
+  /// Phí nền tảng của đơn này, vd. "5" hoặc "2,5"
+  String get feeText => platformFeePercent == platformFeePercent.roundToDouble()
+      ? platformFeePercent.toStringAsFixed(0)
+      : platformFeePercent.toString().replaceAll('.', ',');
+  final String? cancelReason;
+
   Rental.fromJson(Map<String, dynamic> j)
       : id = j['rentalId'] as int,
         itemId = j['itemId'] as int,
@@ -56,16 +72,25 @@ class Rental {
         disputeReason = j['disputeReason'] as String?,
         resolutionNote = j['resolutionNote'] as String?,
         ownerInspectionDeadline = _parse(j['ownerInspectionDeadline']),
-        renterResponseDeadline = _parse(j['renterResponseDeadline']);
+        renterResponseDeadline = _parse(j['renterResponseDeadline']),
+        deliveryMethod = (j['deliveryMethod'] ?? 'Meetup') as String,
+        shippingOrderCode = j['shippingOrderCode'] as String?,
+        expectedDeliveryAt = _parse(j['expectedDeliveryAt']),
+        shiftedDays = (j['shiftedDays'] ?? 0) as int,
+        lateDeliveryRefund = (j['lateDeliveryRefund'] ?? 0) as num,
+        platformFeePercent = (j['platformFeePercent'] ?? 5) as num,
+        cancelReason = j['cancelReason'] as String?;
+
+  bool get isShipping => deliveryMethod == 'Ghn';
 
   static DateTime? _parse(dynamic v) => v == null ? null : _asUtc(DateTime.parse(v as String));
 
   static bool _passed(DateTime? deadline) => deadline != null && DateTime.now().toUtc().isAfter(_asUtc(deadline));
 
-  /// Chủ đồ quá 3 ngày chưa kiểm tra đồ: người thuê được tự hoàn tất, nhận đủ cọc.
+  /// Chủ đồ quá hạn kiểm tra (cài đặt hệ thống) chưa kiểm tra đồ: người thuê được tự hoàn tất, nhận đủ cọc.
   bool get renterCanForceComplete => status == 'Returned' && _passed(ownerInspectionDeadline);
 
-  /// Người thuê quá 2 ngày không phản hồi bồi thường: chủ đồ được chốt mức đã đề nghị.
+  /// Người thuê quá hạn phản hồi bồi thường: chủ đồ được chốt mức đã đề nghị.
   bool get ownerCanFinalizeDamage => status == 'DamageClaimed' && _passed(renterResponseDeadline);
 
   /// Tiền người thuê phải trả khi thanh toán (thuê + cọc).
@@ -73,11 +98,11 @@ class Rental {
 
   int get days => endDate.difference(startDate).inDays + 1;
 
-  /// Chủ đồ được hủy đơn đã duyệt nếu người thuê chưa thanh toán sau 24 giờ (theo RentalService.cs).
+  /// Chủ đồ được hủy đơn đã duyệt nếu người thuê chưa thanh toán sau hạn trong cài đặt hệ thống.
   bool get ownerCanCancel =>
       status == 'Approved' &&
       approvedAt != null &&
-      DateTime.now().toUtc().difference(_asUtc(approvedAt!)) >= const Duration(hours: 24);
+      DateTime.now().toUtc().difference(_asUtc(approvedAt!)) >= Duration(hours: AppConfig.paymentTimeoutHours);
 
   // Server trả giờ UTC nhưng có thể thiếu chữ "Z".
   static DateTime _asUtc(DateTime d) =>
@@ -85,18 +110,18 @@ class Rental {
 }
 
 // Theo RentalStatus trong RentMate.Core.
-const rentalStatusLabels = {
-  'Pending': 'Chờ duyệt',
-  'Approved': 'Chờ thanh toán',
-  'WaitingForPickup': 'Chờ nhận đồ',
-  'Rejected': 'Bị từ chối',
-  'Cancelled': 'Đã hủy',
-  'Rented': 'Đang thuê',
-  'Returned': 'Đã trả đồ',
-  'Completed': 'Hoàn tất',
-  'Overdue': 'Quá hạn',
-  'DamageClaimed': 'Chờ xác nhận bồi thường',
-  'Disputed': 'Đang khiếu nại',
+Map<String, String> get rentalStatusLabels => {
+  'Pending': tr('Chờ duyệt'),
+  'Approved': tr('Chờ thanh toán'),
+  'WaitingForPickup': tr('Chờ nhận đồ'),
+  'Rejected': tr('Bị từ chối'),
+  'Cancelled': tr('Đã hủy'),
+  'Rented': tr('Đang thuê'),
+  'Returned': tr('Đã trả đồ'),
+  'Completed': tr('Hoàn tất'),
+  'Overdue': tr('Quá hạn'),
+  'DamageClaimed': tr('Chờ xác nhận bồi thường'),
+  'Disputed': tr('Đang khiếu nại'),
 };
 
 class RentalService {
@@ -116,6 +141,7 @@ class RentalService {
     required DateTime startDate,
     required DateTime endDate,
     String? note,
+    ShipTo? shipTo,
   }) async {
     final res = await http.post(
       Uri.parse('$apiBaseUrl/api/Rentals'),
@@ -125,6 +151,9 @@ class RentalService {
         'startDate': _dateOnly(startDate),
         'endDate': _dateOnly(endDate),
         'requestNote': (note == null || note.isEmpty) ? null : note,
+        // 1 = gặp trực tiếp, 2 = giao qua GHN
+        'deliveryMethod': shipTo == null ? 1 : 2,
+        if (shipTo != null) ...shipTo.toJson(),
       }),
     );
     checkResponse(res);
@@ -135,6 +164,16 @@ class RentalService {
     final res = await http.put(
       Uri.parse('$apiBaseUrl/api/Rentals/$rentalId/$action'),
       headers: await AuthService().authHeaders(),
+    );
+    checkResponse(res);
+  }
+
+  /// Hủy đơn, có thể kèm lý do (vd. từ chối nhận vì đồ khác tin đăng).
+  Future<void> cancel(int rentalId, {String? reason}) async {
+    final res = await http.put(
+      Uri.parse('$apiBaseUrl/api/Rentals/$rentalId/cancel'),
+      headers: await AuthService().authHeaders(),
+      body: jsonEncode({'reason': reason}),
     );
     checkResponse(res);
   }
@@ -161,4 +200,31 @@ class RentalService {
   // Gửi đúng ngày đã chọn, không kèm giờ/múi giờ để server không lệch sang ngày khác.
   String _dateOnly(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+/// Địa chỉ nhận hàng khi chọn giao qua GHN.
+class ShipTo {
+  final String name;
+  final String phone;
+  final String address;
+  final int districtId;
+  final String wardCode;
+  final String areaText;
+  const ShipTo({
+    required this.name,
+    required this.phone,
+    required this.address,
+    required this.districtId,
+    required this.wardCode,
+    required this.areaText,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'shipToName': name,
+        'shipToPhone': phone,
+        'shipToAddress': address,
+        'shipToDistrictId': districtId,
+        'shipToWardCode': wardCode,
+        'shipToAreaText': areaText,
+      };
 }

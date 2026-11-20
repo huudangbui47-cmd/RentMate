@@ -83,9 +83,13 @@ namespace RentMate.Api.Controllers
 
         // Duyệt nạp / rút: Admin làm trên trang quản trị (AdminSite > Nạp / rút tiền)
 
-        // Tài khoản nhận tiền của RentMate, cấu hình ở mục "Wallet" trong appsettings.json
+        // Tài khoản nhận tiền lấy từ trang Cài đặt hệ thống (service đã điền).
+        // Chưa nhập ở đó thì dùng mục "Wallet" trong appsettings.json như trước.
         private void FillReceiverInfo(DepositRequestDto deposit)
         {
+            if (!string.IsNullOrEmpty(deposit.ReceiverAccountNumber))
+                return;
+
             var section = _configuration.GetSection("Wallet");
             var bankId = section["BankId"];
             var accountNumber = section["AccountNumber"];

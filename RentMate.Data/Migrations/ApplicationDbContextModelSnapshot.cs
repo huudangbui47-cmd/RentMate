@@ -155,6 +155,46 @@ namespace RentMate.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("RentMate.Core.Models.AppLanguage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("LanguageId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Flag")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("AppLanguages");
+                });
+
             modelBuilder.Entity("RentMate.Core.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -313,6 +353,10 @@ namespace RentMate.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -349,6 +393,9 @@ namespace RentMate.Data.Migrations
                         .HasColumnType("nvarchar(2000)");
 
                     b.Property<bool?>("AiNewDamageFound")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("AiSameItem")
                         .HasColumnType("bit");
 
                     b.Property<int?>("AiSuggestedCondition")
@@ -598,6 +645,10 @@ namespace RentMate.Data.Migrations
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
@@ -611,6 +662,9 @@ namespace RentMate.Data.Migrations
                     b.Property<string>("DamageNote")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("DeliveryMethod")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("DepositAmount")
                         .HasPrecision(18, 2)
@@ -626,8 +680,21 @@ namespace RentMate.Data.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("ExpectedDeliveryAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("ItemId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("LateDeliveryRefund")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PlatformFeeRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)")
+                        .HasDefaultValue(0.05m);
 
                     b.Property<decimal>("PricePerDay")
                         .HasPrecision(18, 2)
@@ -652,6 +719,43 @@ namespace RentMate.Data.Migrations
 
                     b.Property<DateTime?>("ReturnedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("ShiftedDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShipToAddress")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("ShipToAreaText")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("ShipToDistrictId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ShipToName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ShipToPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ShipToWardCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("ShippingCreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("ShippingFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ShippingOrderCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
@@ -710,6 +814,105 @@ namespace RentMate.Data.Migrations
                     b.HasIndex("ReviewerId");
 
                     b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("RentMate.Core.Models.SystemSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("SystemSettingId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("SystemSettings");
+                });
+
+            modelBuilder.Entity("RentMate.Core.Models.TextResource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("TextResourceId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("TextResources");
+                });
+
+            modelBuilder.Entity("RentMate.Core.Models.TextTranslation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("TextTranslationId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsMachineTranslated")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LanguageId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TextResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LanguageId");
+
+                    b.HasIndex("TextResourceId", "LanguageId")
+                        .IsUnique();
+
+                    b.ToTable("TextTranslations");
                 });
 
             modelBuilder.Entity("RentMate.Core.Models.WalletTransaction", b =>
@@ -973,6 +1176,25 @@ namespace RentMate.Data.Migrations
                     b.Navigation("Reviewer");
                 });
 
+            modelBuilder.Entity("RentMate.Core.Models.TextTranslation", b =>
+                {
+                    b.HasOne("RentMate.Core.Models.AppLanguage", "Language")
+                        .WithMany("Translations")
+                        .HasForeignKey("LanguageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RentMate.Core.Models.TextResource", "TextResource")
+                        .WithMany("Translations")
+                        .HasForeignKey("TextResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Language");
+
+                    b.Navigation("TextResource");
+                });
+
             modelBuilder.Entity("RentMate.Core.Models.WalletTransaction", b =>
                 {
                     b.HasOne("RentMate.Core.Models.Rental", "Rental")
@@ -989,6 +1211,11 @@ namespace RentMate.Data.Migrations
                     b.Navigation("Rental");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RentMate.Core.Models.AppLanguage", b =>
+                {
+                    b.Navigation("Translations");
                 });
 
             modelBuilder.Entity("RentMate.Core.Models.ApplicationUser", b =>
@@ -1034,6 +1261,11 @@ namespace RentMate.Data.Migrations
                     b.Navigation("Payments");
 
                     b.Navigation("Reviews");
+                });
+
+            modelBuilder.Entity("RentMate.Core.Models.TextResource", b =>
+                {
+                    b.Navigation("Translations");
                 });
 #pragma warning restore 612, 618
         }

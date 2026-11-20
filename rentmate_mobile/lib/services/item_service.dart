@@ -4,23 +4,34 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import 'auth_service.dart';
+import 'config_service.dart';
+import '../l10n/l10n.dart';
 
 class Category {
   final int id;
   final String name;
   final int? parentId;
 
+  /// Icon quản trị viên chọn trên AdminSite (smartphone, camera...); null thì đoán theo tên.
+  final String? icon;
+
   Category.fromJson(Map<String, dynamic> j)
       : id = j['categoryId'] as int,
         name = (j['categoryName'] ?? '') as String,
-        parentId = j['parentCategoryId'] as int?;
+        parentId = j['parentCategoryId'] as int?,
+        icon = j['icon'] as String? {
+    if (icon != null) categoryIconKeys[name.toLowerCase()] = icon!;
+  }
 }
+
+/// Tên danh mục → icon admin chọn, ghi lại mỗi khi tải danh sách danh mục.
+final Map<String, String> categoryIconKeys = {};
 
 /// Api trả đường dẫn tương đối (/uploads/items/...), ghép với địa chỉ Api để hiển thị.
 String imageFullUrl(String path) => path.startsWith('http') ? path : '$apiBaseUrl$path';
 
-/// Mỗi món đồ tối đa 8 ảnh (theo ItemService.MaxImagesPerItem).
-const maxItemImages = 8;
+/// Số ảnh tối đa mỗi món đồ, theo cài đặt hệ thống (AdminSite > Cài đặt hệ thống).
+int get maxItemImages => AppConfig.maxItemImages;
 
 class ItemImage {
   final int id;
@@ -88,14 +99,14 @@ class ItemService {
   /// 34 tỉnh/thành (Api giữ danh sách để app và server luôn khớp nhau).
   Future<List<String>> getProvinces() async {
     final res = await http.get(Uri.parse('$apiBaseUrl/api/Items/provinces'));
-    if (res.statusCode != 200) throw Exception('Không tải được danh sách tỉnh/thành (${res.statusCode})');
+    if (res.statusCode != 200) throw Exception(tr('Không tải được danh sách tỉnh/thành ({0})', [res.statusCode]));
     return (jsonDecode(res.body) as List).cast<String>();
   }
 
   /// Đồ đã được duyệt (trang chủ).
   Future<List<Item>> getItems() async {
     final res = await http.get(Uri.parse('$apiBaseUrl/api/Items'));
-    if (res.statusCode != 200) throw Exception('Không tải được danh sách đồ (${res.statusCode})');
+    if (res.statusCode != 200) throw Exception(tr('Không tải được danh sách đồ ({0})', [res.statusCode]));
     return _parseList(res.body);
   }
 
@@ -114,15 +125,15 @@ class ItemService {
       Uri.parse('$apiBaseUrl/api/Items/$id'),
       headers: await AuthService().optionalAuthHeaders(),
     );
-    if (res.statusCode == 404) throw Exception('Đồ này không còn trên RentMate');
-    if (res.statusCode != 200) throw Exception('Không tải được thông tin đồ (${res.statusCode})');
+    if (res.statusCode == 404) throw Exception(tr('Đồ này không còn trên RentMate'));
+    if (res.statusCode != 200) throw Exception(tr('Không tải được thông tin đồ ({0})', [res.statusCode]));
     return Item.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
   /// Danh mục đang hoạt động, mỗi danh mục cha đứng trước các danh mục con của nó.
   Future<List<Category>> getCategories() async {
     final res = await http.get(Uri.parse('$apiBaseUrl/api/Categories'));
-    if (res.statusCode != 200) throw Exception('Không tải được danh mục (${res.statusCode})');
+    if (res.statusCode != 200) throw Exception(tr('Không tải được danh mục ({0})', [res.statusCode]));
     return (jsonDecode(res.body) as List)
         .map((e) => Category.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -210,26 +221,26 @@ String formatVnd(num value) {
     if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
     buf.write(s[i]);
   }
-  return '${negative ? '-' : ''}$buf đ';
+  return tr('{0}{1} đ', [negative ? '-' : '', buf]);
 }
 
-const conditionLabels = {
-  'New': 'Mới',
-  'LikeNew': 'Như mới',
-  'Good': 'Tốt',
-  'Fair': 'Khá',
-  'Damaged': 'Hư hỏng',
+Map<String, String> get conditionLabels => {
+  'New': tr('Mới'),
+  'LikeNew': tr('Như mới'),
+  'Good': tr('Tốt'),
+  'Fair': tr('Khá'),
+  'Damaged': tr('Hư hỏng'),
 };
 
 // API nhận condition dạng số, theo enum ItemCondition trong RentMate.Core.
 const conditionValues = {'New': 1, 'LikeNew': 2, 'Good': 3, 'Fair': 4, 'Damaged': 5};
 
 // Theo enum ItemStatus trong RentMate.Core.
-const itemStatusLabels = {
-  'Available': 'Đang cho thuê',
-  'Rented': 'Có người đang thuê',
-  'Unavailable': 'Bị tạm ngưng',
-  'Hidden': 'Đã xóa',
-  'PendingApproval': 'Chờ duyệt',
-  'Rejected': 'Bị từ chối',
+Map<String, String> get itemStatusLabels => {
+  'Available': tr('Đang cho thuê'),
+  'Rented': tr('Có người đang thuê'),
+  'Unavailable': tr('Bị tạm ngưng'),
+  'Hidden': tr('Đã xóa'),
+  'PendingApproval': tr('Chờ duyệt'),
+  'Rejected': tr('Bị từ chối'),
 };

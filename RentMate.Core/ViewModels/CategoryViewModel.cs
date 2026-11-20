@@ -18,6 +18,10 @@ namespace RentMate.Core.ViewModels
         [Display(Name = "Mô tả")]
         public string? Description { get; set; }
 
+        // Icon hiện trên app (danh sách trong CategoryIconOption.All)
+        [Display(Name = "Icon trên app")]
+        public string? Icon { get; set; }
+
         [Display(Name = "Đang hoạt động")]
         public bool IsActive { get; set; } = true;
 

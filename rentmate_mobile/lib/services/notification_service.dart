@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'auth_service.dart';
+import '../l10n/l10n.dart';
 
 class AppNotification {
   final int id;
@@ -158,7 +159,7 @@ class NotificationCenter {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(single?.title ?? 'Bạn có $newCount thông báo mới',
+                  Text(single?.title ?? tr('Bạn có {0} thông báo mới', [newCount]),
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                   if (single != null) Text(single.message, maxLines: 2, overflow: TextOverflow.ellipsis),
                 ],

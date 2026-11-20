@@ -26,6 +26,9 @@ namespace RentMate.Service.DTOs.Rentals
 
         public decimal TotalPrice { get; set; }
 
+        // Phí nền tảng của đơn này (theo cài đặt lúc đặt), vd. 5
+        public decimal PlatformFeePercent { get; set; }
+
         public string Status { get; set; } = string.Empty;
 
         public string? RequestNote { get; set; }
@@ -56,5 +59,28 @@ namespace RentMate.Service.DTOs.Rentals
         public DateTime? OwnerInspectionDeadline { get; set; }
 
         public DateTime? RenterResponseDeadline { get; set; }
+
+        public string? CancelReason { get; set; }
+
+        // Giao nhận
+        public string DeliveryMethod { get; set; } = "Meetup";
+
+        public string? ShipToName { get; set; }
+
+        public string? ShipToPhone { get; set; }
+
+        public string? ShipToAddress { get; set; }
+
+        public string? ShipToAreaText { get; set; }
+
+        public string? ShippingOrderCode { get; set; }
+
+        public decimal? ShippingFee { get; set; }
+
+        public DateTime? ExpectedDeliveryAt { get; set; }
+
+        public int ShiftedDays { get; set; }
+
+        public decimal LateDeliveryRefund { get; set; }
     }
 }

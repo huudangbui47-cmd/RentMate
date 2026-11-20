@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'auth_service.dart';
+import '../l10n/l10n.dart';
 
 class WalletSummary {
   final num balance;
@@ -64,20 +65,20 @@ class DepositRequest {
 }
 
 // Theo WalletTransactionType / WalletTransactionStatus trong RentMate.Core.
-const walletTypeLabels = {
-  'Deposit': 'Nạp tiền',
-  'Withdraw': 'Rút tiền',
-  'RentalPayment': 'Thanh toán đơn thuê',
-  'RentalIncome': 'Tiền cho thuê',
-  'DepositRefund': 'Hoàn tiền cọc',
-  'Compensation': 'Tiền bồi thường',
-  'Refund': 'Hoàn tiền đơn hủy',
+Map<String, String> get walletTypeLabels => {
+  'Deposit': tr('Nạp tiền'),
+  'Withdraw': tr('Rút tiền'),
+  'RentalPayment': tr('Thanh toán đơn thuê'),
+  'RentalIncome': tr('Tiền cho thuê'),
+  'DepositRefund': tr('Hoàn tiền cọc'),
+  'Compensation': tr('Tiền bồi thường'),
+  'Refund': tr('Hoàn tiền đơn hủy'),
 };
 
-const walletStatusLabels = {
-  'Pending': 'Đang chờ duyệt',
-  'Completed': 'Thành công',
-  'Rejected': 'Bị từ chối',
+Map<String, String> get walletStatusLabels => {
+  'Pending': tr('Đang chờ duyệt'),
+  'Completed': tr('Thành công'),
+  'Rejected': tr('Bị từ chối'),
 };
 
 class WalletService {

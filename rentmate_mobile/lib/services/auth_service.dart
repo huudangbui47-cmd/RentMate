@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/l10n.dart';
 
 // Máy ảo Android gọi máy tính qua 10.0.2.2. Đổi số cổng thành cổng "http"
 // trong RentMate.Api/Properties/launchSettings.json.
@@ -107,7 +108,7 @@ class AuthService {
   // Header cho các API cần đăng nhập ([Authorize]).
   Future<Map<String, String>> authHeaders() async {
     final token = await getToken();
-    if (token == null) throw Exception('Bạn cần đăng nhập lại');
+    if (token == null) throw Exception(tr('Bạn cần đăng nhập lại'));
     return {..._json, 'Authorization': 'Bearer $token'};
   }
 
@@ -130,10 +131,10 @@ void checkResponse(http.Response res) {
   if (res.statusCode == 401) {
     // Token hết hạn, tài khoản bị khóa hoặc mật khẩu đã đổi ở máy khác: về màn hình đăng nhập
     onSessionExpired?.call();
-    throw Exception('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
+    throw Exception(tr('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại'));
   }
-  if (res.statusCode == 403) throw Exception('Bạn không có quyền thực hiện thao tác này');
-  if (res.statusCode == 404) throw Exception('Không tìm thấy dữ liệu, có thể đã bị xóa');
+  if (res.statusCode == 403) throw Exception(tr('Bạn không có quyền thực hiện thao tác này'));
+  if (res.statusCode == 404) throw Exception(tr('Không tìm thấy dữ liệu, có thể đã bị xóa'));
   if (res.statusCode < 200 || res.statusCode >= 300) throw Exception(apiErrorMessage(res));
 }
 
@@ -155,5 +156,5 @@ String apiErrorMessage(http.Response res) {
   } catch (_) {
     if (res.body.isNotEmpty) return res.body;
   }
-  return 'Lỗi ${res.statusCode}';
+  return tr('Lỗi {0}', [res.statusCode]);
 }

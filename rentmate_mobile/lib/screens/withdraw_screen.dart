@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../services/item_service.dart';
 import '../services/wallet_service.dart';
 import '../widgets/ui.dart';
+import '../l10n/l10n.dart';
+import '../services/config_service.dart';
 
 /// Rút tiền từ ví về tài khoản ngân hàng đã lưu.
 class WithdrawScreen extends StatefulWidget {
@@ -27,21 +29,20 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final amount = num.parse(_amount.text);
+    final amount = parseMoney(_amount.text)!;
     final w = widget.wallet;
     final ok = await confirmDialog(
       context,
-      title: 'Rút ${formatVnd(amount)}?',
-      message: 'Tiền sẽ chuyển về ${w.bankName} ${w.maskedAccountNumber} (${w.bankAccountName}). '
-          'Số tiền này bị khóa trong ví cho tới khi Admin chuyển khoản xong.',
-      confirmText: 'Rút tiền',
+      title: tr('Rút {0}?', [formatVnd(amount)]),
+      message: tr('Tiền sẽ chuyển về {0} {1} ({2}). Số tiền này bị khóa trong ví cho tới khi Admin chuyển khoản xong.', [w.bankName, w.maskedAccountNumber, w.bankAccountName]),
+      confirmText: tr('Rút tiền'),
     );
     if (!ok) return;
     setState(() => _busy = true);
     try {
       await WalletService().createWithdraw(amount);
       if (!mounted) return;
-      showSnack(context, 'Đã gửi yêu cầu rút tiền. Admin sẽ chuyển khoản sớm.');
+      showSnack(context, tr('Đã gửi yêu cầu rút tiền. Admin sẽ chuyển khoản sớm.'));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -54,7 +55,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   Widget build(BuildContext context) {
     final w = widget.wallet;
     return Scaffold(
-      appBar: AppBar(title: const Text('Rút tiền')),
+      appBar: AppBar(title: Text(tr('Rút tiền'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -65,9 +66,9 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    InfoRow('Số dư khả dụng', formatVnd(w.availableBalance), bold: true),
-                    InfoRow('Rút về', '${w.bankName} ${w.maskedAccountNumber}'),
-                    InfoRow('Chủ tài khoản', w.bankAccountName ?? ''),
+                    InfoRow(tr('Số dư khả dụng'), formatVnd(w.availableBalance), bold: true),
+                    InfoRow(tr('Rút về'), '${w.bankName} ${w.maskedAccountNumber}'),
+                    InfoRow(tr('Chủ tài khoản'), w.bankAccountName ?? ''),
                   ],
                 ),
               ),
@@ -76,26 +77,26 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
             TextFormField(
               controller: _amount,
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              inputFormatters: [MoneyInputFormatter()],
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
               decoration: InputDecoration(
-                labelText: 'Số tiền muốn rút',
-                suffixText: 'đ',
+                labelText: tr('Số tiền muốn rút'),
+                suffixText: tr('đ'),
                 suffixIcon: TextButton(
-                  onPressed: () => setState(() => _amount.text = w.availableBalance.round().toString()),
-                  child: const Text('Tất cả'),
+                  onPressed: () => setState(() => _amount.text = moneyText(w.availableBalance)),
+                  child: Text(tr('Tất cả')),
                 ),
               ),
               validator: (v) {
-                final n = num.tryParse(v ?? '');
-                if (n == null) return 'Nhập số tiền';
-                if (n < 10000 || n > 50000000) return 'Từ 10.000 đ đến 50.000.000 đ';
-                if (n > w.availableBalance) return 'Vượt quá số dư khả dụng';
+                final n = parseMoney(v);
+                if (n == null) return tr('Nhập số tiền');
+                if (n < AppConfig.minWalletAmount || n > AppConfig.maxWalletAmount) return tr('Từ {0} đến {1}', [formatVnd(AppConfig.minWalletAmount), formatVnd(AppConfig.maxWalletAmount)]);
+                if (n > w.availableBalance) return tr('Vượt quá số dư khả dụng');
                 return null;
               },
             ),
             const SizedBox(height: 24),
-            BusyButton(busy: _busy, onPressed: _submit, label: 'Gửi yêu cầu rút'),
+            BusyButton(busy: _busy, onPressed: _submit, label: tr('Gửi yêu cầu rút')),
           ],
         ),
       ),
@@ -143,7 +144,7 @@ class _BankInfoScreenState extends State<BankInfoScreen> {
         accountName: _name.text.trim(),
       );
       if (!mounted) return;
-      showSnack(context, 'Đã lưu tài khoản ngân hàng');
+      showSnack(context, tr('Đã lưu tài khoản ngân hàng'));
       if (widget.thenWithdraw) {
         final wallet = await WalletService().getSummary();
         if (!mounted) return;
@@ -164,46 +165,46 @@ class _BankInfoScreenState extends State<BankInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tài khoản ngân hàng')),
+      appBar: AppBar(title: Text(tr('Tài khoản ngân hàng'))),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const NoticeBox('Tiền rút sẽ được chuyển vào tài khoản này. Họ tên chủ tài khoản phải đúng như trên thẻ.'),
+            NoticeBox(tr('Tiền rút sẽ được chuyển vào tài khoản này. Họ tên chủ tài khoản phải đúng như trên thẻ.')),
             const SizedBox(height: 16),
             TextFormField(
               controller: _bank,
               decoration: InputDecoration(
-                labelText: 'Ngân hàng',
-                hintText: 'Ví dụ: Vietcombank',
+                labelText: tr('Ngân hàng'),
+                hintText: tr('Ví dụ: Vietcombank'),
                 suffixIcon: PopupMenuButton<String>(
-                  tooltip: 'Chọn ngân hàng',
+                  tooltip: tr('Chọn ngân hàng'),
                   icon: const Icon(Icons.arrow_drop_down),
                   onSelected: (v) => setState(() => _bank.text = v),
                   itemBuilder: (_) => [for (final b in _popularBanks) PopupMenuItem(value: b, child: Text(b))],
                 ),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên ngân hàng' : null,
+              validator: (v) => (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập tên ngân hàng') : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _number,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'Số tài khoản'),
+              decoration: InputDecoration(labelText: tr('Số tài khoản')),
               validator: (v) =>
-                  RegExp(r'^\d{6,20}$').hasMatch(v ?? '') ? null : 'Số tài khoản gồm 6–20 chữ số',
+                  RegExp(r'^\d{6,20}$').hasMatch(v ?? '') ? null : tr('Số tài khoản gồm 6–20 chữ số'),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _name,
               textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(labelText: 'Họ tên chủ tài khoản', hintText: 'NGUYEN VAN A'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập họ tên chủ tài khoản' : null,
+              decoration: InputDecoration(labelText: tr('Họ tên chủ tài khoản'), hintText: 'NGUYEN VAN A'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập họ tên chủ tài khoản') : null,
             ),
             const SizedBox(height: 24),
-            BusyButton(busy: _busy, onPressed: _save, label: 'Lưu'),
+            BusyButton(busy: _busy, onPressed: _save, label: tr('Lưu')),
           ],
         ),
       ),

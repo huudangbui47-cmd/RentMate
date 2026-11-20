@@ -44,7 +44,20 @@ builder.Services.Configure<DataProtectionTokenProviderOptions>(options => option
 // Cấu hình gửi email (mục "Smtp" trong appsettings)
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
+// RentalService cần GHN để hủy vận đơn khi đơn bị hủy (mục "Ghn", để trống thì bỏ qua)
+builder.Services.Configure<GhnSettings>(builder.Configuration.GetSection("Ghn"));
+builder.Services.AddHttpClient<IShippingService, GhnShippingService>(client => client.Timeout = TimeSpan.FromSeconds(20));
+
+// AI dịch nháp câu chữ ở trang Ngôn ngữ (mục "Ai", giống Api; để trống thì ẩn nút dịch bằng AI)
+builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ai"));
+
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Cài đặt hệ thống đọc từ database, giữ trong bộ nhớ 30 giây
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
+builder.Services.AddScoped<ILocalizationService, LocalizationService>();
+builder.Services.AddScoped<ITranslationAiService, TranslationAiService>();
 
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();

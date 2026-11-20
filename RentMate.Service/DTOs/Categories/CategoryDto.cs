@@ -7,6 +7,9 @@ namespace RentMate.Service.DTOs.Categories
         public string? Description { get; set; }
         public bool IsActive { get; set; }
 
+        // Tên icon admin chọn (smartphone, camera...); null thì app tự đoán theo tên danh mục
+        public string? Icon { get; set; }
+
         // null là danh mục cha; app dựng cây danh mục từ trường này
         public int? ParentCategoryId { get; set; }
     }

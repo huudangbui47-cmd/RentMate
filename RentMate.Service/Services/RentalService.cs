@@ -5,38 +5,38 @@ using RentMate.Core.Interfaces.Persistence;
 using RentMate.Core.Models;
 using RentMate.Core.ViewModels;
 using RentMate.Service.DTOs.Rentals;
+using RentMate.Service.DTOs.Settings;
+using RentMate.Service.DTOs.Shipping;
 using RentMate.Service.Interfaces;
 
 namespace RentMate.Service.Services
 {
     public class RentalService : IRentalService
     {
-        // Phí nền tảng trừ trên tiền thuê lúc hoàn tất (không tính trên tiền cọc)
-        public const decimal PlatformFeeRate = 0.05m;
-
+        // Phí nền tảng trừ trên tiền thuê lúc hoàn tất (không tính trên tiền cọc).
+        // Tỉ lệ phí lưu trong từng đơn (Rental.PlatformFeeRate) theo cài đặt lúc đặt đơn.
         // Phần chủ đồ nhận và phần RentMate giữ lại của một đơn (Dashboard dùng để tính doanh thu)
-        public static decimal OwnerIncome(decimal totalPrice) => Math.Round(totalPrice * (1 - PlatformFeeRate), 0);
+        public static decimal OwnerIncome(decimal totalPrice, decimal feeRate) => Math.Round(totalPrice * (1 - feeRate), 0);
 
-        public static decimal PlatformFee(decimal totalPrice) => totalPrice - OwnerIncome(totalPrice);
+        public static decimal PlatformFee(decimal totalPrice, decimal feeRate) => totalPrice - OwnerIncome(totalPrice, feeRate);
 
-        // Đơn đã duyệt mà người thuê chưa thanh toán sau ngần này thì chủ đồ được hủy
-        private static readonly TimeSpan PaymentTimeout = TimeSpan.FromHours(24);
+        // 0.05 → "5%", 0.025 → "2,5%"
+        public static string FeeText(decimal feeRate) => (feeRate * 100).ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + "%";
 
-        // Giới hạn một đơn thuê: tối đa 30 ngày, đặt trước tối đa 90 ngày
-        public const int MaxRentalDays = 30;
-        public const int MaxDaysAhead = 90;
+        // Giới hạn đơn thuê, hạn thanh toán, hạn kiểm tra... lấy từ cài đặt hệ thống (ISystemSettingService)
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IWalletService _walletService;
         private readonly INotificationService _notificationService;
         private readonly IAuditLogService _auditLogService;
 
-        // Sau khi người thuê trả đồ: chủ đồ có 3 ngày kiểm tra; người thuê có 2 ngày phản hồi yêu cầu bồi thường
-        public const int OwnerInspectionDays = 3;
-        public const int RenterResponseDays = 2;
+        private readonly IShippingService _shippingService;
+        private readonly ISystemSettingService _settingService;
 
-        public RentalService(IUnitOfWork unitOfWork, IWalletService walletService, INotificationService notificationService, IAuditLogService auditLogService)
+        public RentalService(IUnitOfWork unitOfWork, IWalletService walletService, INotificationService notificationService, IAuditLogService auditLogService, IShippingService shippingService, ISystemSettingService settingService)
         {
+            _settingService = settingService;
+            _shippingService = shippingService;
             _unitOfWork = unitOfWork;
             _walletService = walletService;
             _notificationService = notificationService;
@@ -62,19 +62,21 @@ namespace RentMate.Service.Services
                     "Ngày trả phải sau hoặc trùng ngày nhận.");
             }
 
-            if (dto.StartDate.Date > DateTime.UtcNow.Date.AddDays(MaxDaysAhead))
+            var settings = await _settingService.GetAsync();
+
+            if (dto.StartDate.Date > DateTime.UtcNow.Date.AddDays(settings.MaxDaysAhead))
             {
                 throw new ArgumentException(
-                    $"Chỉ đặt thuê trước tối đa {MaxDaysAhead} ngày.");
+                    $"Chỉ đặt thuê trước tối đa {settings.MaxDaysAhead} ngày.");
             }
 
             var numberOfDays =
                 (dto.EndDate.Date - dto.StartDate.Date).Days + 1;
 
-            if (numberOfDays > MaxRentalDays)
+            if (numberOfDays > settings.MaxRentalDays)
             {
                 throw new ArgumentException(
-                    $"Mỗi đơn thuê tối đa {MaxRentalDays} ngày.");
+                    $"Mỗi đơn thuê tối đa {settings.MaxRentalDays} ngày.");
             }
 
             var item = await _unitOfWork.Items
@@ -134,10 +136,49 @@ namespace RentMate.Service.Services
                     $"Đồ đã có người thuê từ {busy.StartDate:dd/MM} đến {busy.EndDate:dd/MM}. Vui lòng chọn ngày khác.");
             }
 
+            if (!Enum.IsDefined(typeof(DeliveryMethod), dto.DeliveryMethod))
+            {
+                throw new ArgumentException("Cách nhận đồ không hợp lệ.");
+            }
+
+            bool ship = dto.DeliveryMethod == DeliveryMethod.Ghn;
+
+            if (ship)
+            {
+                if (!_shippingService.IsEnabled)
+                {
+                    throw new InvalidOperationException("Giao hàng GHN chưa được bật, vui lòng chọn nhận đồ trực tiếp.");
+                }
+
+                var phone = dto.ShipToPhone?.Trim() ?? "";
+
+                if (string.IsNullOrWhiteSpace(dto.ShipToName) ||
+                    string.IsNullOrWhiteSpace(dto.ShipToAddress) ||
+                    string.IsNullOrWhiteSpace(dto.ShipToWardCode) ||
+                    dto.ShipToDistrictId is null or <= 0)
+                {
+                    throw new ArgumentException("Vui lòng nhập đủ tên người nhận, địa chỉ và chọn tỉnh, quận, phường.");
+                }
+
+                if (phone.Length < 10 || phone.Length > 11 || !phone.All(char.IsDigit) || phone[0] != '0')
+                {
+                    throw new ArgumentException("Số điện thoại người nhận không hợp lệ.");
+                }
+            }
+
             var rental = new Rental
             {
+                PlatformFeeRate = settings.PlatformFeeRate,
                 ItemId = item.Id,
                 RenterId = renterId,
+
+                DeliveryMethod = dto.DeliveryMethod,
+                ShipToName = ship ? Cut(dto.ShipToName!.Trim(), 100) : null,
+                ShipToPhone = ship ? dto.ShipToPhone!.Trim() : null,
+                ShipToAddress = ship ? Cut(dto.ShipToAddress!.Trim(), 300) : null,
+                ShipToDistrictId = ship ? dto.ShipToDistrictId : null,
+                ShipToWardCode = ship ? dto.ShipToWardCode!.Trim() : null,
+                ShipToAreaText = ship ? Cut(dto.ShipToAreaText?.Trim() ?? "", 300) : null,
 
                 StartDate = dto.StartDate.Date,
                 EndDate = dto.EndDate.Date,
@@ -183,8 +224,10 @@ namespace RentMate.Service.Services
                 .OrderByDescending(r => r.RequestedAt)
                 .ToListAsync();
 
+            var settings = await _settingService.GetAsync();
+
             return rentals
-                .Select(ToDto)
+                .Select(r => ToDto(r, settings))
                 .ToList();
         }
 
@@ -208,7 +251,7 @@ namespace RentMate.Service.Services
                 return null;
             }
 
-            return ToDto(rental);
+            return ToDto(rental, await _settingService.GetAsync());
         }
 
         // =========================
@@ -239,10 +282,12 @@ namespace RentMate.Service.Services
                     "Chỉ duyệt được đơn đang chờ duyệt.");
             }
 
-            if (rental.Item.Status == ItemStatus.Hidden || rental.Item.Status == ItemStatus.Unavailable)
+            // Chỉ đồ đang hiện trên app (trống hoặc đang có người thuê) mới duyệt được.
+            // Đồ bị ẩn, tạm ngưng, chờ duyệt lại sau khi sửa hoặc bị từ chối thì chặn.
+            if (!IsRentable(rental.Item.Status))
             {
                 throw new InvalidOperationException(
-                    "Đồ đang bị ẩn hoặc tạm ngưng, không duyệt được đơn.");
+                    "Đồ đang bị ẩn, tạm ngưng hoặc chờ quản lý duyệt lại, chưa duyệt đơn được.");
             }
 
             // Kiểm tra lịch thuê trùng
@@ -318,7 +363,10 @@ namespace RentMate.Service.Services
         // =========================
         // PICKUP (người thuê xác nhận đã nhận đồ = đồng ý biên bản lúc giao)
         // =========================
-        public async Task<bool> PickupAsync(
+        public Task<bool> PickupAsync(int rentalId, string renterId) =>
+            RunSeriallyAsync(() => PickupCoreAsync(rentalId, renterId));
+
+        private async Task<bool> PickupCoreAsync(
             int rentalId,
             string renterId)
         {
@@ -341,26 +389,41 @@ namespace RentMate.Service.Services
                     "Chỉ xác nhận nhận đồ được khi đơn đã thanh toán và chưa nhận.");
             }
 
-            var hasBeforeReport = await _unitOfWork.ConditionReports
+            // Người thuê phải tự chụp ảnh lúc nhận (biên bản này chỉ lập được sau biên bản lúc giao của chủ đồ)
+            var hasRenterReport = await _unitOfWork.ConditionReports
                 .BuildQuery(c =>
                     c.RentalId == rentalId &&
-                    c.ReportType == ConditionReportType.BeforeRental)
+                    c.ReportType == ConditionReportType.RenterReceived)
                 .AnyAsync();
 
-            if (!hasBeforeReport)
+            if (!hasRenterReport)
             {
                 throw new InvalidOperationException(
-                    "Chủ đồ chưa lập biên bản lúc giao (có ảnh), chưa xác nhận nhận đồ được.");
+                    "Hãy chụp ảnh biên bản lúc nhận đồ (nút Biên bản) trước khi bấm Đã nhận đồ.");
             }
 
-            rental.Status = RentalStatus.Rented;
-            rental.ReceivedAt = DateTime.UtcNow;
+            var now = DateTime.UtcNow;
 
-            rental.Item.Status = ItemStatus.Rented;
+            rental.Status = RentalStatus.Rented;
+            rental.ReceivedAt = now;
+
+            string shiftNote = await ApplyLateDeliveryAsync(rental, now);
+
+            if (shiftNote.Length > 0)
+            {
+                await _notificationService.AddAsync(rental.RenterId, NotificationType.System,
+                    "Đã tính lại ngày thuê", $"Đơn #{rental.Id} '{rental.Item.ItemName}':{shiftNote}");
+            }
+
+            // Không ghi đè khi đồ đang bị ẩn/chờ duyệt lại
+            if (rental.Item.Status == ItemStatus.Available)
+            {
+                rental.Item.Status = ItemStatus.Rented;
+            }
 
             await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.System,
                 "Người thuê đã nhận đồ",
-                $"Đơn #{rental.Id} '{rental.Item.ItemName}': người thuê đã nhận đồ và đồng ý biên bản lúc giao. Hạn trả {rental.EndDate:dd/MM/yyyy}.");
+                $"Đơn #{rental.Id} '{rental.Item.ItemName}': người thuê đã nhận đồ và đồng ý biên bản lúc giao. Hạn trả {rental.EndDate:dd/MM/yyyy}.{shiftNote}");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -395,9 +458,11 @@ namespace RentMate.Service.Services
             rental.Status = RentalStatus.Returned;
             rental.ReturnedAt = DateTime.UtcNow;
 
+            var settings = await _settingService.GetAsync();
+
             await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.ReturnReminder,
                 "Người thuê đã trả đồ",
-                $"Đơn #{rental.Id} '{rental.Item.ItemName}': trong {OwnerInspectionDays} ngày, hãy chụp ảnh lập biên bản nhận lại (AI so sánh với lúc giao) rồi bấm Hoàn tất.");
+                $"Đơn #{rental.Id} '{rental.Item.ItemName}': trong {settings.OwnerInspectionDays} ngày, hãy chụp ảnh lập biên bản nhận lại (AI so sánh với lúc giao) rồi bấm Hoàn tất.");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -436,6 +501,7 @@ namespace RentMate.Service.Services
             }
 
             var now = DateTime.UtcNow;
+            var settings = await _settingService.GetAsync();
 
             if (isRenter)
             {
@@ -445,23 +511,23 @@ namespace RentMate.Service.Services
                         "Chỉ tự hoàn tất được khi đã trả đồ mà chủ đồ chưa xử lý.");
                 }
 
-                var deadline = (rental.ReturnedAt ?? now).AddDays(OwnerInspectionDays);
+                var deadline = (rental.ReturnedAt ?? now).AddDays(settings.OwnerInspectionDays);
 
                 if (now < deadline)
                 {
                     throw new InvalidOperationException(
-                        $"Chủ đồ có {OwnerInspectionDays} ngày để kiểm tra đồ. Bạn tự hoàn tất được sau {deadline.ToLocalTime():dd/MM HH:mm}.");
+                        $"Chủ đồ có {settings.OwnerInspectionDays} ngày để kiểm tra đồ. Bạn tự hoàn tất được sau {deadline.ToLocalTime():dd/MM HH:mm}.");
                 }
 
                 await SettleAsync(rental, 0,
-                    $"Chủ đồ không kiểm tra đồ trong {OwnerInspectionDays} ngày nên đơn tự hoàn tất.");
+                    $"Chủ đồ không kiểm tra đồ trong {settings.OwnerInspectionDays} ngày nên đơn tự hoàn tất.");
 
                 return true;
             }
 
             if (rental.Status == RentalStatus.DamageClaimed)
             {
-                var deadline = (rental.DamageClaimedAt ?? now).AddDays(RenterResponseDays);
+                var deadline = (rental.DamageClaimedAt ?? now).AddDays(settings.RenterResponseDays);
 
                 if (now < deadline)
                 {
@@ -470,7 +536,7 @@ namespace RentMate.Service.Services
                 }
 
                 await SettleAsync(rental, rental.DamageAmount,
-                    $"Người thuê không phản hồi trong {RenterResponseDays} ngày nên áp dụng mức bồi thường chủ đồ đề nghị.");
+                    $"Người thuê không phản hồi trong {settings.RenterResponseDays} ngày nên áp dụng mức bồi thường chủ đồ đề nghị.");
 
                 return true;
             }
@@ -514,10 +580,12 @@ namespace RentMate.Service.Services
             rental.DamageNote = damageNote.Length > 1000 ? damageNote[..1000] : damageNote;
             rental.DamageClaimedAt = now;
 
+            int responseDays = (await _settingService.GetAsync()).RenterResponseDays;
+
             await _notificationService.AddAsync(rental.RenterId, NotificationType.Payment,
                 "Chủ đồ yêu cầu bồi thường",
                 $"Đơn #{rental.Id} '{rental.Item.ItemName}': chủ đồ đề nghị trừ {NotificationService.Money(damageAmount)} tiền cọc. " +
-                $"Lý do: {rental.DamageNote}. Vào Đơn thuê để đồng ý hoặc khiếu nại trong {RenterResponseDays} ngày.");
+                $"Lý do: {rental.DamageNote}. Vào Đơn thuê để đồng ý hoặc khiếu nại trong {responseDays} ngày.");
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -615,7 +683,7 @@ namespace RentMate.Service.Services
                 rental.ResolutionNote = note.Length > 1000 ? note[..1000] : note;
 
                 await _auditLogService.RecordAsync("ResolveDispute", "Rental", rental.Id.ToString(),
-                    $"Phân xử khiếu nại đơn #{rental.Id}: trừ {damageAmount:N0} đ / cọc {rental.DepositAmount:N0} đ (chủ đồ đề nghị {rental.DamageAmount:N0} đ). Kết luận: {rental.ResolutionNote}",
+                    $"Phân xử khiếu nại đơn #{rental.Id}: trừ {NotificationService.Money(damageAmount)} / cọc {NotificationService.Money(rental.DepositAmount)} (chủ đồ đề nghị {NotificationService.Money(rental.DamageAmount)}). Kết luận: {rental.ResolutionNote}",
                     ipAddress, adminId);
 
                 await SettleAsync(rental, damageAmount, $"Quản trị viên đã phân xử: {rental.ResolutionNote}");
@@ -628,7 +696,7 @@ namespace RentMate.Service.Services
             if (damageAmount < 0 || damageAmount > rental.DepositAmount)
             {
                 throw new InvalidOperationException(
-                    $"Tiền bồi thường từ 0 đến {rental.DepositAmount:N0} đ (không vượt tiền cọc).");
+                    $"Tiền bồi thường từ 0 đến {NotificationService.Money(rental.DepositAmount)} (không vượt tiền cọc).");
             }
         }
 
@@ -640,9 +708,14 @@ namespace RentMate.Service.Services
             rental.CompletedAt = DateTime.UtcNow;
             rental.DamageAmount = damageAmount;
 
-            rental.Item.Status = ItemStatus.Available;
+            // Chỉ trả về "Còn trống" khi đồ đang ở trạng thái "Đang cho thuê";
+            // đồ đã bị ẩn hoặc chủ đồ sửa (chờ duyệt lại) thì giữ nguyên, không tự hiện lại trên app
+            if (rental.Item.Status == ItemStatus.Rented)
+            {
+                rental.Item.Status = ItemStatus.Available;
+            }
 
-            var ownerIncome = OwnerIncome(rental.TotalPrice);
+            var ownerIncome = OwnerIncome(rental.TotalPrice, rental.PlatformFeeRate);
             var refund = rental.DepositAmount - damageAmount;
 
             await AddWalletEntryAsync(
@@ -650,7 +723,7 @@ namespace RentMate.Service.Services
                 ownerIncome,
                 WalletTransactionType.RentalIncome,
                 rental.Id,
-                $"Tiền thuê đơn #{rental.Id} (đã trừ phí {PlatformFeeRate:P0})");
+                $"Tiền thuê đơn #{rental.Id} (đã trừ phí {FeeText(rental.PlatformFeeRate)})");
 
             if (damageAmount > 0)
             {
@@ -672,7 +745,7 @@ namespace RentMate.Service.Services
                     WalletTransactionType.DepositRefund,
                     rental.Id,
                     damageAmount > 0
-                        ? $"Hoàn cọc đơn #{rental.Id} (đã trừ {damageAmount:N0} đ bồi thường)"
+                        ? $"Hoàn cọc đơn #{rental.Id} (đã trừ {NotificationService.Money(damageAmount)} bồi thường)"
                         : $"Hoàn cọc đơn #{rental.Id}");
 
                 await AddPaymentAsync(rental.Id, refund, PaymentType.DepositRefund);
@@ -682,7 +755,7 @@ namespace RentMate.Service.Services
 
             await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.Payment,
                 "Bạn nhận được tiền thuê",
-                $"Đơn #{rental.Id} '{rental.Item.ItemName}' đã hoàn tất. {NotificationService.Money(ownerIncome)} tiền thuê (đã trừ phí {PlatformFeeRate:P0})" +
+                $"Đơn #{rental.Id} '{rental.Item.ItemName}' đã hoàn tất. {NotificationService.Money(ownerIncome)} tiền thuê (đã trừ phí {FeeText(rental.PlatformFeeRate)})" +
                 (damageAmount > 0 ? $" và {NotificationService.Money(damageAmount)} tiền bồi thường" : "") +
                 " đã được cộng vào ví." + suffix);
 
@@ -725,10 +798,10 @@ namespace RentMate.Service.Services
                     "Chỉ thanh toán được đơn đã được chủ đồ duyệt.");
             }
 
-            if (rental.Item.Status == ItemStatus.Hidden || rental.Item.Status == ItemStatus.Unavailable)
+            if (!IsRentable(rental.Item.Status))
             {
                 throw new InvalidOperationException(
-                    "Đồ đang bị ẩn hoặc tạm ngưng, chưa thanh toán được.");
+                    "Đồ đang bị ẩn, tạm ngưng hoặc chờ quản lý duyệt lại, chưa thanh toán được.");
             }
 
             var amount = rental.TotalPrice + rental.DepositAmount;
@@ -764,12 +837,35 @@ namespace RentMate.Service.Services
         // =========================
         // CANCEL (trước khi giao đồ)
         // =========================
-        public Task<bool> CancelAsync(int rentalId, string userId) =>
-            RunSeriallyAsync(() => CancelCoreAsync(rentalId, userId));
+        public async Task<bool> CancelAsync(int rentalId, string userId, string? reason = null)
+        {
+            string? orderCode = null;
+
+            var done = await RunSeriallyAsync(async () =>
+            {
+                var ok = await CancelCoreAsync(rentalId, userId, reason);
+
+                if (ok)
+                {
+                    orderCode = (await _unitOfWork.Rentals.GetByIdAsync(rentalId))?.ShippingOrderCode;
+                }
+
+                return ok;
+            });
+
+            // Đã gửi hàng qua GHN thì hủy vận đơn (lỗi chỉ ghi log)
+            if (done && orderCode != null)
+            {
+                await _shippingService.TryCancelOrderAsync(orderCode);
+            }
+
+            return done;
+        }
 
         private async Task<bool> CancelCoreAsync(
             int rentalId,
-            string userId)
+            string userId,
+            string? reason)
         {
             var rental = await GetRentalWithItemAsync(rentalId);
 
@@ -799,13 +895,15 @@ namespace RentMate.Service.Services
             }
             else
             {
-                // Chủ đồ chỉ hủy được đơn đã duyệt mà người thuê không thanh toán sau 24 giờ
+                // Chủ đồ chỉ hủy được đơn đã duyệt mà người thuê không thanh toán sau thời hạn trong cài đặt
+                int timeoutHours = (await _settingService.GetAsync()).PaymentTimeoutHours;
+
                 if (rental.Status != RentalStatus.Approved ||
                     rental.ApprovedAt == null ||
-                    DateTime.UtcNow - rental.ApprovedAt.Value < PaymentTimeout)
+                    DateTime.UtcNow - rental.ApprovedAt.Value < TimeSpan.FromHours(timeoutHours))
                 {
                     throw new InvalidOperationException(
-                        "Chủ đồ chỉ hủy được đơn đã duyệt mà người thuê chưa thanh toán sau 24 giờ.");
+                        $"Chủ đồ chỉ hủy được đơn đã duyệt mà người thuê chưa thanh toán sau {timeoutHours} giờ.");
                 }
             }
 
@@ -823,13 +921,15 @@ namespace RentMate.Service.Services
             bool wasPaid = rental.Status == RentalStatus.WaitingForPickup;
 
             rental.Status = RentalStatus.Cancelled;
+            rental.CancelReason = string.IsNullOrWhiteSpace(reason) ? null : Cut(reason.Trim(), 500);
 
             // Báo cho bên còn lại
             if (isRenter)
             {
                 await _notificationService.AddAsync(rental.Item.OwnerId, NotificationType.System,
                     "Đơn thuê đã bị hủy",
-                    $"Người thuê đã hủy đơn #{rental.Id} '{rental.Item.ItemName}'.");
+                    $"Người thuê đã hủy đơn #{rental.Id} '{rental.Item.ItemName}'." +
+                    (rental.CancelReason != null ? $" Lý do: {rental.CancelReason}" : ""));
             }
             else
             {
@@ -843,6 +943,237 @@ namespace RentMate.Service.Services
 
             return true;
         }
+
+        // =========================
+        // GIAO HÀNG GHN
+        // =========================
+        public async Task<bool> CreateShipmentAsync(int rentalId, string ownerId, int weightGram)
+        {
+            var rental = await GetRentalWithItemAsync(rentalId);
+
+            if (rental == null)
+            {
+                return false;
+            }
+
+            if (rental.Item.OwnerId != ownerId)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (rental.DeliveryMethod != DeliveryMethod.Ghn)
+            {
+                throw new InvalidOperationException("Đơn này nhận đồ trực tiếp, không cần tạo đơn giao hàng.");
+            }
+
+            if (rental.Status != RentalStatus.WaitingForPickup)
+            {
+                throw new InvalidOperationException("Chỉ gửi hàng khi người thuê đã thanh toán và chưa nhận đồ.");
+            }
+
+            if (rental.ShippingOrderCode != null)
+            {
+                throw new InvalidOperationException("Đơn giao hàng đã được tạo rồi.");
+            }
+
+            var hasBeforeReport = await _unitOfWork.ConditionReports
+                .BuildQuery(c => c.RentalId == rentalId && c.ReportType == ConditionReportType.BeforeRental)
+                .AnyAsync();
+
+            if (!hasBeforeReport)
+            {
+                throw new InvalidOperationException("Hãy chụp ảnh biên bản lúc giao trước khi gửi hàng.");
+            }
+
+            if (weightGram < 100 || weightGram > 30000)
+            {
+                throw new ArgumentException("Khối lượng từ 100 g đến 30 kg.");
+            }
+
+            var result = await _shippingService.CreateOrderAsync(new ShipmentRequest
+            {
+                ClientOrderCode = $"RM{rental.Id}-{DateTime.UtcNow:yyMMddHHmmss}",
+                ToName = rental.ShipToName ?? "",
+                ToPhone = rental.ShipToPhone ?? "",
+                ToAddress = rental.ShipToAddress ?? "",
+                ToWardCode = rental.ShipToWardCode ?? "",
+                ToDistrictId = rental.ShipToDistrictId ?? 0,
+                Content = Cut(rental.Item.ItemName, 100),
+                Note = $"Đơn thuê RentMate #{rental.Id}",
+                WeightGram = weightGram
+            });
+
+            rental.ShippingOrderCode = result.OrderCode;
+            rental.ShippingFee = result.Fee;
+            rental.ShippingCreatedAt = DateTime.UtcNow;
+            rental.ExpectedDeliveryAt = result.ExpectedDeliveryAt;
+
+            await _notificationService.AddAsync(rental.RenterId, NotificationType.System,
+                "Đồ đã được gửi đi",
+                $"Đơn #{rental.Id} '{rental.Item.ItemName}' đã giao cho GHN, mã vận đơn {result.OrderCode}" +
+                (result.ExpectedDeliveryAt != null ? $", dự kiến giao {result.ExpectedDeliveryAt.Value.AddHours(7):dd/MM}." : ".") +
+                " Ngày thuê tính từ lúc bạn bấm Đã nhận đồ.");
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return true;
+        }
+
+        public async Task<ShippingTrackingDto?> GetShippingAsync(int rentalId, string userId)
+        {
+            var rental = await _unitOfWork.Rentals
+                .BuildQuery(r => r.Id == rentalId)
+                .Include(r => r.Item)
+                .Include(r => r.Payments)
+                .Include(r => r.ConditionReports)
+                .FirstOrDefaultAsync();
+
+            if (rental == null)
+            {
+                return null;
+            }
+
+            if (rental.RenterId != userId && rental.Item.OwnerId != userId)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            bool ship = rental.DeliveryMethod == DeliveryMethod.Ghn;
+
+            var dto = new ShippingTrackingDto
+            {
+                DeliveryMethod = rental.DeliveryMethod.ToString(),
+                OrderCode = rental.ShippingOrderCode,
+                ShippingFee = rental.ShippingFee,
+                ExpectedDeliveryAt = rental.ExpectedDeliveryAt,
+                ShipToText = ship
+                    ? $"{rental.ShipToName} · {rental.ShipToPhone}\n{rental.ShipToAddress}, {rental.ShipToAreaText}"
+                    : null
+            };
+
+            var paidAt = rental.Payments.OrderBy(p => p.CreatedAt).Select(p => (DateTime?)p.CreatedAt).FirstOrDefault();
+            var report = (ConditionReportType t) => rental.ConditionReports.FirstOrDefault(c => c.ReportType == t);
+            var before = report(ConditionReportType.BeforeRental);
+            var received = report(ConditionReportType.RenterReceived);
+
+            dto.Steps.Add(new ShippingStepDto { Title = "Người thuê đã thanh toán", Time = paidAt, Done = paidAt != null });
+            dto.Steps.Add(new ShippingStepDto
+            {
+                Title = "Người cho thuê đang chuẩn bị hàng",
+                Detail = before != null ? "Đã chụp ảnh biên bản lúc giao" : "Chờ chụp ảnh biên bản lúc giao",
+                Time = before?.CreatedAt,
+                Done = before != null
+            });
+
+            if (ship)
+            {
+                dto.Steps.Add(new ShippingStepDto
+                {
+                    Title = "Đã giao cho Giao Hàng Nhanh",
+                    Detail = rental.ShippingOrderCode != null ? $"Mã vận đơn {rental.ShippingOrderCode}" : null,
+                    Time = rental.ShippingCreatedAt,
+                    Done = rental.ShippingOrderCode != null
+                });
+
+                if (rental.ShippingOrderCode != null)
+                {
+                    try
+                    {
+                        var tracking = await _shippingService.GetTrackingAsync(rental.ShippingOrderCode);
+                        dto.StatusText = GhnShippingService.StatusText(tracking.Status);
+
+                        foreach (var (status, time) in tracking.Logs.OrderBy(l => l.Time))
+                        {
+                            dto.Steps.Add(new ShippingStepDto { Title = GhnShippingService.StatusText(status), Time = time, Done = true });
+                        }
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        dto.Warning = ex.Message;
+                    }
+                }
+            }
+
+            string? receivedDetail = rental.ShiftedDays > 0
+                ? $"Đến tay trễ {rental.ShiftedDays} ngày, hạn trả lùi sang {rental.EndDate:dd/MM/yyyy}"
+                : rental.LateDeliveryRefund > 0
+                    ? $"Đến tay trễ, đã hoàn {NotificationService.Money(rental.LateDeliveryRefund)} tiền thuê"
+                    : received != null && rental.ReceivedAt == null ? "Đã chụp ảnh lúc nhận, chờ bấm Đã nhận đồ" : null;
+
+            dto.Steps.Add(new ShippingStepDto
+            {
+                Title = ship ? "Người thuê đã nhận hàng" : "Hai bên đã giao nhận trực tiếp",
+                Detail = receivedDetail,
+                Time = rental.ReceivedAt,
+                Done = rental.ReceivedAt != null
+            });
+
+            if (rental.ReturnedAt != null)
+            {
+                dto.Steps.Add(new ShippingStepDto { Title = "Người thuê đã trả đồ", Time = rental.ReturnedAt, Done = true });
+            }
+
+            if (rental.CompletedAt != null)
+            {
+                dto.Steps.Add(new ShippingStepDto { Title = "Đơn hoàn tất", Time = rental.CompletedAt, Done = true });
+            }
+
+            return dto;
+        }
+
+        // Đồ đến tay trễ hơn ngày bắt đầu thuê: lùi hạn trả cho đủ số ngày đã trả tiền.
+        // Lùi bị vướng lịch của người thuê sau thì hoàn tiền những ngày bị mất. Trả về câu giải thích (rỗng nếu không trễ).
+        private async Task<string> ApplyLateDeliveryAsync(Rental rental, DateTime now)
+        {
+            var today = now.AddHours(7).Date; // ngày theo giờ Việt Nam
+            int lateDays = (today - rental.StartDate.Date).Days;
+
+            if (lateDays <= 0)
+            {
+                return "";
+            }
+
+            var oldEnd = rental.EndDate.Date;
+            var newEnd = oldEnd.AddDays(lateDays);
+
+            bool blocked = await _unitOfWork.Rentals
+                .BuildQuery(r =>
+                    r.ItemId == rental.ItemId &&
+                    r.Id != rental.Id &&
+                    (r.Status == RentalStatus.Approved ||
+                     r.Status == RentalStatus.WaitingForPickup ||
+                     r.Status == RentalStatus.Rented) &&
+                    r.StartDate <= newEnd &&
+                    r.EndDate > oldEnd)
+                .AnyAsync();
+
+            if (!blocked)
+            {
+                rental.StartDate = today;
+                rental.EndDate = newEnd;
+                rental.ShiftedDays = lateDays;
+
+                return $" Đồ đến tay trễ {lateDays} ngày nên hạn trả lùi sang {newEnd:dd/MM/yyyy}.";
+            }
+
+            int totalDays = (oldEnd - rental.StartDate.Date).Days + 1;
+            int lostDays = Math.Min(lateDays, totalDays);
+            decimal refund = Math.Min(rental.TotalPrice, lostDays * rental.PricePerDay);
+
+            rental.TotalPrice -= refund;
+            rental.LateDeliveryRefund = refund;
+
+            if (refund > 0)
+            {
+                await AddWalletEntryAsync(rental.RenterId, refund, WalletTransactionType.Refund, rental.Id,
+                    $"Hoàn {lostDays} ngày thuê đơn #{rental.Id} do nhận đồ trễ");
+            }
+
+            return $" Đồ đến tay trễ {lateDays} ngày, không lùi được hạn trả vì đã có lịch thuê sau, " +
+                $"nên hoàn {NotificationService.Money(refund)} tiền thuê vào ví người thuê.";
+        }
+
+        private static string Cut(string text, int max) => text.Length > max ? text[..max] : text;
 
         // =========================
         // ĐỒ NGỪNG CHO THUÊ: đóng các đơn chưa giao
@@ -1008,6 +1339,15 @@ namespace RentMate.Service.Services
                     DisputeReason = r.DisputeReason,
                     DisputedAt = r.DisputedAt,
                     ResolutionNote = r.ResolutionNote,
+                    CancelReason = r.CancelReason,
+                    DeliveryMethod = r.DeliveryMethod,
+                    ShipToText = r.DeliveryMethod == DeliveryMethod.Ghn
+                        ? r.ShipToName + " · " + r.ShipToPhone + " · " + r.ShipToAddress + ", " + r.ShipToAreaText
+                        : null,
+                    ShippingOrderCode = r.ShippingOrderCode,
+                    ShippingFee = r.ShippingFee,
+                    ShiftedDays = r.ShiftedDays,
+                    LateDeliveryRefund = r.LateDeliveryRefund,
 
                     Payments = r.Payments
                         .OrderBy(p => p.CreatedAt)
@@ -1040,6 +1380,7 @@ namespace RentMate.Service.Services
                             AiDamages = c.AiDamages,
                             AiSuggestedCondition = c.AiSuggestedCondition,
                             AiNewDamageFound = c.AiNewDamageFound,
+                            AiSameItem = c.AiSameItem,
                             AiSuggestedDeduction = c.AiSuggestedDeduction
                         })
                         .ToList()
@@ -1062,6 +1403,9 @@ namespace RentMate.Service.Services
         }
 
         // Lấy rental (có tracking) kèm Item để kiểm tra chủ đồ và cập nhật trạng thái
+        private static bool IsRentable(ItemStatus status) =>
+            status == ItemStatus.Available || status == ItemStatus.Rented;
+
         private async Task<Rental?> GetRentalWithItemAsync(int rentalId)
         {
             var rental = await _unitOfWork.Rentals.GetByIdAsync(rentalId);
@@ -1092,7 +1436,7 @@ namespace RentMate.Service.Services
                 return null;
             }
 
-            return ToDto(rental);
+            return ToDto(rental, await _settingService.GetAsync());
         }
 
         // Dòng sổ ví, ghi nhận ngay (Completed). Chưa lưu: hàm gọi tự SaveChanges.
@@ -1136,7 +1480,8 @@ namespace RentMate.Service.Services
         // ENTITY -> DTO
         // =========================
         private static RentalDto ToDto(
-            Rental rental)
+            Rental rental,
+            RentMateSettings settings)
         {
             return new RentalDto
             {
@@ -1172,12 +1517,26 @@ namespace RentMate.Service.Services
                 DamageClaimedAt = rental.DamageClaimedAt,
                 DisputeReason = rental.DisputeReason,
                 ResolutionNote = rental.ResolutionNote,
+                CancelReason = rental.CancelReason,
+
+                DeliveryMethod = rental.DeliveryMethod.ToString(),
+                ShipToName = rental.ShipToName,
+                ShipToPhone = rental.ShipToPhone,
+                ShipToAddress = rental.ShipToAddress,
+                ShipToAreaText = rental.ShipToAreaText,
+                ShippingOrderCode = rental.ShippingOrderCode,
+                ShippingFee = rental.ShippingFee,
+                ExpectedDeliveryAt = rental.ExpectedDeliveryAt,
+                ShiftedDays = rental.ShiftedDays,
+                LateDeliveryRefund = rental.LateDeliveryRefund,
+
+                PlatformFeePercent = rental.PlatformFeeRate * 100,
 
                 OwnerInspectionDeadline = rental.Status == RentalStatus.Returned
-                    ? rental.ReturnedAt?.AddDays(OwnerInspectionDays)
+                    ? rental.ReturnedAt?.AddDays(settings.OwnerInspectionDays)
                     : null,
                 RenterResponseDeadline = rental.Status == RentalStatus.DamageClaimed
-                    ? rental.DamageClaimedAt?.AddDays(RenterResponseDays)
+                    ? rental.DamageClaimedAt?.AddDays(settings.RenterResponseDays)
                     : null
             };
         }

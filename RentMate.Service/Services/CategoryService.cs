@@ -34,6 +34,7 @@ namespace RentMate.Service.Services
                     CategoryName = c.CategoryName,
                     Description = c.Description,
                     IsActive = c.IsActive,
+                    Icon = c.Icon,
                     ParentCategoryId = c.ParentCategoryId
                 })
                 .ToListAsync();
@@ -60,6 +61,7 @@ namespace RentMate.Service.Services
                     CategoryName = c.CategoryName,
                     Description = c.Description,
                     IsActive = c.IsActive,
+                    Icon = c.Icon,
                     ParentCategoryId = c.ParentCategoryId
                 })
                 .FirstOrDefaultAsync();
@@ -81,6 +83,7 @@ namespace RentMate.Service.Services
                     CategoryName = c.CategoryName,
                     Description = c.Description,
                     IsActive = c.IsActive,
+                    Icon = c.Icon,
                     ParentCategoryId = c.ParentCategoryId,
                     ParentCategoryName = c.ParentCategory != null ? c.ParentCategory.CategoryName : null,
                     ChildCount = c.Children.Count,
@@ -130,6 +133,7 @@ namespace RentMate.Service.Services
             var category = new Category
             {
                 CategoryName = name,
+                Icon = ValidIcon(model.Icon),
                 Description = string.IsNullOrWhiteSpace(model.Description) ? null : model.Description.Trim(),
                 IsActive = model.IsActive,
                 ParentCategoryId = parent?.Id
@@ -183,6 +187,11 @@ namespace RentMate.Service.Services
             if (category.Description != description)
                 changes.Add("Thay đổi mô tả.");
 
+            string? icon = ValidIcon(model.Icon);
+
+            if (category.Icon != icon)
+                changes.Add($"Đổi icon thành {CategoryIconOption.LabelOf(icon) ?? "tự đoán theo tên"}.");
+
             if (category.ParentCategoryId != parent?.Id)
             {
                 string oldParentName = await GetParentNameAsync(category.ParentCategoryId);
@@ -195,6 +204,7 @@ namespace RentMate.Service.Services
             string oldName = category.CategoryName;
 
             category.CategoryName = name;
+            category.Icon = icon;
             category.Description = description;
             category.ParentCategoryId = parent?.Id;
 
@@ -359,6 +369,18 @@ namespace RentMate.Service.Services
                 throw new InvalidOperationException(parentId == null
                     ? "Tên danh mục đã tồn tại."
                     : "Danh mục cha này đã có danh mục con trùng tên.");
+        }
+
+        // Chỉ nhận icon có trong danh sách; để trống thì app tự đoán theo tên danh mục
+        private static string? ValidIcon(string? icon)
+        {
+            if (string.IsNullOrWhiteSpace(icon))
+                return null;
+
+            if (CategoryIconOption.All.All(o => o.Key != icon))
+                throw new InvalidOperationException("Icon không hợp lệ.");
+
+            return icon;
         }
 
         private async Task<string> GetParentNameAsync(int? parentId)

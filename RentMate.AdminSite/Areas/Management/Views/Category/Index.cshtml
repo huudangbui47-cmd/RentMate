@@ -52,6 +52,10 @@
                     bool isChild = item.ParentCategoryId != null;
                     <tr data-search="@item.CategoryName @item.ParentCategoryName @item.Description" data-status="@(item.IsActive ? "active" : "inactive")">
                         <td>
+                            @if (CategoryIconOption.LabelOf(item.Icon) is string iconLabel)
+                            {
+                                <span class="me-1" title="@iconLabel">@iconLabel.Split(' ')[0]</span>
+                            }
                             @if (isChild)
                             {
                                 <span class="rm-category-child">@item.CategoryName</span>
@@ -86,6 +90,7 @@
                                         RowVersion = item.RowVersion,
                                         CategoryName = item.CategoryName,
                                         Description = item.Description,
+                                        Icon = item.Icon,
                                         ParentCategoryId = item.ParentCategoryId
                                     });
                                     string toggleTitle = item.IsActive ? "Ngừng hoạt động danh mục" : "Mở lại hoạt động danh mục";
@@ -177,6 +182,17 @@
                             @foreach (var option in parentOptions)
                             {
                                 <option value="@option.Id">@option.CategoryName</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="categoryEditIcon" class="form-label">Icon trên app</label>
+                        <select id="categoryEditIcon" name="Icon" class="form-select">
+                            <option value="">Tự đoán theo tên danh mục</option>
+                            @foreach (var option in CategoryIconOption.All)
+                            {
+                                <option value="@option.Key">@option.Label</option>
                             }
                         </select>
                     </div>

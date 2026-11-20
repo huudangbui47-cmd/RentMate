@@ -5,6 +5,8 @@ import '../widgets/ui.dart';
 import 'forgot_password_screen.dart';
 import 'main_shell.dart';
 import 'register_screen.dart';
+import '../l10n/l10n.dart';
+import '../widgets/language_picker.dart';
 
 class LoginScreen extends StatefulWidget {
   /// true khi bị đưa về đây vì phiên hết hạn (token hết hạn, bị khóa, đổi mật khẩu ở máy khác).
@@ -28,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     if (widget.sessionExpired) {
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => showSnack(context, 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại'),
+        (_) => showSnack(context, tr('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại')),
       );
     }
   }
@@ -60,6 +62,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        automaticallyImplyLeading: false,
+        actions: [LanguageButton(rebuild: () => const LoginScreen())],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -85,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  Text('Thuê đồ dễ dàng, cho thuê có thu nhập',
+                  Text(tr('Thuê đồ dễ dàng, cho thuê có thu nhập'),
                       textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant)),
                   const SizedBox(height: 32),
                   TextFormField(
@@ -94,8 +101,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
-                      if (!v.contains('@')) return 'Email không hợp lệ';
+                      if (v == null || v.trim().isEmpty) return tr('Vui lòng nhập email');
+                      if (!v.contains('@')) return tr('Email không hợp lệ');
                       return null;
                     },
                   ),
@@ -105,14 +112,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _hidePassword,
                     onFieldSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: 'Mật khẩu',
+                      labelText: tr('Mật khẩu'),
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
                         onPressed: () => setState(() => _hidePassword = !_hidePassword),
                       ),
                     ),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Vui lòng nhập mật khẩu' : null,
+                    validator: (v) => (v == null || v.isEmpty) ? tr('Vui lòng nhập mật khẩu') : null,
                   ),
                   Align(
                     alignment: Alignment.centerRight,
@@ -129,30 +136,30 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _password.clear();
                               }
                             },
-                      child: const Text('Quên mật khẩu?'),
+                      child: Text(tr('Quên mật khẩu?')),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  BusyButton(busy: _loading, onPressed: _submit, label: 'Đăng nhập'),
+                  BusyButton(busy: _loading, onPressed: _submit, label: tr('Đăng nhập')),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Chưa có tài khoản?'),
+                      Text(tr('Chưa có tài khoản?')),
                       TextButton(
                         onPressed: _loading
                             ? null
                             : () => Navigator.of(context).push(
                                   MaterialPageRoute(builder: (_) => const RegisterScreen()),
                                 ),
-                        child: const Text('Đăng ký ngay'),
+                        child: Text(tr('Đăng ký ngay')),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.storefront_outlined),
-                    label: const Text('Xem trước với tư cách khách'),
+                    label: Text(tr('Xem trước với tư cách khách')),
                     onPressed: _loading
                         ? null
                         : () => Navigator.of(context).pushReplacement(

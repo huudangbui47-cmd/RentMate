@@ -28,6 +28,11 @@ namespace RentMate.Data.Context
 
         public DbSet<WalletTransaction> WalletTransactions { get; set; } = null!;
 
+        public DbSet<SystemSetting> SystemSettings { get; set; } = null!;
+        public DbSet<AppLanguage> AppLanguages { get; set; } = null!;
+        public DbSet<TextResource> TextResources { get; set; } = null!;
+        public DbSet<TextTranslation> TextTranslations { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

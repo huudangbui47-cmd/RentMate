@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RentMate.Service.DTOs.Rentals;
+using RentMate.Service.DTOs.Shipping;
 using RentMate.Service.Interfaces;
 using System.Security.Claims;
 
@@ -104,14 +105,40 @@ namespace RentMate.Api.Controllers
                     GetUserId()));
         }
 
-        // PUT api/rentals/1/cancel
+        // PUT api/rentals/1/cancel  body (không bắt buộc): { reason }
+        // Người thuê từ chối nhận vì đồ khác tin đăng cũng dùng nút này (hoàn 100%)
         [HttpPut("{id}/cancel")]
-        public async Task<IActionResult> Cancel(int id)
+        public async Task<IActionResult> Cancel(int id, [FromBody] CancelRentalDto? dto)
         {
             return await ExecuteAction(
                 () => _rentalService.CancelAsync(
                     id,
-                    GetUserId()));
+                    GetUserId(),
+                    dto?.Reason));
+        }
+
+        // POST api/rentals/1/shipment  body: { weightGram }  (chủ đồ gửi hàng qua GHN)
+        [HttpPost("{id}/shipment")]
+        public async Task<IActionResult> CreateShipment(int id, CreateShipmentDto dto)
+        {
+            return await ExecuteAction(
+                () => _rentalService.CreateShipmentAsync(id, GetUserId(), dto.WeightGram));
+        }
+
+        // GET api/rentals/1/shipping  (dòng thời gian giao nhận)
+        [HttpGet("{id}/shipping")]
+        public async Task<IActionResult> GetShipping(int id)
+        {
+            try
+            {
+                var tracking = await _rentalService.GetShippingAsync(id, GetUserId());
+
+                return tracking == null ? NotFound() : Ok(tracking);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
         // PUT api/rentals/1/pickup  (người thuê xác nhận đã nhận đồ)
