@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'item_service.dart' show imageFullUrl;
+
 import 'auth_service.dart';
 import 'config_service.dart';
 import '../l10n/l10n.dart';
@@ -10,6 +12,8 @@ class Rental {
   final int id;
   final int itemId;
   final String itemName;
+  final String? itemImageUrl;
+  final String categoryName;
   final String renterId;
   final String renterName;
   final String ownerId;
@@ -40,6 +44,8 @@ class Rental {
   final DateTime? expectedDeliveryAt;
   final int shiftedDays;
   final num lateDeliveryRefund;
+  final int discountPercent; // ưu đãi thuê dài ngày đã trừ vào totalPrice
+  final num discountAmount;
   final num platformFeePercent;
 
   /// Phí nền tảng của đơn này, vd. "5" hoặc "2,5"
@@ -49,37 +55,41 @@ class Rental {
   final String? cancelReason;
 
   Rental.fromJson(Map<String, dynamic> j)
-      : id = j['rentalId'] as int,
-        itemId = j['itemId'] as int,
-        itemName = (j['itemName'] ?? '') as String,
-        renterId = (j['renterId'] ?? '') as String,
-        renterName = (j['renterName'] ?? '') as String,
-        ownerId = (j['ownerId'] ?? '') as String,
-        ownerName = (j['ownerName'] ?? '') as String,
-        startDate = DateTime.parse(j['startDate'] as String),
-        endDate = DateTime.parse(j['endDate'] as String),
-        pricePerDay = (j['pricePerDay'] ?? 0) as num,
-        totalPrice = (j['totalPrice'] ?? 0) as num,
-        depositAmount = (j['depositAmount'] ?? 0) as num,
-        status = (j['status'] ?? '') as String,
-        requestNote = j['requestNote'] as String?,
-        requestedAt = DateTime.parse(j['requestedAt'] as String),
-        approvedAt = j['approvedAt'] == null ? null : DateTime.parse(j['approvedAt'] as String),
-        receivedAt = _parse(j['receivedAt']),
-        returnedAt = _parse(j['returnedAt']),
-        damageAmount = (j['damageAmount'] ?? 0) as num,
-        damageNote = j['damageNote'] as String?,
-        disputeReason = j['disputeReason'] as String?,
-        resolutionNote = j['resolutionNote'] as String?,
-        ownerInspectionDeadline = _parse(j['ownerInspectionDeadline']),
-        renterResponseDeadline = _parse(j['renterResponseDeadline']),
-        deliveryMethod = (j['deliveryMethod'] ?? 'Meetup') as String,
-        shippingOrderCode = j['shippingOrderCode'] as String?,
-        expectedDeliveryAt = _parse(j['expectedDeliveryAt']),
-        shiftedDays = (j['shiftedDays'] ?? 0) as int,
-        lateDeliveryRefund = (j['lateDeliveryRefund'] ?? 0) as num,
-        platformFeePercent = (j['platformFeePercent'] ?? 5) as num,
-        cancelReason = j['cancelReason'] as String?;
+    : id = j['rentalId'] as int,
+      itemId = j['itemId'] as int,
+      itemName = (j['itemName'] ?? '') as String,
+      itemImageUrl = j['itemImageUrl'] == null ? null : imageFullUrl(j['itemImageUrl'] as String),
+      categoryName = (j['categoryName'] ?? '') as String,
+      renterId = (j['renterId'] ?? '') as String,
+      renterName = (j['renterName'] ?? '') as String,
+      ownerId = (j['ownerId'] ?? '') as String,
+      ownerName = (j['ownerName'] ?? '') as String,
+      startDate = DateTime.parse(j['startDate'] as String),
+      endDate = DateTime.parse(j['endDate'] as String),
+      pricePerDay = (j['pricePerDay'] ?? 0) as num,
+      totalPrice = (j['totalPrice'] ?? 0) as num,
+      depositAmount = (j['depositAmount'] ?? 0) as num,
+      status = (j['status'] ?? '') as String,
+      requestNote = j['requestNote'] as String?,
+      requestedAt = DateTime.parse(j['requestedAt'] as String),
+      approvedAt = j['approvedAt'] == null ? null : DateTime.parse(j['approvedAt'] as String),
+      receivedAt = _parse(j['receivedAt']),
+      returnedAt = _parse(j['returnedAt']),
+      damageAmount = (j['damageAmount'] ?? 0) as num,
+      damageNote = j['damageNote'] as String?,
+      disputeReason = j['disputeReason'] as String?,
+      resolutionNote = j['resolutionNote'] as String?,
+      ownerInspectionDeadline = _parse(j['ownerInspectionDeadline']),
+      renterResponseDeadline = _parse(j['renterResponseDeadline']),
+      deliveryMethod = (j['deliveryMethod'] ?? 'Meetup') as String,
+      shippingOrderCode = j['shippingOrderCode'] as String?,
+      expectedDeliveryAt = _parse(j['expectedDeliveryAt']),
+      shiftedDays = (j['shiftedDays'] ?? 0) as int,
+      lateDeliveryRefund = (j['lateDeliveryRefund'] ?? 0) as num,
+      discountPercent = (j['discountPercent'] ?? 0) as int,
+      discountAmount = (j['discountAmount'] ?? 0) as num,
+      platformFeePercent = (j['platformFeePercent'] ?? 5) as num,
+      cancelReason = j['cancelReason'] as String?;
 
   bool get isShipping => deliveryMethod == 'Ghn';
 
@@ -105,8 +115,7 @@ class Rental {
       DateTime.now().toUtc().difference(_asUtc(approvedAt!)) >= Duration(hours: AppConfig.paymentTimeoutHours);
 
   // Server trả giờ UTC nhưng có thể thiếu chữ "Z".
-  static DateTime _asUtc(DateTime d) =>
-      d.isUtc ? d : DateTime.utc(d.year, d.month, d.day, d.hour, d.minute, d.second);
+  static DateTime _asUtc(DateTime d) => d.isUtc ? d : DateTime.utc(d.year, d.month, d.day, d.hour, d.minute, d.second);
 }
 
 // Theo RentalStatus trong RentMate.Core.
@@ -126,14 +135,9 @@ Map<String, String> get rentalStatusLabels => {
 
 class RentalService {
   Future<List<Rental>> getMyRentals() async {
-    final res = await http.get(
-      Uri.parse('$apiBaseUrl/api/Rentals/my'),
-      headers: await AuthService().authHeaders(),
-    );
+    final res = await http.get(Uri.parse('$apiBaseUrl/api/Rentals/my'), headers: await AuthService().authHeaders());
     checkResponse(res);
-    return (jsonDecode(res.body) as List)
-        .map((e) => Rental.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (jsonDecode(res.body) as List).map((e) => Rental.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> createRental({
@@ -198,8 +202,7 @@ class RentalService {
   }
 
   // Gửi đúng ngày đã chọn, không kèm giờ/múi giờ để server không lệch sang ngày khác.
-  String _dateOnly(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  String _dateOnly(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
 /// Địa chỉ nhận hàng khi chọn giao qua GHN.
@@ -220,11 +223,11 @@ class ShipTo {
   });
 
   Map<String, dynamic> toJson() => {
-        'shipToName': name,
-        'shipToPhone': phone,
-        'shipToAddress': address,
-        'shipToDistrictId': districtId,
-        'shipToWardCode': wardCode,
-        'shipToAreaText': areaText,
-      };
+    'shipToName': name,
+    'shipToPhone': phone,
+    'shipToAddress': address,
+    'shipToDistrictId': districtId,
+    'shipToWardCode': wardCode,
+    'shipToAreaText': areaText,
+  };
 }

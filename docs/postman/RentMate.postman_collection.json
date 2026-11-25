@@ -328,6 +328,26 @@
           }
         },
         {
+          "name": "Banner trang chủ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Banners",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Banners"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
           "name": "Tỉnh/thành",
           "request": {
             "method": "GET",
@@ -426,7 +446,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"itemName\": \"Máy ảnh Canon thử\",\n  \"description\": \"Máy còn tốt, kèm thẻ nhớ và sạc.\",\n  \"pricePerDay\": 150000,\n  \"depositAmount\": 1000000,\n  \"categoryId\": 2,\n  \"condition\": 3,\n  \"province\": \"TP. Hồ Chí Minh\",\n  \"area\": \"Phường Bến Thành\"\n}"
+              "raw": "{\n  \"itemName\": \"Máy ảnh Canon thử\",\n  \"description\": \"Máy còn tốt, kèm thẻ nhớ và sạc.\",\n  \"pricePerDay\": 150000,\n  \"depositAmount\": 1000000,\n  \"categoryId\": 2,\n  \"condition\": 3,\n  \"province\": \"TP. Hồ Chí Minh\",\n  \"area\": \"Phường Bến Thành\",\n  \"discountPercent\": 10,\n  \"discountMinDays\": 7\n}"
             },
             "description": "categoryId phải là danh mục con (xem request Danh mục). condition: 1 Mới, 2 Như mới, 3 Tốt, 4 Khá, 5 Hư hỏng. Đồ mới ở trạng thái PendingApproval: vào trang quản trị → Đồ cho thuê để duyệt."
           },
@@ -505,7 +525,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"itemName\": \"Máy ảnh Canon thử\",\n  \"description\": \"Máy còn tốt, kèm thẻ nhớ và sạc.\",\n  \"pricePerDay\": 120000,\n  \"depositAmount\": 1000000,\n  \"categoryId\": 2,\n  \"condition\": 3,\n  \"province\": \"TP. Hồ Chí Minh\",\n  \"area\": \"Phường Bến Thành\"\n}"
+              "raw": "{\n  \"itemName\": \"Máy ảnh Canon thử\",\n  \"description\": \"Máy còn tốt, kèm thẻ nhớ và sạc.\",\n  \"pricePerDay\": 120000,\n  \"depositAmount\": 1000000,\n  \"categoryId\": 2,\n  \"condition\": 3,\n  \"province\": \"TP. Hồ Chí Minh\",\n  \"area\": \"Phường Bến Thành\",\n  \"discountPercent\": 10,\n  \"discountMinDays\": 7\n}"
             },
             "description": "Chỉ đổi giá nên status giữ nguyên. Đổi tên/mô tả/danh mục thì status thành PendingApproval."
           }

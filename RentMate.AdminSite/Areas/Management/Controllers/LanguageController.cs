@@ -19,28 +19,56 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
         public async Task<IActionResult> Index()
         {
+            ViewData["AutoTranslateEnabled"] = _localizationService.IsAutoTranslateEnabled;
+
             return View(await _localizationService.GetLanguagesForManagementAsync());
         }
 
+        // Chọn ngôn ngữ trong danh sách có sẵn (tên, cờ điền sẵn); AI dịch toàn bộ app rồi hiện luôn trên app.
+        // Không có dịch tự động thì không thêm được ngôn ngữ (dịch tay hàng trăm câu không thực tế): app dùng Tiếng Việt và English.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(LanguageViewModel model)
         {
+            if (!_localizationService.IsAutoTranslateEnabled)
+            {
+                TempData["Error"] = "Chưa bật dịch tự động (khóa AI) nên chưa thêm được ngôn ngữ mới. App đang dùng Tiếng Việt và English.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Chọn từ danh sách có sẵn thì không cần nhập tên
+            if (LanguagePresetOption.Find(model.Code) != null)
+                ModelState.Remove(nameof(LanguageViewModel.Name));
+
             if (!ModelState.IsValid)
             {
                 TempData["Error"] = GetFirstModelError();
                 return RedirectToAction(nameof(Index));
             }
 
+            int languageId;
+
             try
             {
-                await _localizationService.CreateLanguageAsync(model, GetCurrentUserId(), GetIpAddress());
-
-                TempData["Success"] = $"Đã thêm {model.Name}. Ngôn ngữ đang ẩn: hãy dịch rồi bật \"Hiện trên app\".";
+                languageId = await _localizationService.CreateLanguageAsync(model, GetCurrentUserId(), GetIpAddress());
             }
             catch (InvalidOperationException ex)
             {
                 TempData["Error"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+
+            try
+            {
+                var (translated, missing) = await _localizationService.AutoTranslateAsync(languageId, true, GetCurrentUserId(), GetIpAddress());
+
+                TempData["Success"] = missing == 0
+                    ? $"Đã thêm ngôn ngữ, AI dịch xong {translated} câu và ngôn ngữ đã hiện trên app. Bạn có thể xem lại bản dịch bất cứ lúc nào."
+                    : $"Đã thêm ngôn ngữ, AI dịch được {translated} câu, còn {missing} câu chưa dịch. Bấm \"Dịch phần còn thiếu bằng AI\" rồi bật \"Hiện trên app\".";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = "Đã thêm ngôn ngữ nhưng chưa dịch được: " + ex.Message;
             }
 
             return RedirectToAction(nameof(Index));
@@ -91,15 +119,13 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ImportDefaults()
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                var (newTexts, newTranslations) = await _localizationService.ImportDefaultsAsync(GetCurrentUserId(), GetIpAddress());
+                await _localizationService.DeleteLanguageAsync(id, GetCurrentUserId(), GetIpAddress());
 
-                TempData["Success"] = newTexts == 0 && newTranslations == 0
-                    ? "Câu chữ của app đã có đủ, không có gì mới."
-                    : $"Đã nạp {newTexts} câu mới và {newTranslations} bản dịch tiếng Anh.";
+                TempData["Success"] = "Đã xóa ngôn ngữ.";
             }
             catch (InvalidOperationException ex)
             {
@@ -149,9 +175,10 @@ namespace RentMate.AdminSite.Areas.Management.Controllers
         {
             try
             {
-                int count = await _localizationService.AutoTranslateAsync(id, GetCurrentUserId(), GetIpAddress());
+                var (count, missing) = await _localizationService.AutoTranslateAsync(id, false, GetCurrentUserId(), GetIpAddress());
 
-                TempData["Success"] = $"AI đã dịch {count} câu. Các câu này được đánh dấu \"AI dịch\", hãy xem lại rồi bấm Lưu.";
+                TempData["Success"] = $"AI đã dịch {count} câu" + (missing > 0 ? $", còn {missing} câu chưa dịch được" : "") +
+                    ". Các câu này được đánh dấu \"AI dịch\", có thể xem lại và sửa.";
             }
             catch (InvalidOperationException ex)
             {

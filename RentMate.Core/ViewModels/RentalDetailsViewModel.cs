@@ -44,6 +44,8 @@ namespace RentMate.Core.ViewModels
         public decimal? ShippingFee { get; set; }
         public int ShiftedDays { get; set; }
         public decimal LateDeliveryRefund { get; set; }
+        public int DiscountPercent { get; set; }
+        public decimal DiscountAmount { get; set; }
 
         public string DeliveryMethodText => DeliveryMethod == DeliveryMethod.Ghn ? "Giao hàng GHN" : "Gặp trực tiếp";
 

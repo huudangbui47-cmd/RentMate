@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../services/item_service.dart';
 import '../services/rental_service.dart';
 import '../services/shipping_service.dart';
+import '../theme.dart';
 import '../widgets/ui.dart';
+import '../widgets/kit.dart';
 import '../l10n/l10n.dart';
 
 /// Dòng thời gian giao nhận của một đơn: mốc của RentMate + các mốc GHN báo về.
@@ -19,14 +21,16 @@ class _ShippingScreenState extends State<ShippingScreen> {
   late Future<ShippingTracking> _future = ShippingService().tracking(widget.rental.id);
 
   Future<void> _reload() async {
-    setState(() { _future = ShippingService().tracking(widget.rental.id); });
+    setState(() {
+      _future = ShippingService().tracking(widget.rental.id);
+    });
     await _future;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('Giao nhận · Đơn #{0}', [widget.rental.id]))),
+      appBar: RcAppBar(title: Text(tr('Giao nhận'))),
       body: FutureBuilder<ShippingTracking>(
         future: _future,
         builder: (context, snap) {
@@ -37,43 +41,72 @@ class _ShippingScreenState extends State<ShippingScreen> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
               children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(ship ? Icons.local_shipping_outlined : Icons.handshake_outlined),
-                          const SizedBox(width: 8),
-                          Text(ship ? tr('Giao Hàng Nhanh (GHN)') : tr('Gặp trực tiếp'),
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                        ]),
-                        if (t.statusText != null) ...[
-                          const SizedBox(height: 8),
-                          Text(t.statusText!, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
+                RcCard(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          RcIconCircle(ship ? Icons.local_shipping_outlined : Icons.handshake_outlined, size: 44),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ship ? tr('Giao Hàng Nhanh (GHN)') : tr('Gặp trực tiếp'),
+                                  style: kText(16, FontWeight.w400),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  tr('Đơn #{0}', [widget.rental.id]),
+                                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
-                        if (t.orderCode != null) InfoRow(tr('Mã vận đơn'), t.orderCode!),
-                        if (t.expectedDeliveryAt != null) InfoRow(tr('Dự kiến giao'), fmtDate(t.expectedDeliveryAt!.toLocal())),
-                        if (t.shippingFee != null) InfoRow(tr('Phí ship (RentMate trả)'), formatVnd(t.shippingFee!)),
-                        if (t.shipToText != null) ...[
-                          const SizedBox(height: 6),
-                          Text(tr('Giao đến: {0}', [t.shipToText])),
-                        ],
+                      ),
+                      if (t.statusText != null) ...[
+                        const SizedBox(height: 12),
+                        StatusBadge(t.statusText!, AppColors.info),
                       ],
-                    ),
+                      if (t.orderCode != null || t.expectedDeliveryAt != null || t.shippingFee != null)
+                        const Divider(height: 24),
+                      if (t.orderCode != null) InfoRow(tr('Mã vận đơn'), t.orderCode!),
+                      if (t.expectedDeliveryAt != null)
+                        InfoRow(tr('Dự kiến giao'), fmtDate(t.expectedDeliveryAt!.toLocal())),
+                      if (t.shippingFee != null) InfoRow(tr('Phí ship (RentMate trả)'), formatVnd(t.shippingFee!)),
+                      if (t.shipToText != null) ...[
+                        const SizedBox(height: 8),
+                        LocationText(tr('Giao đến: {0}', [t.shipToText])),
+                      ],
+                    ],
                   ),
                 ),
-                if (t.warning != null) ...[
-                  const SizedBox(height: 8),
-                  NoticeBox(t.warning!, color: const Color(0xFFE08A00)),
-                ],
-                const SizedBox(height: 16),
-                for (var i = 0; i < t.steps.length; i++) _step(t.steps[i], isLast: i == t.steps.length - 1),
+                if (t.warning != null) ...[const SizedBox(height: 12), NoticeBox(t.warning!, color: AppColors.warning)],
                 const SizedBox(height: 12),
-                NoticeBox(tr('Ngày thuê tính từ lúc người thuê bấm "Đã nhận đồ". Đồ đến trễ thì hạn trả tự lùi lại, hoặc hoàn tiền những ngày bị mất nếu đã có người thuê sau.')),
+                // Dòng thời gian trong khối trắng có nhãn xám
+                RcCard(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(tr('Tiến trình'), style: kText(13, FontWeight.w300, color: AppColors.muted)),
+                      const SizedBox(height: 14),
+                      for (var i = 0; i < t.steps.length; i++) _step(t.steps[i], isLast: i == t.steps.length - 1),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                NoticeBox(
+                  tr(
+                    'Ngày thuê tính từ lúc người thuê bấm "Đã nhận đồ". Đồ đến trễ thì hạn trả tự lùi lại, hoặc hoàn tiền những ngày bị mất nếu đã có người thuê sau.',
+                  ),
+                ),
               ],
             ),
           );
@@ -83,31 +116,52 @@ class _ShippingScreenState extends State<ShippingScreen> {
   }
 
   Widget _step(ShippingStep s, {required bool isLast}) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = s.done ? scheme.primary : scheme.outlineVariant;
+    final color = s.done ? AppColors.primary : AppColors.border;
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
             width: 28,
-            child: Column(children: [
-              Icon(s.done ? Icons.check_circle : Icons.radio_button_unchecked, color: color, size: 22),
-              if (!isLast) Expanded(child: Container(width: 2, color: color)),
-            ]),
+            child: Column(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: s.done ? AppColors.primary : Colors.white,
+                    border: Border.all(color: color, width: 2),
+                  ),
+                  child: s.done ? const Icon(Icons.check_rounded, size: 15, color: Colors.white) : null,
+                ),
+                if (!isLast) Expanded(child: Container(width: 2, color: color)),
+              ],
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 14),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 18),
+              padding: const EdgeInsets.only(bottom: 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(s.title,
-                      style: TextStyle(fontWeight: FontWeight.w600, color: s.done ? null : scheme.onSurfaceVariant)),
-                  if (s.detail != null) Text(s.detail!, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
-                  if (s.time != null)
-                    Text(fmtDateTime(s.time!), style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+                  Text(
+                    s.title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w400,
+                      fontSize: 15,
+                      color: s.done ? AppColors.ink : AppColors.muted,
+                    ),
+                  ),
+                  if (s.detail != null) ...[
+                    const SizedBox(height: 2),
+                    Text(s.detail!, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  ],
+                  if (s.time != null) ...[
+                    const SizedBox(height: 2),
+                    Text(fmtDateTime(s.time!), style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                  ],
                 ],
               ),
             ),

@@ -23,6 +23,11 @@ namespace RentMate.Service.DTOs.Items
 
         public string? Area { get; set; }
 
+        // Giảm DiscountPercent% tiền thuê khi thuê từ DiscountMinDays ngày (0 = không có ưu đãi)
+        public int DiscountPercent { get; set; }
+
+        public int DiscountMinDays { get; set; }
+
         public int CategoryId { get; set; }
 
         public string CategoryName { get; set; } = string.Empty;

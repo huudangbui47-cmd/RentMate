@@ -22,11 +22,11 @@ class AppLanguage {
   const AppLanguage(this.code, this.name, this.flag, [this.version = 0]);
 
   factory AppLanguage.fromJson(Map<String, dynamic> j) => AppLanguage(
-        j['code'] as String,
-        (j['name'] ?? j['code']) as String,
-        (j['flag'] ?? '🌐') as String,
-        (j['version'] as num?)?.toInt() ?? 0,
-      );
+    j['code'] as String,
+    (j['name'] ?? j['code']) as String,
+    (j['flag'] ?? '🌐') as String,
+    (j['version'] as num?)?.toInt() ?? 0,
+  );
 
   Map<String, dynamic> toJson() => {'code': code, 'name': name, 'flag': flag, 'version': version};
 }
@@ -125,7 +125,9 @@ Future<void> _refreshLanguages(SharedPreferences prefs) async {
   try {
     final res = await http.get(Uri.parse('$apiBaseUrl/api/languages')).timeout(const Duration(seconds: 4));
     if (res.statusCode != 200) return;
-    final list = (jsonDecode(utf8.decode(res.bodyBytes)) as List).map((e) => AppLanguage.fromJson(e as Map<String, dynamic>)).toList();
+    final list = (jsonDecode(utf8.decode(res.bodyBytes)) as List)
+        .map((e) => AppLanguage.fromJson(e as Map<String, dynamic>))
+        .toList();
     appLanguages = [_vietnamese, ...list];
     await prefs.setString(_prefLanguages, jsonEncode(list.map((l) => l.toJson()).toList()));
   } catch (_) {

@@ -6,10 +6,12 @@ namespace RentMate.AdminSite.Infrastructure.Storage
             new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png" };
 
         private readonly IWebHostEnvironment _environment;
+        private readonly string _sharedRoot;
 
-        public LocalFileStorageService(IWebHostEnvironment environment)
+        public LocalFileStorageService(IWebHostEnvironment environment, IConfiguration configuration)
         {
             _environment = environment;
+            _sharedRoot = SharedStorage.ResolveRoot(configuration, environment);
         }
 
         public string? ValidateImage(IFormFile? file, long maxSizeBytes = 2 * 1024 * 1024)
@@ -18,7 +20,7 @@ namespace RentMate.AdminSite.Infrastructure.Storage
                 return null;
 
             if (file.Length > maxSizeBytes)
-                return "Ảnh không được lớn hơn 2MB.";
+                return $"Ảnh không được lớn hơn {maxSizeBytes / (1024 * 1024)}MB.";
 
             string extension = Path.GetExtension(file.FileName);
 
@@ -28,11 +30,21 @@ namespace RentMate.AdminSite.Infrastructure.Storage
             return null;
         }
 
-        public async Task<string> SaveAsync(IFormFile file, string folder)
+        public Task<string> SaveAsync(IFormFile file, string folder)
+        {
+            return SaveToAsync(file, folder, _environment.WebRootPath, string.Empty);
+        }
+
+        public Task<string> SaveSharedAsync(IFormFile file, string folder)
+        {
+            return SaveToAsync(file, folder, _sharedRoot, SharedStorage.RequestPath);
+        }
+
+        private static async Task<string> SaveToAsync(IFormFile file, string folder, string root, string urlPrefix)
         {
             string normalizedFolder = folder.Trim('/', '\\');
             string uploadFolder = Path.Combine(
-                _environment.WebRootPath,
+                root,
                 normalizedFolder.Replace('/', Path.DirectorySeparatorChar));
 
             Directory.CreateDirectory(uploadFolder);
@@ -44,7 +56,7 @@ namespace RentMate.AdminSite.Infrastructure.Storage
             await using var stream = new FileStream(fullPath, FileMode.Create);
             await file.CopyToAsync(stream);
 
-            return $"/{normalizedFolder.Replace('\\', '/')}/{fileName}";
+            return $"{urlPrefix}/{normalizedFolder.Replace('\\', '/')}/{fileName}";
         }
 
         public void Delete(string? relativePath)
@@ -52,10 +64,22 @@ namespace RentMate.AdminSite.Infrastructure.Storage
             if (string.IsNullOrWhiteSpace(relativePath))
                 return;
 
-            string normalizedPath = relativePath.TrimStart('/')
-                .Replace('/', Path.DirectorySeparatorChar);
+            string root = _environment.WebRootPath;
 
-            string fullPath = Path.Combine(_environment.WebRootPath, normalizedPath);
+            // Ảnh dùng chung (/shared/...) nằm ở thư mục riêng, không phải wwwroot
+            if (relativePath.StartsWith(SharedStorage.RequestPath + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                root = _sharedRoot;
+                relativePath = relativePath.Substring(SharedStorage.RequestPath.Length);
+            }
+
+            root = Path.GetFullPath(root);
+            string fullPath = Path.GetFullPath(Path.Combine(root,
+                relativePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+
+            // Chặn "../" đi ra ngoài thư mục ảnh
+            if (!fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                return;
 
             if (File.Exists(fullPath))
                 File.Delete(fullPath);

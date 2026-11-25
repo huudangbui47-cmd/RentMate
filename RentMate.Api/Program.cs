@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using RentMate.Api.Infrastructure.Storage;
@@ -71,6 +72,8 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IBannerService, BannerService>();
+builder.Services.AddScoped<IFavoriteService, FavoriteService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IRentalService, RentalService>();
 builder.Services.AddScoped<IConditionReportService, ConditionReportService>();
@@ -207,6 +210,13 @@ if (!app.Environment.IsDevelopment())
 
 // Phục vụ ảnh đã tải lên: /uploads/items/...
 app.UseStaticFiles();
+
+// Ảnh quản trị tải lên (banner trang chủ...) nằm ở thư mục dùng chung giữa AdminSite và Api: /shared/...
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(SharedStorage.ResolveRoot(app.Configuration, app.Environment)),
+    RequestPath = SharedStorage.RequestPath
+});
 
 app.UseCors("AllowFlutter");
 

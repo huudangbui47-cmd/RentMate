@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../services/item_service.dart';
 import '../services/wallet_service.dart';
+import '../theme.dart';
 import '../widgets/ui.dart';
+import '../widgets/kit.dart';
 import 'notifications_screen.dart';
 import 'deposit_screen.dart';
 import 'withdraw_screen.dart';
+import 'main_shell.dart';
 import '../l10n/l10n.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -27,7 +30,9 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _reload() async {
-    setState(() { _future = _load(); });
+    setState(() {
+      _future = _load();
+    });
     await _future;
   }
 
@@ -39,7 +44,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: RcAppBar(
         title: Text(tr('Ví RentMate')),
         automaticallyImplyLeading: widget.standalone,
         actions: [if (!widget.standalone) const NotificationBell()],
@@ -53,28 +58,44 @@ class _WalletScreenState extends State<WalletScreen> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              padding: EdgeInsets.fromLTRB(12, 12, 12, widget.standalone ? 24 : navPillSpace(context)),
               children: [
                 _balanceCard(wallet),
                 const SizedBox(height: 12),
-                _bankCard(wallet),
-                const SizedBox(height: 20),
-                Text(tr('Lịch sử giao dịch'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                const SizedBox(height: 8),
+                RcMenuGroup(
+                  label: tr('Tài khoản nhận tiền'),
+                  children: [
+                    RcMenuItem(
+                      icon: Icons.account_balance_outlined,
+                      title: wallet.hasBankInfo
+                          ? '${wallet.bankName} · ${wallet.maskedAccountNumber}'
+                          : tr('Chưa có tài khoản ngân hàng'),
+                      subtitle: wallet.hasBankInfo
+                          ? wallet.bankAccountName ?? ''
+                          : tr('Cần thêm để rút tiền về ngân hàng'),
+                      onTap: () => _open(const BankInfoScreen()),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 if (history.isEmpty)
-                  EmptyView(
-                    icon: Icons.receipt_outlined,
-                    title: tr('Chưa có giao dịch'),
-                    subtitle: tr('Nạp tiền để thanh toán đơn thuê nhanh chóng.'),
+                  RcCard(
+                    child: EmptyView(
+                      icon: Icons.receipt_outlined,
+                      title: tr('Chưa có giao dịch'),
+                      subtitle: tr('Nạp tiền để thanh toán đơn thuê nhanh chóng.'),
+                    ),
                   )
                 else
-                  Card(
+                  RcCard(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (var i = 0; i < history.length; i++) ...[
-                          if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
-                          _transactionTile(history[i]),
-                        ],
+                        Text(tr('Lịch sử giao dịch'), style: kText(13, FontWeight.w300, color: AppColors.muted)),
+                        const SizedBox(height: 2),
+                        for (var i = 0; i < history.length; i++)
+                          _transactionTile(history[i], last: i == history.length - 1),
                       ],
                     ),
                   ),
@@ -86,48 +107,43 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  // Khối số dư: khối trắng bo tròn, số tiền lớn, nút đen "Nạp tiền" và nút viền "Rút tiền" (viên thuốc)
   Widget _balanceCard(WalletSummary w) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1F4D3A), Color(0xFF12301F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+    return RcCard(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tr('Số dư khả dụng'), style: TextStyle(color: Colors.white70)),
-          const SizedBox(height: 4),
-          Text(formatVnd(w.availableBalance),
-              style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
-          if (w.pendingWithdrawAmount > 0) ...[
-            const SizedBox(height: 4),
-            Text(tr('Đang chờ rút: {0}', [formatVnd(w.pendingWithdrawAmount)]), style: const TextStyle(color: Colors.white70)),
-          ],
-          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(tr('Số dư khả dụng'), style: kText(13, FontWeight.w300, color: AppColors.muted)),
+              ),
+              const RcIconCircle(Icons.account_balance_wallet_outlined, size: 36),
+            ],
+          ),
+          Text(formatVnd(w.availableBalance), style: kText(32, FontWeight.w500, lh: 40)),
+          if (w.pendingWithdrawAmount > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(tr('Đang chờ rút: {0}', [formatVnd(w.pendingWithdrawAmount)]), style: kBody12Hint),
+            ),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF0B7A6E)),
                   onPressed: () => _open(const DepositScreen()),
-                  icon: const Icon(Icons.add_circle_outline),
+                  icon: const Icon(Icons.add_rounded, size: 20),
                   label: Text(tr('Nạp tiền')),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white70),
-                  ),
-                  onPressed: () => _open(w.hasBankInfo ? WithdrawScreen(wallet: w) : const BankInfoScreen(thenWithdraw: true)),
-                  icon: const Icon(Icons.arrow_circle_up_outlined),
+                  onPressed: () =>
+                      _open(w.hasBankInfo ? WithdrawScreen(wallet: w) : const BankInfoScreen(thenWithdraw: true)),
+                  icon: const Icon(Icons.north_east_rounded, size: 18),
                   label: Text(tr('Rút tiền')),
                 ),
               ),
@@ -138,62 +154,70 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _bankCard(WalletSummary w) {
-    return Card(
-      child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.account_balance_outlined)),
-        title: Text(w.hasBankInfo ? '${w.bankName} · ${w.maskedAccountNumber}' : tr('Chưa có tài khoản ngân hàng')),
-        subtitle: Text(w.hasBankInfo ? w.bankAccountName ?? '' : tr('Cần thêm để rút tiền về ngân hàng')),
-        trailing: TextButton(
-          onPressed: () => _open(const BankInfoScreen()),
-          child: Text(w.hasBankInfo ? tr('Sửa') : tr('Thêm')),
-        ),
-      ),
-    );
-  }
-
-  Widget _transactionTile(WalletTransaction t) {
-    final scheme = Theme.of(context).colorScheme;
+  // Dòng giao dịch kiểu dòng thông báo: icon tròn, tên + thời gian, số tiền bên phải
+  Widget _transactionTile(WalletTransaction t, {bool last = false}) {
     final incoming = t.amount >= 0;
     final pendingDeposit = t.type == 'Deposit' && t.status == 'Pending';
     final rejected = t.status == 'Rejected';
-    return ListTile(
+    return InkWell(
       onTap: pendingDeposit ? () => _open(DepositInfoScreen(depositId: t.id)) : null,
-      leading: CircleAvatar(
-        backgroundColor: (incoming ? const Color(0xFF16A34A) : scheme.error).withValues(alpha: 0.1),
-        child: Icon(
-          incoming ? Icons.south_west_rounded : Icons.north_east_rounded,
-          color: incoming ? const Color(0xFF16A34A) : scheme.error,
-        ),
-      ),
-      title: Text(walletTypeLabels[t.type] ?? t.type, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text([
-            fmtDateTime(t.createdAt),
-            if (t.code != null) tr('Mã {0}', [t.code]),
-            if (t.rentalId != null) tr('Đơn #{0}', [t.rentalId]),
-          ].join(' · ')),
-          if (t.status != 'Completed')
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: StatusBadge(
-                pendingDeposit ? tr('Chờ duyệt · bấm để xem cách chuyển khoản') : walletStatusLabels[t.status] ?? t.status,
-                statusColor(t.status == 'Pending' ? 'Pending' : 'Rejected'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: last
+            ? null
+            : const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.divider)),
+              ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RcIconCircle(incoming ? Icons.south_west_rounded : Icons.north_east_rounded, size: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(walletTypeLabels[t.type] ?? t.type, style: kText(15, FontWeight.w400)),
+                  const SizedBox(height: 3),
+                  Text(
+                    [
+                      fmtDateTime(t.createdAt),
+                      if (t.code != null) tr('Mã {0}', [t.code]),
+                      if (t.rentalId != null) tr('Đơn #{0}', [t.rentalId]),
+                    ].join(' · '),
+                    style: kSub12,
+                  ),
+                  if (t.status != 'Completed')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: StatusBadge(
+                        pendingDeposit
+                            ? tr('Chờ duyệt · bấm để xem cách chuyển khoản')
+                            : walletStatusLabels[t.status] ?? t.status,
+                        statusColor(t.status == 'Pending' ? 'Pending' : 'Rejected'),
+                      ),
+                    ),
+                  if (rejected && (t.note ?? '').isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        tr('Lý do: {0}', [t.note]),
+                        style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                      ),
+                    ),
+                ],
               ),
             ),
-          if (rejected && (t.note ?? '').isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 4), child: Text(tr('Lý do: {0}', [t.note]))),
-        ],
-      ),
-      isThreeLine: t.status != 'Completed',
-      trailing: Text(
-        '${incoming ? '+' : ''}${formatVnd(t.amount)}',
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          color: rejected ? scheme.outline : (incoming ? const Color(0xFF16A34A) : scheme.error),
-          decoration: rejected ? TextDecoration.lineThrough : null,
+            const SizedBox(width: 8),
+            Text(
+              '${incoming ? '+' : ''}${formatVnd(t.amount)}',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: rejected ? AppColors.muted : (incoming ? AppColors.success : AppColors.ink),
+                decoration: rejected ? TextDecoration.lineThrough : null,
+              ),
+            ),
+          ],
         ),
       ),
     );

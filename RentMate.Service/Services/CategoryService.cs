@@ -140,6 +140,7 @@ namespace RentMate.Service.Services
             };
 
             await _unitOfWork.Categories.AddAsync(category);
+            await AddTextIfMissingAsync(name);
 
             await _auditLogService.RecordAsync(
                 "CreateCategory",
@@ -203,6 +204,9 @@ namespace RentMate.Service.Services
 
             string oldName = category.CategoryName;
 
+            if (oldName != name)
+                await AddTextIfMissingAsync(name);
+
             category.CategoryName = name;
             category.Icon = icon;
             category.Description = description;
@@ -225,6 +229,16 @@ namespace RentMate.Service.Services
                 // Người khác lưu đúng lúc giữa bước kiểm tra và bước lưu
                 throw new InvalidOperationException(CategoryConcurrencyMessage);
             }
+        }
+
+        // Tên danh mục thành câu cần dịch ở trang "Ngôn ngữ" để app hiện đúng ngôn ngữ người dùng chọn.
+        // Chỉ thêm vào UnitOfWork, lưu cùng lần SaveChanges của thao tác danh mục.
+        private async Task AddTextIfMissingAsync(string name)
+        {
+            if (name.Length > 450 || await _unitOfWork.TextResources.BuildQuery(t => t.Key == name).AnyAsync())
+                return;
+
+            await _unitOfWork.TextResources.AddAsync(new TextResource { Key = name, Note = "Tên danh mục", CreatedAt = DateTime.UtcNow });
         }
 
         private const string CategoryConcurrencyMessage = "Danh mục này vừa được cập nhật ở nơi khác. Vui lòng tải lại trang rồi sửa lại.";

@@ -489,3 +489,6 @@ appsettings.Development.json
 # Ảnh người dùng tải lên lúc chạy app
 RentMate.AdminSite/wwwroot/uploads/
 RentMate.Api/wwwroot/uploads/
+
+# Ảnh quản trị tải lên dùng chung giữa AdminSite và Api (banner...)
+shared-uploads/

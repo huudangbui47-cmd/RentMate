@@ -1,9 +1,13 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../l10n/l10n.dart';
 import '../services/item_service.dart';
+import '../theme.dart';
 
-// Các mảnh giao diện dùng chung cho mọi màn hình.
+// Các mảnh giao diện dùng chung cho mọi màn hình (theo bộ mẫu Housely).
 
 /// Ô nhập tiền: chỉ nhận số và tự thêm dấu chấm hàng nghìn khi gõ (6000 -> 6.000).
 class MoneyInputFormatter extends TextInputFormatter {
@@ -12,7 +16,10 @@ class MoneyInputFormatter extends TextInputFormatter {
     final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return const TextEditingValue();
     final text = moneyText(num.parse(digits));
-    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
   }
 }
 
@@ -32,16 +39,18 @@ num? parseMoney(String? text) => num.tryParse((text ?? '').replaceAll('.', ''));
 
 /// Mở ảnh toàn màn hình, chụm 2 ngón để phóng to.
 void showImageViewer(BuildContext context, String url) {
-  Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
-      body: InteractiveViewer(
-        maxScale: 4,
-        child: Center(child: Image.network(url, fit: BoxFit.contain)),
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+        body: InteractiveViewer(
+          maxScale: 4,
+          child: Center(child: Image.network(url, fit: BoxFit.contain)),
+        ),
       ),
     ),
-  ));
+  );
 }
 
 /// Ảnh đại diện: có ảnh thì hiện ảnh, chưa có thì hiện chữ cái đầu của tên.
@@ -53,16 +62,18 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final trimmed = name.trim();
     return CircleAvatar(
       radius: radius,
-      backgroundColor: scheme.primaryContainer,
+      backgroundColor: AppColors.tint,
+      foregroundColor: AppColors.primary,
       backgroundImage: url == null ? null : NetworkImage(url!),
       child: url != null
           ? null
-          : Text(trimmed.isEmpty ? '?' : trimmed.split(' ').last.characters.first.toUpperCase(),
-              style: TextStyle(fontSize: radius * 0.8, fontWeight: FontWeight.bold)),
+          : Text(
+              trimmed.isEmpty ? '?' : trimmed.split(' ').last.characters.first.toUpperCase(),
+              style: TextStyle(fontSize: radius * 0.8, fontWeight: FontWeight.w600),
+            ),
     );
   }
 }
@@ -72,39 +83,168 @@ class UserAvatar extends StatelessWidget {
 String errorText(Object e) => tr(e.toString().replaceFirst('Exception: ', ''));
 
 void showSnack(BuildContext context, String message, {bool error = false}) {
-  final scheme = Theme.of(context).colorScheme;
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: error ? scheme.error : null,
-      behavior: SnackBarBehavior.floating,
-    ));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? AppColors.error : null,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 }
 
+/// Hộp xác nhận kiểu mẫu (ảnh "Delete"): bảng trượt từ dưới lên, icon tròn, câu hỏi và 2 nút.
 Future<bool> confirmDialog(
   BuildContext context, {
   required String title,
   required String message,
   String? confirmText,
   bool danger = false,
+  IconData? icon,
 }) async {
-  final ok = await showDialog<bool>(
+  final ok = await showModalBottomSheet<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Thôi'))),
-        FilledButton(
-          style: danger ? FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error) : null,
-          onPressed: () => Navigator.pop(ctx, true),
-          child: Text(confirmText ?? tr('Đồng ý')),
+    isScrollControlled: true,
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(pagePadding, 8, pagePadding, pagePadding),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RingIcon(icon ?? (danger ? Icons.delete_rounded : Icons.help_rounded), size: 120),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, height: 1.3),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.muted, height: 1.45),
+            ),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.segment, foregroundColor: AppColors.ink),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(tr('Thôi')),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: FilledButton(
+                    style: danger ? FilledButton.styleFrom(backgroundColor: AppColors.error) : null,
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(confirmText ?? tr('Đồng ý'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     ),
   );
   return ok == true;
+}
+
+/// Bảng trượt từ dưới lên có tiêu đề căn giữa (kiểu "Fillter", "Select Date" của mẫu).
+Future<T?> showAppSheet<T>(BuildContext context, {required String title, required WidgetBuilder builder}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            Flexible(child: builder(ctx)),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Bảng báo thành công (kiểu "Reserve Success"): icon tròn, tiêu đề, mô tả, nút.
+Future<void> showSuccessSheet(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String buttonText,
+  IconData icon = Icons.check_rounded,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(pagePadding, 16, pagePadding, pagePadding),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RingIcon(icon, size: 190),
+            const SizedBox(height: 32),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.muted, fontSize: 15, height: 1.45),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(buttonText)),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Chọn chụp ảnh hay lấy từ thư viện (bảng kiểu mẫu "Gallery").
+Future<ImageSource?> pickImageSource(BuildContext context, {String? galleryLabel}) {
+  Widget row(BuildContext ctx, IconData icon, String label, ImageSource source) => InkWell(
+    onTap: () => Navigator.pop(ctx, source),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: pagePadding, vertical: 10),
+      child: Row(
+        children: [
+          IconCircle(icon, size: 48),
+          const SizedBox(width: 16),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 16))),
+        ],
+      ),
+    ),
+  );
+  return showAppSheet<ImageSource>(
+    context,
+    title: tr('Thêm ảnh'),
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          row(ctx, Icons.photo_camera_outlined, tr('Chụp ảnh'), ImageSource.camera),
+          row(ctx, Icons.photo_library_outlined, galleryLabel ?? tr('Chọn từ thư viện'), ImageSource.gallery),
+        ],
+      ),
+    ),
+  );
 }
 
 String two(int n) => n.toString().padLeft(2, '0');
@@ -137,6 +277,576 @@ String? phoneError(String? v) {
   return null;
 }
 
+// =========================
+// KHỐI GIAO DIỆN CƠ BẢN
+// =========================
+
+/// Icon lớn trong 2 vòng tròn (thay cho hình minh họa của mẫu: màn trống, thành công, xác nhận).
+class RingIcon extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  const RingIcon(this.icon, {super.key, this.size = 150});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * 0.09),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.55), shape: BoxShape.circle),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 24, offset: Offset(0, 10))],
+        ),
+        child: Icon(icon, size: size * 0.34, color: AppColors.ink),
+      ),
+    );
+  }
+}
+
+/// Icon trong vòng tròn nền nhạt (đầu dòng thông báo, phương thức thanh toán...).
+class IconCircle extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color color;
+  final Color background;
+  const IconCircle(
+    this.icon, {
+    super.key,
+    this.size = 40,
+    this.color = AppColors.ink,
+    this.background = AppColors.tint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+      child: Icon(icon, size: size * 0.5, color: color),
+    );
+  }
+}
+
+/// Nút tròn có viền (chuông, chat ở đầu trang chủ).
+class CircleIconButton extends StatelessWidget {
+  final Widget icon;
+  final VoidCallback? onPressed;
+  final String? tooltip;
+  const CircleIconButton({super.key, required this.icon, this.onPressed, this.tooltip});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(width: 44, height: 44, child: Center(child: icon)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tiêu đề trang đăng nhập/đăng ký (mẫu "Welcome Back !"): chữ lớn đậm và dòng mô tả xám.
+class PageHeading extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  const PageHeading(this.title, {super.key, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w400, height: 1.25)),
+        if (subtitle != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            subtitle!,
+            style: const TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w300, height: 1.45),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Tiêu đề một khối nội dung (mẫu "Recommended ..... See all").
+class SectionTitle extends StatelessWidget {
+  final String title;
+  final String? actionText;
+  final VoidCallback? onAction;
+  final EdgeInsetsGeometry padding;
+  const SectionTitle(this.title, {super.key, this.actionText, this.onAction, this.padding = EdgeInsets.zero});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w400)),
+          ),
+          if (actionText != null)
+            GestureDetector(
+              onTap: onAction,
+              child: Text(
+                actionText!,
+                style: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w300, fontSize: 14),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ô nhập có nhãn đậm phía trên (mẫu: "Email" rồi tới ô nhập).
+class LabeledField extends StatelessWidget {
+  final String label;
+  final Widget child;
+  const LabeledField({super.key, required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Nhãn xám mảnh nằm trên ô như mẫu ("First Name", "Last Name")
+        Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w300, color: AppColors.muted),
+          ),
+        ),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+}
+
+/// Ô mật khẩu có nút ẩn/hiện (icon mắt gạch như mẫu).
+class PasswordField extends StatefulWidget {
+  final TextEditingController controller;
+  final String? hint;
+  final String? helper;
+  final FormFieldValidator<String>? validator;
+  final ValueChanged<String>? onSubmitted;
+  final TextInputAction? action;
+  const PasswordField({
+    super.key,
+    required this.controller,
+    this.hint,
+    this.helper,
+    this.validator,
+    this.onSubmitted,
+    this.action,
+  });
+
+  @override
+  State<PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<PasswordField> {
+  bool _hide = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: widget.controller,
+      obscureText: _hide,
+      textInputAction: widget.action,
+      onFieldSubmitted: widget.onSubmitted,
+      validator: widget.validator,
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        helperText: widget.helper,
+        helperMaxLines: 2,
+        suffixIcon: IconButton(
+          icon: Icon(_hide ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+          onPressed: () => setState(() => _hide = !_hide),
+        ),
+      ),
+    );
+  }
+}
+
+/// Thanh tab kiểu mẫu (My Booking): nền xám bo góc, tab đang chọn là khối màu chính.
+class SegmentTabs extends StatelessWidget implements PreferredSizeWidget {
+  final List<String> labels;
+  final TabController? controller;
+  final EdgeInsetsGeometry margin;
+  const SegmentTabs(
+    this.labels, {
+    super.key,
+    this.controller,
+    this.margin = const EdgeInsets.fromLTRB(pagePadding, 4, pagePadding, 12),
+  });
+
+  @override
+  Size get preferredSize => const Size.fromHeight(64);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      height: 48,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+      child: TabBar(
+        controller: controller,
+        tabs: [for (final l in labels) Tab(text: l, height: 40)],
+      ),
+    );
+  }
+}
+
+/// Giá kiểu mẫu: "$310" đậm màu chính + "/month" xám.
+class PriceText extends StatelessWidget {
+  final String amount;
+  final String? unit;
+  final double fontSize;
+  final Color color;
+  const PriceText(this.amount, {super.key, this.unit, this.fontSize = 15, this.color = AppColors.ink});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: amount,
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: fontSize, color: color),
+          ),
+          if (unit != null)
+            TextSpan(
+              text: unit,
+              style: TextStyle(color: AppColors.muted, fontSize: fontSize - 3, fontWeight: FontWeight.w300),
+            ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+/// Dòng có icon ghim + chữ xám (địa chỉ, khu vực).
+class LocationText extends StatelessWidget {
+  final String text;
+  final double fontSize;
+  const LocationText(this.text, {super.key, this.fontSize = 13});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(Icons.location_on_outlined, size: fontSize + 4, color: AppColors.muted),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: AppColors.muted, fontSize: fontSize),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dòng đồ trong danh sách (mẫu "Popular", "My Booking"): ảnh 80x62 bo 10, tên, dòng phụ, dòng dưới.
+class ItemRow extends StatelessWidget {
+  final Widget thumb;
+  final String title;
+  final Widget? subtitle;
+  final Widget? bottom;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final bool divider;
+  const ItemRow({
+    super.key,
+    required this.thumb,
+    required this.title,
+    this.subtitle,
+    this.bottom,
+    this.trailing,
+    this.onTap,
+    this.divider = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: divider
+            ? const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.divider)),
+              )
+            : null,
+        child: Row(
+          children: [
+            thumb,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+                        ),
+                      ),
+                      if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+                    ],
+                  ),
+                  if (subtitle != null) ...[const SizedBox(height: 6), subtitle!],
+                  if (bottom != null) ...[const SizedBox(height: 8), bottom!],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Khung có viền bo 12 (thẻ đồ ở đầu màn Đặt thuê, ô chọn phương thức...).
+class OutlineBox extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final bool selected;
+  final VoidCallback? onTap;
+  const OutlineBox({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+    this.selected = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: selected ? AppColors.primary : AppColors.border, width: selected ? 1.5 : 1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(padding: padding, child: child),
+      ),
+    );
+  }
+}
+
+/// Dòng menu kiểu mẫu (Profile): icon viền màu chính, chữ, mũi tên.
+class MenuRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  const MenuRow({super.key, required this.icon, required this.title, this.subtitle, this.onTap, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            IconCircle(icon, size: 38),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w400)),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle!, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  ],
+                ],
+              ),
+            ),
+            trailing ?? const Icon(Icons.chevron_right_rounded, color: AppColors.ink, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dòng thao tác dưới một đơn (mẫu "Write review", "Call Agent"): icon màu chính + chữ xám.
+class ActionRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final Color? color;
+  const ActionRow({super.key, required this.icon, required this.label, this.onTap, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.ink;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.divider)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: onTap == null ? AppColors.border : c, size: 22),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: color ?? (onTap == null ? AppColors.border : AppColors.ink),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+            ),
+            if (onTap != null) const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ô tích vuông bo góc (mẫu "Fillter").
+class TickBox extends StatelessWidget {
+  final bool selected;
+  const TickBox({super.key, required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primary : Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: 1.5),
+      ),
+      child: selected ? const Icon(Icons.check_rounded, size: 18, color: Colors.white) : null,
+    );
+  }
+}
+
+/// Khung viền đứt (mẫu "Click here to upload").
+class DashedBox extends StatelessWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final double height;
+  const DashedBox({super.key, required this.child, this.onTap, this.height = 140});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: CustomPaint(
+        painter: _DashedBorderPainter(),
+        child: SizedBox(
+          height: height,
+          width: double.infinity,
+          child: Center(child: child),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.border
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    final path = Path()..addRRect(RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12)));
+    for (final metric in path.computeMetrics()) {
+      for (double d = 0; d < metric.length; d += 10) {
+        canvas.drawPath(metric.extractPath(d, (d + 5).clamp(0, metric.length)), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Logo RentMate (màn chào, đăng nhập): ghim bo tròn màu chính, giữa có biểu tượng bắt tay.
+class AppLogo extends StatelessWidget {
+  final double size;
+  const AppLogo({super.key, this.size = 80});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(size / 2),
+              topRight: Radius.circular(size / 2),
+              bottomLeft: Radius.circular(size / 2),
+              bottomRight: Radius.circular(size * 0.12),
+            ),
+          ),
+          child: Icon(Icons.handshake_rounded, color: Colors.white, size: size * 0.5),
+        ),
+        SizedBox(height: size * 0.12),
+        // Bóng mờ dưới logo như mẫu
+        ImageFiltered(
+          imageFilter: ui.ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+          child: Container(
+            width: size * 0.7,
+            height: size * 0.1,
+            decoration: BoxDecoration(color: AppColors.tint, borderRadius: BorderRadius.circular(size)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// =========================
+// TRẠNG THÁI: ĐANG TẢI / LỖI / TRỐNG
+// =========================
+
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key});
 
@@ -152,18 +862,28 @@ class ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_rounded, size: 56, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(
+            const RingIcon(Icons.cloud_off_rounded, size: 130),
+            const SizedBox(height: 24),
+            Text(
+              tr('Không tải được dữ liệu'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w400),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.muted),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               label: Text(tr('Thử lại')),
             ),
           ],
@@ -173,7 +893,7 @@ class ErrorView extends StatelessWidget {
   }
 }
 
-/// Màn hình trống; đặt trong ListView để vẫn kéo xuống làm mới được.
+/// Màn hình trống (mẫu "No notification yet"); đặt trong ListView để vẫn kéo xuống làm mới được.
 class EmptyView extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -183,30 +903,33 @@ class EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(32, 80, 32, 32),
+      padding: const EdgeInsets.fromLTRB(32, 56, 32, 32),
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: scheme.primaryContainer,
-            child: Icon(icon, size: 40, color: scheme.onPrimaryContainer),
+          RingIcon(icon, size: 150),
+          const SizedBox(height: 28),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w400),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
           if (subtitle != null) ...[
-            const SizedBox(height: 6),
-            Text(subtitle!, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 10),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.muted, height: 1.45),
+            ),
           ],
-          if (action != null) ...[const SizedBox(height: 20), action!],
+          if (action != null) ...[const SizedBox(height: 24), action!],
         ],
       ),
     );
   }
 }
 
-/// Nhãn trạng thái nhỏ có màu.
+/// Nhãn trạng thái (mẫu "Waiting payment", "Checkin"): nền nhạt bo tròn, chữ cùng màu.
 class StatusBadge extends StatelessWidget {
   final String text;
   final Color color;
@@ -216,41 +939,51 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+      decoration: BoxDecoration(color: const Color(0xFFF1F2F4), borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w400, fontSize: 12),
+          ),
+        ],
       ),
-      child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
     );
   }
 }
 
 // Màu nhãn theo trạng thái (đơn thuê, đồ, giao dịch ví).
 Color statusColor(String status) => switch (status) {
-      'Pending' || 'PendingApproval' || 'Approved' || 'DamageClaimed' => const Color(0xFFE08A00),
-      'WaitingForPickup' || 'Rented' => const Color(0xFF2563EB),
-      'Available' || 'Completed' || 'Returned' => const Color(0xFF16A34A),
-      'Rejected' || 'Cancelled' || 'Overdue' || 'Unavailable' || 'Disputed' => const Color(0xFFDC2626),
-      _ => const Color(0xFF6B7280),
-    };
+  'Pending' || 'PendingApproval' || 'Approved' || 'DamageClaimed' => AppColors.warning,
+  'WaitingForPickup' || 'Rented' => AppColors.info,
+  'Available' || 'Completed' || 'Returned' => AppColors.success,
+  'Rejected' || 'Cancelled' || 'Overdue' || 'Unavailable' || 'Disputed' => AppColors.error,
+  _ => AppColors.muted,
+};
 
 /// Ảnh đại diện cho đồ. Có ảnh thì hiện ảnh; chưa có ảnh (hoặc tải lỗi) thì hiện
-/// ô màu + biểu tượng theo tên danh mục.
+/// ô xám nhạt + biểu tượng theo danh mục.
 class ItemThumb extends StatelessWidget {
   final String categoryName;
   final String? imageUrl;
   final double size;
+  final double? height;
   final double radius;
-  const ItemThumb({super.key, required this.categoryName, this.imageUrl, this.size = 64, this.radius = 14});
-
-  static const _palette = [
-    Color(0xFF0E9F8E),
-    Color(0xFF2563EB),
-    Color(0xFF9333EA),
-    Color(0xFFE08A00),
-    Color(0xFFDB2777),
-    Color(0xFF0891B2),
-  ];
+  const ItemThumb({
+    super.key,
+    required this.categoryName,
+    this.imageUrl,
+    this.size = 64,
+    this.height,
+    this.radius = 10,
+  });
 
   /// Icon theo lựa chọn của quản trị viên (CategoryIconOption trên Api); chưa chọn thì đoán theo tên.
   static const _iconByKey = <String, IconData>{
@@ -288,7 +1021,9 @@ class ItemThumb extends StatelessWidget {
     if (c.contains('xe') || c.contains('đạp')) return Icons.pedal_bike_rounded;
     if (c.contains('du lịch') || c.contains('cắm trại') || c.contains('lều')) return Icons.forest_rounded;
     if (c.contains('thể thao')) return Icons.sports_soccer_rounded;
-    if (c.contains('quần') || c.contains('áo') || c.contains('thời trang') || c.contains('váy')) return Icons.checkroom_rounded;
+    if (c.contains('quần') || c.contains('áo') || c.contains('thời trang') || c.contains('váy')) {
+      return Icons.checkroom_rounded;
+    }
     if (c.contains('sách')) return Icons.menu_book_rounded;
     if (c.contains('nhà') || c.contains('gia dụng') || c.contains('bếp')) return Icons.kitchen_rounded;
     if (c.contains('dụng cụ') || c.contains('công cụ') || c.contains('khoan')) return Icons.handyman_rounded;
@@ -301,38 +1036,36 @@ class ItemThumb extends StatelessWidget {
     if (imageUrl == null) return _placeholder();
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: Image.network(
-        imageUrl!,
+      child: Container(
         width: size,
-        height: size,
-        fit: BoxFit.cover,
-        // Ảnh nhỏ thì giải mã ở cỡ nhỏ cho nhẹ máy
-        cacheWidth: size.isFinite && size < 400 ? (size * 3).round() : null,
-        errorBuilder: (_, _, _) => _placeholder(),
-        loadingBuilder: (_, child, progress) => progress == null ? child : _placeholder(),
+        height: height ?? size,
+        color: Colors.white,
+        padding: const EdgeInsets.all(3),
+        child: Image.network(
+          imageUrl!,
+          fit: BoxFit.contain, // ảnh món đồ luôn hiện trọn, không cắt
+          // Ảnh nhỏ thì giải mã ở cỡ nhỏ cho nhẹ máy
+          cacheWidth: size.isFinite && size < 400 ? (size * 3).round() : null,
+          errorBuilder: (_, _, _) => _placeholder(),
+          loadingBuilder: (_, child, progress) => progress == null ? child : _placeholder(),
+        ),
       ),
     );
   }
 
   Widget _placeholder() {
-    final color = _palette[categoryName.hashCode.abs() % _palette.length];
+    final h = height ?? size;
+    final iconSize = (size.isFinite ? (size < h ? size : h) : h) * 0.42;
     return Container(
       width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color.withValues(alpha: 0.18), color.withValues(alpha: 0.32)],
-        ),
-      ),
-      child: Icon(iconFor(categoryName), color: color, size: size * 0.45),
+      height: h,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(radius), color: const Color(0xFFF4F5F6)),
+      child: Icon(iconFor(categoryName), color: const Color(0xFFA3A8B0), size: iconSize.isFinite ? iconSize : 40),
     );
   }
 }
 
-/// Dòng "nhãn ........ giá trị".
+/// Dòng "nhãn ........ giá trị" (mẫu "Price Details"); bold = dòng Tổng, số tiền màu chính cỡ lớn.
 class InfoRow extends StatelessWidget {
   final String label;
   final String value;
@@ -342,22 +1075,27 @@ class InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: bold ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: muted)),
+          Text(
+            label,
+            style: TextStyle(
+              color: bold ? AppColors.ink : AppColors.muted,
+              fontWeight: bold ? FontWeight.w500 : FontWeight.w300,
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-                color: valueColor,
-                fontSize: bold ? 16 : null,
+                fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+                color: valueColor ?? (bold ? AppColors.primary : AppColors.ink),
+                fontSize: bold ? 20 : 14,
               ),
             ),
           ),
@@ -372,23 +1110,21 @@ class NoticeBox extends StatelessWidget {
   final String text;
   final IconData icon;
   final Color color;
-  const NoticeBox(this.text, {super.key, this.icon = Icons.info_outline_rounded, this.color = const Color(0xFF2563EB)});
+  const NoticeBox(this.text, {super.key, this.icon = Icons.info_outline_rounded, this.color = AppColors.primary});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(16)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: TextStyle(color: color.withValues(alpha: 0.95), height: 1.35))),
+          Expanded(
+            child: Text(text, style: TextStyle(color: color, height: 1.4, fontSize: 13.5)),
+          ),
         ],
       ),
     );
@@ -412,5 +1148,19 @@ class BusyButton extends StatelessWidget {
       return FilledButton.icon(onPressed: onPressed, icon: Icon(icon), label: child);
     }
     return FilledButton(onPressed: busy ? null : onPressed, child: child);
+  }
+}
+
+/// Thanh dưới cùng chứa nút chính (mẫu "Rent now", "Confirm and Pay").
+class BottomActionBar extends StatelessWidget {
+  final Widget child;
+  const BottomActionBar({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(padding: const EdgeInsets.fromLTRB(pagePadding, 8, pagePadding, 16), child: child),
+    );
   }
 }

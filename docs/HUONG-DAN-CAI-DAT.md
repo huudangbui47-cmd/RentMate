@@ -58,10 +58,16 @@ Hai file này không có trên GitHub nên phải tự tạo.
   "Ghn": {
     "Token": "",
     "ShopId": 0
+  },
+  "Cloudinary": {
+    "CloudName": "",
+    "ApiKey": "",
+    "ApiSecret": ""
   }
 }
 ```
 
+- `Cloudinary`: nơi lưu ảnh (ảnh đồ, ảnh đại diện, ảnh biên bản) trên mạng thay vì ổ cứng máy chạy Api, để cả nhóm và điện thoại thật đều xem được cùng một ảnh. Đăng ký miễn phí ở https://cloudinary.com, vào Dashboard lấy **Cloud name**, **API Key**, **API Secret**. Để trống `CloudName` thì ảnh vẫn lưu ổ cứng (`RentMate.Api/wwwroot/uploads`) như cũ. Ảnh cũ dạng `/uploads/...` vẫn hiện bình thường sau khi bật.
 - `VnPay`: nạp ví qua cổng VNPay **sandbox** (tiền ảo). Đăng ký miễn phí ở https://sandbox.vnpayment.vn/devreg/, VNPay gửi `TmnCode` và `HashSecret` qua email. Thẻ test: ngân hàng **NCB**, số thẻ `9704198526191432198`, tên `NGUYEN VAN A`, ngày phát hành `07/15`, OTP `123456`. Để trống thì app chỉ có nạp bằng chuyển khoản thủ công.
   - `ReturnUrl` là địa chỉ VNPay chuyển về sau khi thanh toán; máy ảo Android giữ nguyên `10.0.2.2`, điện thoại thật thì đổi thành IP LAN của máy chạy Api (vd. `http://192.168.1.10:5076/...`).
 - `Ghn`: giao hàng qua Giao Hàng Nhanh, môi trường thử. Đăng ký tài khoản ở https://5sao.ghn.dev, tạo một cửa hàng (địa chỉ cửa hàng = nơi shipper đến lấy hàng), rồi lấy **Token** (mục Chủ cửa hàng → Xem) và **ShopId**. Để trống thì app chỉ có "Gặp trực tiếp".
@@ -98,13 +104,21 @@ Hai file này không có trên GitHub nên phải tự tạo.
   "Ghn": {
     "Token": "",
     "ShopId": 0
+  },
+  "Cloudinary": {
+    "CloudName": "",
+    "ApiKey": "",
+    "ApiSecret": ""
   }
 }
 ```
 
+- `Cloudinary` ở AdminSite: điền **giống hệt Api** để ảnh đại diện quản trị và banner trang chủ cũng lưu lên Cloudinary (không nằm trong project). Để trống thì lưu ổ cứng như cũ.
 - `Ai` ở AdminSite dùng cho nút "Dịch bằng AI" trên trang Ngôn ngữ (cùng khóa với Api). Để trống thì vẫn dịch tay được.
 
-Ảnh đồ cho thuê do khách tải lên được lưu trên Api (`RentMate.Api/wwwroot/uploads/items`). AdminSite mặc định lấy ảnh từ `https://localhost:7130`; nếu Api chạy ở địa chỉ khác thì thêm `"ApiBaseUrl": "https://dia-chi-api"` vào file trên.
+Ảnh đồ cho thuê do khách tải lên được lưu trên Cloudinary (nếu Api có cấu hình `Cloudinary`, link `https://res.cloudinary.com/...` hiện thẳng) hoặc trên Api (`RentMate.Api/wwwroot/uploads/items`). AdminSite mặc định lấy ảnh từ `https://localhost:7130`; nếu Api chạy ở địa chỉ khác thì thêm `"ApiBaseUrl": "https://dia-chi-api"` vào file trên.
+
+Ảnh quản trị viên tải lên cho app (banner trang chủ) được lưu ở thư mục dùng chung `shared-uploads` nằm cạnh các project (tự tạo khi chạy, đã gitignore); Api và AdminSite cùng phục vụ thư mục này tại `/shared/...`. Muốn để chỗ khác thì thêm `"Storage": { "SharedRoot": "D:\\RentMateUploads" }` vào **cả hai** file cấu hình, trỏ về cùng một thư mục.
 
 Smtp để trống vẫn chạy được, khi đó link quên mật khẩu được in ra console (đổi `&amp;` thành `&` trước khi dán vào trình duyệt).
 
@@ -174,6 +188,6 @@ Request tải ảnh: tab **Body** → chọn file cho key `files`.
 
 - **Cài đặt hệ thống** (chỉ Admin): phí nền tảng %, hạn mức nạp/rút, số ngày thuê tối đa, đặt trước tối đa, hạn thanh toán, hạn kiểm tra đồ, hạn phản hồi bồi thường, số ảnh tối đa, tài khoản nhận tiền nạp ví, số điện thoại/email hỗ trợ. Lưu xong app áp dụng trong vòng 30 giây (app lấy lại khi mở). Đổi phí chỉ áp dụng cho đơn đặt sau đó.
 - **Danh mục**: chọn icon hiện trên app cho từng danh mục.
-- **Ngôn ngữ**: lần đầu bấm **Nạp câu chữ gốc của app** (thêm toàn bộ câu chữ và bản tiếng Anh). Thêm ngôn ngữ mới (vd. `zh` 中文), bấm **Dịch bằng AI** để có bản nháp, sửa lại rồi bật **Hiện trên app**. App tự tải bản dịch mới khi mở.
-  - Khi code app có câu mới, bấm lại **Nạp câu chữ gốc của app** để bổ sung (không ghi đè bản dịch đã sửa).
-  - Muốn dịch một thông báo lỗi từ máy chủ: **Thêm câu** với đúng nguyên văn tiếng Việt rồi dịch như câu khác.
+- **Banner trang chủ**: tải ảnh ngang lên (JPG/PNG tối đa 5MB), ẩn/hiện, đổi thứ tự. App cho các ảnh đang hiện chạy lần lượt ở đầu Trang chủ; chưa có ảnh thì dùng nền tối.
+- **Ngôn ngữ**: câu chữ của app tự được nạp khi AdminSite khởi động (có sẵn bản tiếng Anh). Bấm **Thêm ngôn ngữ**, chọn trong danh sách (Trung, Nhật, Hàn, Pháp...), tích **Dùng AI dịch toàn bộ app** → khoảng 1-2 phút sau ngôn ngữ hiện trên app. Không có khóa AI thì phải dịch tay từng câu.
+  - Muốn dịch một thông báo lỗi từ máy chủ: vào **Xem / sửa bản dịch** → **Thêm câu** với đúng nguyên văn tiếng Việt.

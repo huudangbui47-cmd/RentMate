@@ -3,15 +3,6 @@
  * (2 file đó giữ nguyên từ EcommerceManagement để dễ đồng bộ về sau).
  */
 
-/* Toast thành công nằm cùng vị trí với toast lỗi */
-.admin-toast {
-    transition: opacity .25s ease;
-}
-
-.admin-toast:not(.show) {
-    opacity: 0;
-}
-
 /* Dòng phụ dưới số liệu ở Dashboard */
 .rm-stat-sub {
     margin-top: .25rem;
@@ -30,7 +21,7 @@
     border-radius: 8px;
     font-weight: 700;
     color: var(--bs-primary);
-    background: rgba(67, 94, 190, .12);
+    background: var(--tblr-primary-lt);
 }
 
 /* Danh sách thông tin dạng nhãn - giá trị */
@@ -264,7 +255,7 @@
     height: 72px;
     overflow: hidden;
     border-radius: 50%;
-    background: rgba(67, 94, 190, .12);
+    background: var(--tblr-primary-lt);
     color: var(--bs-primary);
     font-size: 1.6rem;
     font-weight: 700;
@@ -317,7 +308,7 @@
     min-width: 20px;
     padding: 0 5px;
     border-radius: 10px;
-    background: #435ebe;
+    background: var(--tblr-primary);
     color: #fff;
     font-size: 11px;
     line-height: 20px;
@@ -330,7 +321,7 @@
     justify-content: center;
     flex-shrink: 0;
     color: #adb5bd;
-    background: #f5f6f8;
+    background: var(--tblr-bg-surface-tertiary);
 }
 
 .rm-image-grid {
@@ -344,14 +335,23 @@
     aspect-ratio: 1;
     object-fit: cover;
     border-radius: 8px;
-    border: 1px solid #e3e6ea;
+    border: 1px solid var(--tblr-border-color);
 }
 
 /* Nhận xét của AI trong biên bản tình trạng đồ */
 .rm-ai-box {
-    background: #f3f6ff;
-    border-left: 3px solid #435ebe;
+    background: var(--tblr-primary-lt);
+    border-left: 3px solid var(--tblr-primary);
     border-radius: 6px;
     padding: 10px 12px;
     font-size: 0.92rem;
+}
+
+/* Trang Banner trang chủ: ảnh thu nhỏ trong bảng */
+.rm-banner-thumb {
+    width: 160px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--tblr-bg-surface-tertiary);
 }

@@ -28,10 +28,10 @@ namespace RentMate.Service.Services
         }
 
         // Đồ khách khác nhìn thấy trên app: đã được duyệt và chưa bị tạm ngưng/ẩn
-        private static readonly Expression<Func<Item, bool>> IsPublic =
+        internal static readonly Expression<Func<Item, bool>> IsPublic =
             i => i.Status == ItemStatus.Available || i.Status == ItemStatus.Rented;
 
-        private static readonly Expression<Func<Item, ItemDto>> ToDto = i => new ItemDto
+        internal static readonly Expression<Func<Item, ItemDto>> ToDto = i => new ItemDto
         {
             ItemId = i.Id,
             ItemName = i.ItemName,
@@ -45,6 +45,9 @@ namespace RentMate.Service.Services
 
             Province = i.Province,
             Area = i.Area,
+
+            DiscountPercent = i.DiscountPercent,
+            DiscountMinDays = i.DiscountMinDays,
 
             CategoryId = i.CategoryId,
             CategoryName = i.Category.CategoryName,
@@ -118,6 +121,7 @@ namespace RentMate.Service.Services
         {
             await ValidateAsync(dto.ItemName, dto.PricePerDay, dto.DepositAmount, dto.CategoryId, dto.Condition);
             ValidateLocation(dto.Province, dto.Area);
+            ValidateDiscount(dto.DiscountPercent, dto.DiscountMinDays);
 
             var item = new Item
             {
@@ -133,6 +137,9 @@ namespace RentMate.Service.Services
 
                 Province = dto.Province,
                 Area = NormalizeArea(dto.Area),
+
+                DiscountPercent = dto.DiscountPercent,
+                DiscountMinDays = dto.DiscountPercent > 0 ? dto.DiscountMinDays : 0,
 
                 // Đồ mới phải chờ quản lý duyệt mới hiện trên app
                 Status = ItemStatus.PendingApproval,
@@ -167,6 +174,7 @@ namespace RentMate.Service.Services
 
             await ValidateAsync(dto.ItemName, dto.PricePerDay, dto.DepositAmount, dto.CategoryId, dto.Condition);
             ValidateLocation(dto.Province, dto.Area);
+            ValidateDiscount(dto.DiscountPercent, dto.DiscountMinDays);
 
             // Chỉ đổi tên, mô tả, danh mục mới phải duyệt lại (tránh đăng đồ sạch để được duyệt rồi sửa thành nội dung khác).
             // Đổi giá, cọc, tình trạng, nơi nhận đồ thì lưu luôn, đồ vẫn hiện trên app.
@@ -186,6 +194,10 @@ namespace RentMate.Service.Services
 
             item.PricePerDay = dto.PricePerDay;
             item.DepositAmount = dto.DepositAmount;
+
+            // Ưu đãi chỉ áp dụng cho đơn đặt sau khi đổi, đơn cũ giữ giá lúc đặt
+            item.DiscountPercent = dto.DiscountPercent;
+            item.DiscountMinDays = dto.DiscountPercent > 0 ? dto.DiscountMinDays : 0;
 
             item.CategoryId = dto.CategoryId;
 
@@ -625,6 +637,19 @@ namespace RentMate.Service.Services
                 throw new ArgumentException("Tiền cọc không được âm.");
 
             await EnsureCategoryAssignableAsync(categoryId);
+        }
+
+        // Ưu đãi thuê dài ngày: giảm 1-50%, áp dụng từ 2 ngày trở lên
+        private static void ValidateDiscount(int percent, int minDays)
+        {
+            if (percent == 0)
+                return;
+
+            if (percent < 0 || percent > 50)
+                throw new ArgumentException("Mức giảm phải từ 1% đến 50%.");
+
+            if (minDays < 2)
+                throw new ArgumentException("Ưu đãi chỉ áp dụng khi thuê từ 2 ngày trở lên.");
         }
 
         // Đồ chỉ được gắn vào danh mục đang hoạt động (và danh mục cha cũng đang hoạt động).

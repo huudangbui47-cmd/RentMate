@@ -82,6 +82,11 @@ namespace RentMate.Core.Models
 
         public decimal LateDeliveryRefund { get; set; }
 
+        // Ưu đãi thuê dài ngày áp dụng lúc đặt đơn (giữ lại để tính hoàn tiền), TotalPrice đã trừ DiscountAmount
+        public int DiscountPercent { get; set; }
+
+        public decimal DiscountAmount { get; set; }
+
         // Foreign Keys
         public int ItemId { get; set; }
 

@@ -24,17 +24,17 @@ class ConditionReport {
   final num? aiSuggestedDeduction;
 
   ConditionReport.fromJson(Map<String, dynamic> j)
-      : reportType = (j['reportType'] ?? '') as String,
-        condition = (j['condition'] ?? '') as String,
-        description = (j['description'] ?? '') as String,
-        imageUrls = ((j['imageUrls'] ?? []) as List).cast<String>(),
-        createdAt = DateTime.parse(j['createdAt'] as String),
-        aiSummary = j['aiSummary'] as String?,
-        aiDamages = ((j['aiDamages'] ?? []) as List).cast<String>(),
-        aiSuggestedCondition = j['aiSuggestedCondition'] as String?,
-        aiNewDamageFound = j['aiNewDamageFound'] as bool?,
-        aiSameItem = j['aiSameItem'] as bool?,
-        aiSuggestedDeduction = j['aiSuggestedDeduction'] as num?;
+    : reportType = (j['reportType'] ?? '') as String,
+      condition = (j['condition'] ?? '') as String,
+      description = (j['description'] ?? '') as String,
+      imageUrls = ((j['imageUrls'] ?? []) as List).cast<String>(),
+      createdAt = DateTime.parse(j['createdAt'] as String),
+      aiSummary = j['aiSummary'] as String?,
+      aiDamages = ((j['aiDamages'] ?? []) as List).cast<String>(),
+      aiSuggestedCondition = j['aiSuggestedCondition'] as String?,
+      aiNewDamageFound = j['aiNewDamageFound'] as bool?,
+      aiSameItem = j['aiSameItem'] as bool?,
+      aiSuggestedDeduction = j['aiSuggestedDeduction'] as num?;
 
   bool get hasAi => aiSummary != null && aiSummary!.isNotEmpty;
 }
@@ -56,9 +56,7 @@ class ConditionReportService {
   Future<List<ConditionReport>> getReports(int rentalId) async {
     final res = await http.get(_url(rentalId), headers: await AuthService().authHeaders());
     checkResponse(res);
-    return (jsonDecode(res.body) as List)
-        .map((e) => ConditionReport.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (jsonDecode(res.body) as List).map((e) => ConditionReport.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Gửi ảnh thật (multipart). AI xem ảnh nên có thể mất 10-30 giây.

@@ -11,7 +11,8 @@ namespace RentMate.Data.Configurations.Settings
             builder.Property(t => t.Id).HasColumnName("TextResourceId");
 
             // 450 ký tự: giới hạn để SQL Server tạo được chỉ mục duy nhất (900 byte)
-            builder.Property(t => t.Key).HasMaxLength(450).IsRequired();
+            // Phân biệt hoa/thường: app có cả "Số tiền" (nhãn) lẫn "số tiền" (giữa câu) là 2 câu khác nhau
+            builder.Property(t => t.Key).HasMaxLength(450).IsRequired().UseCollation("Latin1_General_100_CS_AS");
             builder.Property(t => t.Note).HasMaxLength(500);
 
             builder.HasIndex(t => t.Key).IsUnique();

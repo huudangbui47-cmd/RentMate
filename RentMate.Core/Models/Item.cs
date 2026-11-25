@@ -25,6 +25,12 @@ namespace RentMate.Core.Models
 
         public string? Area { get; set; }
 
+        // Ưu đãi thuê dài ngày do chủ đồ đặt: giảm DiscountPercent% tiền thuê khi thuê từ DiscountMinDays ngày.
+        // DiscountPercent = 0 là không có ưu đãi.
+        public int DiscountPercent { get; set; }
+
+        public int DiscountMinDays { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Foreign Keys

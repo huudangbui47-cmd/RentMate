@@ -15,13 +15,13 @@ class WalletSummary {
   final String? maskedAccountNumber;
 
   WalletSummary.fromJson(Map<String, dynamic> j)
-      : balance = (j['balance'] ?? 0) as num,
-        availableBalance = (j['availableBalance'] ?? 0) as num,
-        pendingWithdrawAmount = (j['pendingWithdrawAmount'] ?? 0) as num,
-        hasBankInfo = (j['hasBankInfo'] ?? false) as bool,
-        bankName = j['bankName'] as String?,
-        bankAccountName = j['bankAccountName'] as String?,
-        maskedAccountNumber = j['maskedAccountNumber'] as String?;
+    : balance = (j['balance'] ?? 0) as num,
+      availableBalance = (j['availableBalance'] ?? 0) as num,
+      pendingWithdrawAmount = (j['pendingWithdrawAmount'] ?? 0) as num,
+      hasBankInfo = (j['hasBankInfo'] ?? false) as bool,
+      bankName = j['bankName'] as String?,
+      bankAccountName = j['bankAccountName'] as String?,
+      maskedAccountNumber = j['maskedAccountNumber'] as String?;
 }
 
 class WalletTransaction {
@@ -35,14 +35,14 @@ class WalletTransaction {
   final DateTime createdAt;
 
   WalletTransaction.fromJson(Map<String, dynamic> j)
-      : id = j['transactionId'] as int,
-        amount = (j['amount'] ?? 0) as num,
-        type = (j['type'] ?? '') as String,
-        status = (j['status'] ?? '') as String,
-        code = j['code'] as String?,
-        rentalId = j['rentalId'] as int?,
-        note = j['note'] as String?,
-        createdAt = DateTime.parse(j['createdAt'] as String);
+    : id = j['transactionId'] as int,
+      amount = (j['amount'] ?? 0) as num,
+      type = (j['type'] ?? '') as String,
+      status = (j['status'] ?? '') as String,
+      code = j['code'] as String?,
+      rentalId = j['rentalId'] as int?,
+      note = j['note'] as String?,
+      createdAt = DateTime.parse(j['createdAt'] as String);
 }
 
 class DepositRequest {
@@ -55,13 +55,13 @@ class DepositRequest {
   final String? qrImageUrl;
 
   DepositRequest.fromJson(Map<String, dynamic> j)
-      : id = j['transactionId'] as int,
-        code = (j['code'] ?? '') as String,
-        amount = (j['amount'] ?? 0) as num,
-        receiverBankName = j['receiverBankName'] as String?,
-        receiverAccountNumber = j['receiverAccountNumber'] as String?,
-        receiverAccountName = j['receiverAccountName'] as String?,
-        qrImageUrl = j['qrImageUrl'] as String?;
+    : id = j['transactionId'] as int,
+      code = (j['code'] ?? '') as String,
+      amount = (j['amount'] ?? 0) as num,
+      receiverBankName = j['receiverBankName'] as String?,
+      receiverAccountNumber = j['receiverAccountNumber'] as String?,
+      receiverAccountName = j['receiverAccountName'] as String?,
+      qrImageUrl = j['qrImageUrl'] as String?;
 }
 
 // Theo WalletTransactionType / WalletTransactionStatus trong RentMate.Core.
@@ -93,9 +93,7 @@ class WalletService {
   Future<List<WalletTransaction>> getHistory() async {
     final res = await http.get(_url('/transactions'), headers: await AuthService().authHeaders());
     checkResponse(res);
-    return (jsonDecode(res.body) as List)
-        .map((e) => WalletTransaction.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (jsonDecode(res.body) as List).map((e) => WalletTransaction.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<DepositRequest> createDeposit(num amount) async {
@@ -122,11 +120,7 @@ class WalletService {
     final res = await http.put(
       _url('/bank-info'),
       headers: await AuthService().authHeaders(),
-      body: jsonEncode({
-        'bankName': bankName,
-        'bankAccountNumber': accountNumber,
-        'bankAccountName': accountName,
-      }),
+      body: jsonEncode({'bankName': bankName, 'bankAccountNumber': accountNumber, 'bankAccountName': accountName}),
     );
     checkResponse(res);
   }

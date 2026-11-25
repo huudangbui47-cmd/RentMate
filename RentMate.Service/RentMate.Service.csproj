@@ -14,7 +14,8 @@
 
   <ItemGroup>
     <!-- Câu chữ gốc của app kèm bản tiếng Anh, nạp vào database ở trang quản trị Ngôn ngữ -->
-    <EmbeddedResource Include="Resources\app-texts.en.json" LogicalName="RentMate.Service.Resources.app-texts.en.json" />
+    <!-- Tên file không được có dạng ".en.json": MSBuild sẽ coi là file riêng của tiếng Anh và tách ra dll phụ -->
+    <EmbeddedResource Include="Resources\app-texts.json" LogicalName="RentMate.Service.Resources.app-texts.json" WithCulture="false" />
   </ItemGroup>
 
   <ItemGroup>

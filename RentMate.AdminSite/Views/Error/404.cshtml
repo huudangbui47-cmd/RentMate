@@ -8,15 +8,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Không tìm thấy trang</title>
-    <link rel="stylesheet" href="~/lib/mazer/css/app.css" />
-    <link rel="stylesheet" href="~/lib/mazer/css/app-dark.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <script>
-        if (!localStorage.getItem("theme")) localStorage.setItem("theme", "dark");
+        try { if (localStorage.getItem("rm-theme") === "dark") document.documentElement.setAttribute("data-bs-theme", "dark"); } catch (e) { }
     </script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="~/lib/tabler/css/tabler.min.css" />
+    <link rel="stylesheet" href="~/css/admin-theme.css" asp-append-version="true" />
 </head>
-<body>
-    <script src="~/lib/mazer/js/initTheme.js"></script>
+<body class="admin-login-page">
     <div class="min-vh-100 d-flex align-items-center justify-content-center p-3">
         <div class="card error-card text-center">
             <div class="card-body p-5">

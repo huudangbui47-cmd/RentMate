@@ -32,6 +32,8 @@ namespace RentMate.Data.Context
         public DbSet<AppLanguage> AppLanguages { get; set; } = null!;
         public DbSet<TextResource> TextResources { get; set; } = null!;
         public DbSet<TextTranslation> TextTranslations { get; set; } = null!;
+        public DbSet<Banner> Banners { get; set; } = null!;
+        public DbSet<Favorite> Favorites { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

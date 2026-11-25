@@ -16,13 +16,13 @@ class Profile {
   final DateTime createdAt;
 
   Profile.fromJson(Map<String, dynamic> j)
-      : userId = (j['userId'] ?? '') as String,
-        fullName = (j['fullName'] ?? '') as String,
-        email = (j['email'] ?? '') as String,
-        phoneNumber = (j['phoneNumber'] ?? '') as String,
-        address = (j['address'] ?? '') as String,
-        avatarUrl = j['avatarUrl'] == null ? null : imageFullUrl(j['avatarUrl'] as String),
-        createdAt = DateTime.parse(j['createdAt'] as String);
+    : userId = (j['userId'] ?? '') as String,
+      fullName = (j['fullName'] ?? '') as String,
+      email = (j['email'] ?? '') as String,
+      phoneNumber = (j['phoneNumber'] ?? '') as String,
+      address = (j['address'] ?? '') as String,
+      avatarUrl = j['avatarUrl'] == null ? null : imageFullUrl(j['avatarUrl'] as String),
+      createdAt = DateTime.parse(j['createdAt'] as String);
 }
 
 /// Hồ sơ công khai của người khác (không có email, số điện thoại, địa chỉ).
@@ -33,27 +33,21 @@ class PublicProfile {
   final DateTime createdAt;
 
   PublicProfile.fromJson(Map<String, dynamic> j)
-      : userId = (j['userId'] ?? '') as String,
-        fullName = (j['fullName'] ?? '') as String,
-        avatarUrl = j['avatarUrl'] == null ? null : imageFullUrl(j['avatarUrl'] as String),
-        createdAt = DateTime.parse(j['createdAt'] as String);
+    : userId = (j['userId'] ?? '') as String,
+      fullName = (j['fullName'] ?? '') as String,
+      avatarUrl = j['avatarUrl'] == null ? null : imageFullUrl(j['avatarUrl'] as String),
+      createdAt = DateTime.parse(j['createdAt'] as String);
 }
 
 class AccountService {
   Future<PublicProfile> getPublicProfile(String userId) async {
-    final res = await http.get(
-      Uri.parse('$apiBaseUrl/api/Users/$userId'),
-      headers: await AuthService().authHeaders(),
-    );
+    final res = await http.get(Uri.parse('$apiBaseUrl/api/Users/$userId'), headers: await AuthService().authHeaders());
     checkResponse(res);
     return PublicProfile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
   Future<Profile> getProfile() async {
-    final res = await http.get(
-      Uri.parse('$apiBaseUrl/api/Account/me'),
-      headers: await AuthService().authHeaders(),
-    );
+    final res = await http.get(Uri.parse('$apiBaseUrl/api/Account/me'), headers: await AuthService().authHeaders());
     checkResponse(res);
     return Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
@@ -66,11 +60,7 @@ class AccountService {
     final res = await http.put(
       Uri.parse('$apiBaseUrl/api/Account/me'),
       headers: await AuthService().authHeaders(),
-      body: jsonEncode({
-        'fullName': fullName,
-        'phoneNumber': phoneNumber,
-        'address': address.isEmpty ? null : address,
-      }),
+      body: jsonEncode({'fullName': fullName, 'phoneNumber': phoneNumber, 'address': address.isEmpty ? null : address}),
     );
     checkResponse(res);
     final profile = Profile.fromJson(jsonDecode(res.body) as Map<String, dynamic>);

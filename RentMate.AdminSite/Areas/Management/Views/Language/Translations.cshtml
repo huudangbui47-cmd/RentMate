@@ -19,8 +19,8 @@
             @if (autoTranslate && Model.MissingCount > 0)
             {
                 <form asp-action="AutoTranslate" asp-route-id="@Model.LanguageId" method="post"
-                      onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').innerText = 'AI đang dịch, có thể mất 1-2 phút...'; return true;">
-                    <button type="submit" class="btn btn-outline-primary">Dịch bằng AI (tối đa 150 câu chưa dịch)</button>
+                      onsubmit="const b = this.querySelector('button'); setTimeout(() => { b.disabled = true; b.innerText = 'AI đang dịch, khoảng 1-2 phút...'; }); return true;">
+                    <button type="submit" class="btn btn-outline-primary">Dịch phần còn thiếu bằng AI</button>
                 </form>
             }
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#textCreateModal">Thêm câu</button>

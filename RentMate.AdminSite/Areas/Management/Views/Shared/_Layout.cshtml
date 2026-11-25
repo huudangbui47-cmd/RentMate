@@ -8,8 +8,36 @@
     bool isAdmin = User.IsInRole("Admin");
     string roleDisplayName = isAdmin ? "Quản trị viên" : "Quản lý";
 
-    string ItemClass(string controller) =>
-        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) ? "sidebar-item active" : "sidebar-item";
+    (string Controller, string Icon, string Text, bool AdminOnly) L(string controller, string icon, string text, bool adminOnly = false) =>
+        (controller, icon, text, adminOnly);
+
+    // Menu ngang theo mẫu Dwellr: mục chính hiện thẳng, nhóm nhiều trang thì gom vào menu thả xuống
+    var tabs = new[]
+    {
+        (Text: "Tổng quan", Icon: "layout-grid", Links: new[] { L("Dashboard", "layout-grid", "Tổng quan") }),
+        (Text: "Đơn thuê", Icon: "receipt", Links: new[] { L("Rental", "receipt", "Đơn thuê") }),
+        (Text: "Đồ cho thuê", Icon: "package", Links: new[] { L("Item", "package", "Đồ cho thuê") }),
+        (Text: "Khách hàng", Icon: "users", Links: new[] { L("Customer", "users", "Khách hàng") }),
+        (Text: "Tài chính", Icon: "wallet", Links: new[]
+        {
+            L("Payment", "credit-card", "Thanh toán"),
+            L("Wallet", "wallet", "Nạp / rút tiền", true)
+        }),
+        (Text: "Nội dung", Icon: "layout-list", Links: new[]
+        {
+            L("Category", "category", "Danh mục"),
+            L("Banner", "photo", "Banner trang chủ"),
+            L("Language", "language", "Ngôn ngữ")
+        }),
+        (Text: "Hệ thống", Icon: "settings", Links: new[]
+        {
+            L("User", "user-shield", "Tài khoản quản lý", true),
+            L("AuditLog", "history", "Nhật ký hệ thống", true),
+            L("Setting", "adjustments", "Cài đặt hệ thống", true)
+        })
+    };
+
+    bool IsActive(string controller) => string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase);
 }
 
 <!DOCTYPE html>
@@ -20,192 +48,116 @@
     <title>@ViewData["Title"] - RentMate Admin</title>
     <link rel="icon" href="~/favicon.ico" />
 
-    <link rel="stylesheet" href="~/lib/mazer/css/app.css" />
-    <link rel="stylesheet" href="~/lib/mazer/css/app-dark.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/admin-ui.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/rentmate.css" asp-append-version="true" />
-
+    @* Chế độ sáng / tối áp dụng trước khi vẽ trang để không bị nháy *@
     <script>
-        if (!localStorage.getItem("theme")) localStorage.setItem("theme", "light");
+        try { if (localStorage.getItem("rm-theme") === "dark") document.documentElement.setAttribute("data-bs-theme", "dark"); } catch (e) { }
     </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="~/lib/tabler/css/tabler.min.css" />
+    <link rel="stylesheet" href="~/lib/tabler-icons/tabler-icons.min.css" />
+    <link rel="stylesheet" href="~/css/rentmate.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-theme.css" asp-append-version="true" />
 </head>
 <body>
-    <script src="~/lib/mazer/js/initTheme.js"></script>
+    <header class="rm-topbar">
+        <div class="container-xl rm-topbar-inner">
+            <a asp-area="Management" asp-controller="Dashboard" asp-action="Index" class="rm-logo" title="RentMate - Trang quản trị">RM</a>
 
-    <div id="app">
-        <div id="sidebar">
-            <div class="sidebar-wrapper active admin-sidebar-wrapper">
-                <div class="sidebar-header position-relative">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a asp-area="Management" asp-controller="Dashboard" asp-action="Index" class="mazer-brand">
-                            <span class="mazer-brand-mark">RM</span>
-                            <span>
-                                <strong>RentMate</strong>
-                                <small>Trang quản trị</small>
-                            </span>
-                        </a>
+            <button class="rm-nav-toggle d-xl-none" type="button" data-bs-toggle="collapse" data-bs-target="#rm-nav"
+                    aria-controls="rm-nav" aria-expanded="false" aria-label="Mở menu">
+                <i class="ti ti-menu-2"></i>
+            </button>
 
-                        <div class="sidebar-toggler x">
-                            <a href="#" class="sidebar-hide d-xl-none d-block">×</a>
-                        </div>
-                    </div>
-                </div>
+            <nav class="collapse rm-nav-collapse" id="rm-nav">
+                <ul class="rm-nav">
+                    @foreach (var tab in tabs)
+                    {
+                        var links = tab.Links.Where(l => !l.AdminOnly || isAdmin).ToList();
+                        if (links.Count == 0) continue;
+                        bool active = links.Any(l => IsActive(l.Controller));
 
-                <div class="sidebar-menu admin-sidebar-menu">
-                    <ul class="menu">
-                        <li class="sidebar-title">Tổng quan</li>
-                        <li class="@ItemClass("Dashboard")">
-                            <a asp-area="Management" asp-controller="Dashboard" asp-action="Index" class="sidebar-link">
-                                <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg></span>
-                                <span>Tổng quan</span>
-                            </a>
-                        </li>
-
-                        <li class="sidebar-title">Cho thuê</li>
-                        <li class="@ItemClass("Rental")">
-                            <a asp-area="Management" asp-controller="Rental" asp-action="Index" class="sidebar-link">
-                                <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 8h6M9 12h6M9 16h4" /></svg></span>
-                                <span>Đơn thuê</span>
-                            </a>
-                        </li>
-                        <li class="@ItemClass("Item")">
-                            <a asp-area="Management" asp-controller="Item" asp-action="Index" class="sidebar-link">
-                                <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21" /></svg></span>
-                                <span>Đồ cho thuê</span>
-                            </a>
-                        </li>
-                        <li class="@ItemClass("Category")">
-                            <a asp-area="Management" asp-controller="Category" asp-action="Index" class="sidebar-link">
-                                <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" /></svg></span>
-                                <span>Danh mục</span>
-                            </a>
-                        </li>
-                        <li class="@ItemClass("Payment")">
-                            <a asp-area="Management" asp-controller="Payment" asp-action="Index" class="sidebar-link">
-                                <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h4" /></svg></span>
-                                <span>Thanh toán</span>
-                            </a>
-                        </li>
-                        @if (isAdmin)
+                        if (tab.Links.Length == 1)
                         {
-                            <li class="@ItemClass("Wallet")">
-                                <a asp-area="Management" asp-controller="Wallet" asp-action="Index" class="sidebar-link">
-                                    <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4" /><path d="M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2Z" /><circle cx="16" cy="14.5" r="1.2" /></svg></span>
-                                    <span>Nạp / rút tiền</span>
+                            <li>
+                                <a class="rm-nav-link @(active ? "active" : "")" asp-area="Management" asp-controller="@links[0].Controller" asp-action="Index"
+                                   aria-current="@(active ? "page" : null)">
+                                    <i class="ti ti-@tab.Icon"></i><span>@tab.Text</span>
                                 </a>
                             </li>
                         }
-
-                        <li class="@ItemClass("Language")">
-                            <a asp-area="Management" asp-controller="Language" asp-action="Index" class="sidebar-link">
-                                <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg></span>
-                                <span>Ngôn ngữ</span>
-                            </a>
-                        </li>
-
-                        <li class="sidebar-title">Khách hàng</li>
-                        <li class="@ItemClass("Customer")">
-                            <a asp-area="Management" asp-controller="Customer" asp-action="Index" class="sidebar-link">
-                                <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3" /><path d="M3.5 20a5.5 5.5 0 0 1 11 0" /><circle cx="17" cy="9" r="2.5" /><path d="M15.5 15.5A4.5 4.5 0 0 1 21 20" /></svg></span>
-                                <span>Khách hàng</span>
-                            </a>
-                        </li>
-
-                        @if (isAdmin)
+                        else
                         {
-                            <li class="sidebar-title">Quản trị</li>
-                            <li class="@ItemClass("User")">
-                                <a asp-area="Management" asp-controller="User" asp-action="Index" class="sidebar-link">
-                                    <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /><path d="m17 4 1.5 1.5L21 3" /></svg></span>
-                                    <span>Tài khoản quản lý</span>
+                            <li class="dropdown">
+                                <a href="#" class="rm-nav-link dropdown-toggle @(active ? "active" : "")" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="ti ti-@tab.Icon"></i><span>@tab.Text</span>
                                 </a>
-                            </li>
-                            <li class="@ItemClass("AuditLog")">
-                                <a asp-area="Management" asp-controller="AuditLog" asp-action="Index" class="sidebar-link">
-                                    <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2M7 4.5 5 2.5M17 4.5l2-2" /></svg></span>
-                                    <span>Nhật ký hệ thống</span>
-                                </a>
-                            </li>
-                            <li class="@ItemClass("Setting")">
-                                <a asp-area="Management" asp-controller="Setting" asp-action="Index" class="sidebar-link">
-                                    <span class="mazer-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg></span>
-                                    <span>Cài đặt hệ thống</span>
-                                </a>
+                                <div class="dropdown-menu rm-menu">
+                                    @foreach (var link in links)
+                                    {
+                                        <a class="dropdown-item @(IsActive(link.Controller) ? "active" : "")" asp-area="Management" asp-controller="@link.Controller" asp-action="Index">
+                                            <i class="ti ti-@link.Icon"></i>@link.Text
+                                        </a>
+                                    }
+                                </div>
                             </li>
                         }
-                    </ul>
-                </div>
+                    }
+                </ul>
+            </nav>
 
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    <div class="sidebar-account dropup">
-                        <button type="button" class="sidebar-account-button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="mazer-avatar" id="currentUserAvatar" data-initial="@userInitial">
-                                @if (!string.IsNullOrEmpty(avatarUrl))
-                                {
-                                    <img src="@avatarUrl" alt="Ảnh đại diện" />
-                                }
-                                else
-                                {
-                                    @userInitial
-                                }
-                            </span>
-                            <span class="sidebar-account-line">
-                                <strong id="currentUserName">@displayName</strong>
-                                <span class="sidebar-account-dot">·</span>
-                                <small>@roleDisplayName</small>
-                            </span>
-                            <span class="sidebar-account-chevron">⌃</span>
+            <div class="rm-topbar-end">
+                <button type="button" class="rm-icon-pill" data-theme-toggle title="Chuyển chế độ sáng / tối" aria-label="Chuyển chế độ sáng hoặc tối">
+                    <i class="ti ti-moon rm-theme-dark"></i>
+                    <i class="ti ti-sun rm-theme-light"></i>
+                </button>
+
+                <div class="dropdown">
+                    <button type="button" class="rm-account" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="rm-account-text d-none d-md-flex">
+                            <strong id="currentUserName">@displayName</strong>
+                            <small>@roleDisplayName</small>
+                        </span>
+                        <span class="rm-avatar" id="currentUserAvatar" data-initial="@userInitial">@if (!string.IsNullOrEmpty(avatarUrl)) { <img src="@avatarUrl" alt="Ảnh đại diện" /> } else { @userInitial }</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end rm-menu">
+                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#accountProfileModal">
+                            <i class="ti ti-user-circle"></i>Thông tin tài khoản
                         </button>
-                        <ul class="dropdown-menu shadow sidebar-account-menu">
-                            <li>
-                                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#accountProfileModal">Thông tin tài khoản</button>
-                            </li>
-                            <li><hr class="dropdown-divider" /></li>
-                            <li>
-                                <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
-                                    <button type="submit" class="dropdown-item text-danger">Đăng xuất</button>
-                                </form>
-                            </li>
-                        </ul>
+                        <div class="dropdown-divider"></div>
+                        <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="dropdown-item text-danger"><i class="ti ti-logout"></i>Đăng xuất</button>
+                        </form>
                     </div>
-                }
-            </div>
-        </div>
-
-        <div id="main" class="admin-main">
-            <a href="#" class="burger-btn d-block d-xl-none admin-mobile-burger" aria-label="Mở menu">☰</a>
-
-            <div class="admin-theme-control" title="Chuyển chế độ sáng / tối">
-                <span class="admin-theme-icon">☀</span>
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input me-0" type="checkbox" id="toggle-dark" aria-label="Chuyển chế độ sáng hoặc tối" />
                 </div>
-                <span class="admin-theme-icon">☾</span>
             </div>
-
-            @if (TempData["Error"] != null)
-            {
-                <div class="alert alert-danger admin-error-toast admin-toast show" role="alert">@TempData["Error"]</div>
-            }
-            @if (TempData["Success"] != null)
-            {
-                <div class="alert alert-success admin-error-toast admin-toast show" role="status">@TempData["Success"]</div>
-            }
-
-            <main class="mazer-content admin-main-content">
-                @RenderBody()
-            </main>
         </div>
-    </div>
+    </header>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger admin-toast" role="alert">@TempData["Error"]</div>
+    }
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success admin-toast" role="status">@TempData["Success"]</div>
+    }
+
+    <main class="container-xl rm-content">
+        @RenderBody()
+    </main>
 
     <partial name="_AccountProfileModal" />
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/mazer/js/dark.js"></script>
-    <script src="~/lib/mazer/js/perfect-scrollbar.min.js"></script>
-    <script src="~/lib/mazer/js/app.js"></script>
+    <script src="~/lib/tabler/js/tabler.min.js"></script>
+    <script>
+        // Tabler đóng gói sẵn Bootstrap; các file js cũ gọi bootstrap.Modal nên gán lại biến toàn cục
+        window.bootstrap = window.bootstrap || (window.tabler && window.tabler.bootstrap);
+    </script>
+    <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/admin-ui.js" asp-append-version="true"></script>
     <script src="~/js/password-toggle.js" asp-append-version="true"></script>

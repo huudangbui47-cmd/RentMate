@@ -15,12 +15,12 @@ namespace RentMate.Service.Services
     {
         private const int PageSize = 20;
 
-        // Mỗi lần bấm "Dịch bằng AI" dịch tối đa ngần này câu, chia nhỏ mỗi lần gọi AI để không quá lâu
-        private const int AutoTranslateLimit = 150;
-        private const int AutoTranslateBatch = 50;
+        // Dịch bằng AI: chia mỗi lần gọi 40 câu, gọi song song 4 lần một lúc để dịch cả app trong khoảng 1-2 phút
+        private const int AutoTranslateBatch = 40;
+        private const int AutoTranslateParallel = 4;
 
-        // File câu chữ gốc của app kèm bản tiếng Anh (Resources/app-texts.en.json, nhúng vào dll)
-        private const string DefaultTextsResource = "RentMate.Service.Resources.app-texts.en.json";
+        // File câu chữ gốc của app kèm bản tiếng Anh (Resources/app-texts.json, nhúng vào dll)
+        private const string DefaultTextsResource = "RentMate.Service.Resources.app-texts.json";
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAuditLogService _auditLogService;
@@ -106,9 +106,10 @@ namespace RentMate.Service.Services
             return (await GetLanguagesForManagementAsync()).FirstOrDefault(l => l.Id == id);
         }
 
-        public async Task CreateLanguageAsync(LanguageViewModel model, string actorUserId, string ipAddress)
+        public async Task<int> CreateLanguageAsync(LanguageViewModel model, string actorUserId, string ipAddress)
         {
             string code = model.Code.Trim().ToLowerInvariant();
+            var preset = LanguagePresetOption.Find(code);
 
             if (code == "vi")
                 throw new InvalidOperationException("Tiếng Việt là ngôn ngữ gốc của app, không cần thêm.");
@@ -119,8 +120,9 @@ namespace RentMate.Service.Services
             var language = new AppLanguage
             {
                 Code = code,
-                Name = model.Name.Trim(),
-                Flag = string.IsNullOrWhiteSpace(model.Flag) ? null : model.Flag.Trim(),
+                // Chọn từ danh sách có sẵn thì lấy tên và cờ có sẵn
+                Name = string.IsNullOrWhiteSpace(model.Name) ? preset?.NativeName ?? code : model.Name.Trim(),
+                Flag = string.IsNullOrWhiteSpace(model.Flag) ? preset?.Flag : model.Flag.Trim(),
                 SortOrder = model.SortOrder,
                 // Ngôn ngữ mới chưa có bản dịch: ẩn trước, dịch xong mới bật cho người dùng thấy
                 IsActive = false,
@@ -133,6 +135,8 @@ namespace RentMate.Service.Services
                 $"Thêm ngôn ngữ {language.Name} ({language.Code})", ipAddress, actorUserId);
 
             await _unitOfWork.SaveChangesAsync();
+
+            return language.Id;
         }
 
         public async Task UpdateLanguageAsync(LanguageViewModel model, string actorUserId, string ipAddress)
@@ -141,7 +145,10 @@ namespace RentMate.Service.Services
                 ?? throw new InvalidOperationException("Ngôn ngữ không tồn tại.");
 
             string name = model.Name.Trim();
-            string? flag = string.IsNullOrWhiteSpace(model.Flag) ? null : model.Flag.Trim();
+            // Trang sửa không có ô cờ: giữ cờ cũ, chưa có thì lấy cờ có sẵn theo mã ngôn ngữ
+            string? flag = string.IsNullOrWhiteSpace(model.Flag)
+                ? language.Flag ?? LanguagePresetOption.Find(language.Code)?.Flag
+                : model.Flag.Trim();
 
             if (language.Name == name && language.Flag == flag && language.SortOrder == model.SortOrder)
                 return;
@@ -173,6 +180,24 @@ namespace RentMate.Service.Services
 
             await _auditLogService.RecordAsync("ToggleLanguage", "AppLanguage", language.Id.ToString(),
                 $"{(isActive ? "Hiện" : "Ẩn")} ngôn ngữ {language.Name} ({language.Code}) trên app", ipAddress, actorUserId);
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        // Xóa ngôn ngữ cùng toàn bộ bản dịch của nó (không có dữ liệu nghiệp vụ nào tham chiếu nên xóa cứng).
+        // Người đang dùng ngôn ngữ này sẽ tự quay về tiếng Việt khi mở app.
+        public async Task DeleteLanguageAsync(int id, string actorUserId, string ipAddress)
+        {
+            var language = await _unitOfWork.AppLanguages.GetByIdAsync(id)
+                ?? throw new InvalidOperationException("Ngôn ngữ không tồn tại.");
+
+            if (language.Code == "en")
+                throw new InvalidOperationException("Tiếng Anh là ngôn ngữ mặc định thứ hai của app, chỉ ẩn được, không xóa được.");
+
+            _unitOfWork.AppLanguages.Delete(language);
+
+            await _auditLogService.RecordAsync("DeleteLanguage", "AppLanguage", language.Id.ToString(),
+                $"Xóa ngôn ngữ {language.Name} ({language.Code}) và toàn bộ bản dịch", ipAddress, actorUserId);
 
             await _unitOfWork.SaveChangesAsync();
         }
@@ -366,7 +391,7 @@ namespace RentMate.Service.Services
         }
 
         // Nạp câu chữ gốc của app và bản tiếng Anh có sẵn. Chỉ thêm cái còn thiếu, không ghi đè bản dịch admin đã sửa.
-        public async Task<(int NewTexts, int NewTranslations)> ImportDefaultsAsync(string actorUserId, string ipAddress)
+        public async Task<(int NewTexts, int NewTranslations)> ImportDefaultsAsync(string? actorUserId, string ipAddress)
         {
             var defaults = ReadDefaultTexts();
 
@@ -430,6 +455,23 @@ namespace RentMate.Service.Services
                 newTranslations++;
             }
 
+            // Tên danh mục cũng là câu cần dịch (app hiện tên danh mục theo ngôn ngữ đang chọn)
+            var categoryNames = await _unitOfWork.Categories
+                .BuildQuery(c => true)
+                .Select(c => c.CategoryName)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var name in categoryNames)
+            {
+                if (name.Length > 450 || existingKeys.ContainsKey(name) || defaults.ContainsKey(name))
+                    continue;
+
+                await _unitOfWork.TextResources.AddAsync(new TextResource { Key = name, Note = "Tên danh mục", CreatedAt = DateTime.UtcNow });
+                existingKeys[name] = 0;
+                newTexts++;
+            }
+
             if (newTexts == 0 && newTranslations == 0 && newEnglish == null)
                 return (0, 0);
 
@@ -447,7 +489,7 @@ namespace RentMate.Service.Services
 
         public bool IsAutoTranslateEnabled => _aiService.IsEnabled;
 
-        public async Task<int> AutoTranslateAsync(int languageId, string actorUserId, string ipAddress)
+        public async Task<(int Translated, int Missing)> AutoTranslateAsync(int languageId, bool showWhenDone, string actorUserId, string ipAddress)
         {
             if (!_aiService.IsEnabled)
                 throw new InvalidOperationException("Chưa cấu hình khóa AI (mục \"Ai\" trong appsettings của AdminSite).");
@@ -458,44 +500,63 @@ namespace RentMate.Service.Services
             var missing = await _unitOfWork.TextResources
                 .BuildQuery(t => !t.Translations.Any(x => x.LanguageId == languageId))
                 .OrderBy(t => t.Id)
-                .Take(AutoTranslateLimit)
                 .Select(t => new TranslationAiItem(t.Id, t.Key, t.Note))
                 .ToListAsync();
 
             if (missing.Count == 0)
                 throw new InvalidOperationException("Mọi câu đều đã được dịch.");
 
-            int added = 0;
+            // Chỉ các lần gọi AI chạy song song; ghi database tuần tự sau đó (DbContext không dùng chung nhiều luồng được)
+            var translated = new Dictionary<int, string>();
+            using var gate = new SemaphoreSlim(AutoTranslateParallel);
 
-            foreach (var batch in missing.Chunk(AutoTranslateBatch))
+            var tasks = missing.Chunk(AutoTranslateBatch).Select(async batch =>
             {
-                var translated = await _aiService.TranslateAsync(language.Code, language.Name, batch.ToList());
-
-                foreach (var (id, value) in translated)
+                await gate.WaitAsync();
+                try
                 {
-                    await _unitOfWork.TextTranslations.AddAsync(new TextTranslation
-                    {
-                        TextResourceId = id,
-                        LanguageId = languageId,
-                        Value = value,
-                        IsMachineTranslated = true,
-                        UpdatedAt = DateTime.UtcNow
-                    });
-                    added++;
+                    return await _aiService.TranslateAsync(language.Code, language.Name, batch.ToList());
                 }
+                finally
+                {
+                    gate.Release();
+                }
+            });
+
+            foreach (var part in await Task.WhenAll(tasks))
+                foreach (var (id, value) in part)
+                    translated[id] = value;
+
+            if (translated.Count == 0)
+                throw new InvalidOperationException("AI chưa dịch được câu nào. Kiểm tra khóa AI và số dư tài khoản Claude API rồi thử lại.");
+
+            foreach (var (id, value) in translated)
+            {
+                await _unitOfWork.TextTranslations.AddAsync(new TextTranslation
+                {
+                    TextResourceId = id,
+                    LanguageId = languageId,
+                    Value = value,
+                    IsMachineTranslated = true,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
 
-            if (added == 0)
-                throw new InvalidOperationException("AI chưa dịch được câu nào. Kiểm tra khóa AI và số dư tài khoản Claude API rồi thử lại.");
+            int stillMissing = missing.Count - translated.Count;
+            bool show = showWhenDone && stillMissing == 0 && !language.IsActive;
+
+            if (show)
+                language.IsActive = true;
 
             language.UpdatedAt = DateTime.UtcNow;
 
             await _auditLogService.RecordAsync("AutoTranslate", "AppLanguage", language.Id.ToString(),
-                $"AI dịch {added} câu sang {language.Name} ({language.Code})", ipAddress, actorUserId);
+                $"AI dịch {translated.Count} câu sang {language.Name} ({language.Code})" + (show ? ", bật hiện trên app" : ""),
+                ipAddress, actorUserId);
 
             await _unitOfWork.SaveChangesAsync();
 
-            return added;
+            return (translated.Count, stillMissing);
         }
 
         // =========================
