@@ -66,8 +66,13 @@ builder.Services.AddScoped<IConditionReportService, ConditionReportService>();
 builder.Services.AddScoped<IConditionAiService, ConditionAiService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
-// Ảnh đồ cho thuê lưu trong wwwroot/uploads/items (giống ảnh đại diện ở AdminSite)
-builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+// Có mục "Cloudinary" trong appsettings thì ảnh (đồ, avatar, biên bản) lưu lên Cloudinary;
+// không có thì lưu ổ cứng wwwroot/uploads như cũ (máy chưa cấu hình Cloudinary vẫn chạy được)
+builder.Services.AddScoped<LocalFileStorageService>();
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Cloudinary:CloudName"]))
+    builder.Services.AddScoped<IFileStorageService, CloudinaryFileStorageService>();
+else
+    builder.Services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
 
 // =========================
 // 5. JWT Authentication
