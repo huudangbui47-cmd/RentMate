@@ -166,6 +166,11 @@ namespace RentMate.Service.Services
                 }
             }
 
+            int discountPercent = item.DiscountPercent > 0 && numberOfDays >= item.DiscountMinDays
+                ? item.DiscountPercent
+                : 0;
+            decimal discountAmount = Math.Round(item.PricePerDay * numberOfDays * discountPercent / 100m, 0);
+
             var rental = new Rental
             {
                 PlatformFeeRate = settings.PlatformFeeRate,
@@ -187,8 +192,12 @@ namespace RentMate.Service.Services
                 PricePerDay = item.PricePerDay,
                 DepositAmount = item.DepositAmount,
 
+                // Ưu đãi thuê dài ngày của chủ đồ, làm tròn tới đồng
+                DiscountPercent = discountPercent,
+                DiscountAmount = discountAmount,
+
                 TotalPrice =
-                    item.PricePerDay * numberOfDays,
+                    item.PricePerDay * numberOfDays - discountAmount,
 
                 RequestNote = dto.RequestNote,
 
@@ -1158,7 +1167,9 @@ namespace RentMate.Service.Services
 
             int totalDays = (oldEnd - rental.StartDate.Date).Days + 1;
             int lostDays = Math.Min(lateDays, totalDays);
-            decimal refund = Math.Min(rental.TotalPrice, lostDays * rental.PricePerDay);
+            // Hoàn theo giá ngày sau ưu đãi (đơn có giảm giá thì mỗi ngày rẻ hơn giá niêm yết)
+            decimal dayPrice = rental.PricePerDay * (100 - rental.DiscountPercent) / 100m;
+            decimal refund = Math.Min(rental.TotalPrice, Math.Round(lostDays * dayPrice, 0));
 
             rental.TotalPrice -= refund;
             rental.LateDeliveryRefund = refund;
@@ -1348,6 +1359,8 @@ namespace RentMate.Service.Services
                     ShippingFee = r.ShippingFee,
                     ShiftedDays = r.ShiftedDays,
                     LateDeliveryRefund = r.LateDeliveryRefund,
+                    DiscountPercent = r.DiscountPercent,
+                    DiscountAmount = r.DiscountAmount,
 
                     Payments = r.Payments
                         .OrderBy(p => p.CreatedAt)
@@ -1398,6 +1411,12 @@ namespace RentMate.Service.Services
 
                 .Include(r => r.Item)
                     .ThenInclude(i => i.Owner)
+
+                .Include(r => r.Item)
+                    .ThenInclude(i => i.Images)
+
+                .Include(r => r.Item)
+                    .ThenInclude(i => i.Category)
 
                 .Include(r => r.Renter);
         }
@@ -1489,6 +1508,11 @@ namespace RentMate.Service.Services
 
                 ItemId = rental.ItemId,
                 ItemName = rental.Item.ItemName,
+                ItemImageUrl = rental.Item.Images
+                    .OrderByDescending(img => img.IsPrimary).ThenBy(img => img.Id)
+                    .Select(img => img.ImageUrl)
+                    .FirstOrDefault(),
+                CategoryName = rental.Item.Category?.CategoryName ?? string.Empty,
 
                 RenterId = rental.RenterId,
                 RenterName = rental.Renter.FullName,
@@ -1529,6 +1553,8 @@ namespace RentMate.Service.Services
                 ExpectedDeliveryAt = rental.ExpectedDeliveryAt,
                 ShiftedDays = rental.ShiftedDays,
                 LateDeliveryRefund = rental.LateDeliveryRefund,
+                DiscountPercent = rental.DiscountPercent,
+                DiscountAmount = rental.DiscountAmount,
 
                 PlatformFeePercent = rental.PlatformFeeRate * 100,
 

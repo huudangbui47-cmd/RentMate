@@ -27,6 +27,7 @@ namespace RentMate.Data.Configurations.Rentals
             builder.Property(r => r.ShippingOrderCode).HasMaxLength(50);
             builder.Property(r => r.ShippingFee).HasPrecision(18, 2);
             builder.Property(r => r.LateDeliveryRefund).HasPrecision(18, 2);
+            builder.Property(r => r.DiscountAmount).HasPrecision(18, 2);
 
             // User 1 - N Rental
             builder.HasOne(r => r.Renter)

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using RentMate.AdminSite.Infrastructure;
 using RentMate.AdminSite.Infrastructure.Storage;
 using RentMate.Core.Interfaces.Persistence;
@@ -67,11 +68,18 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IBannerService, BannerService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IRentalService, RentalService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
-builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+// Có mục "Cloudinary" trong appsettings thì ảnh (avatar quản trị, banner) lưu lên Cloudinary như Api;
+// không có thì lưu ổ cứng (wwwroot/uploads, shared-uploads) như cũ
+builder.Services.AddScoped<LocalFileStorageService>();
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Cloudinary:CloudName"]))
+    builder.Services.AddScoped<IFileStorageService, CloudinaryFileStorageService>();
+else
+    builder.Services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
 
 // Website quản trị chỉ dùng Cookie Authentication; JWT được cấu hình ở project API riêng.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -92,6 +100,8 @@ await DbSeeder.SeedRolesAsync(app.Services);
 
 await DbSeeder.SeedAdminAsync(app.Services, app.Configuration);
 
+await DbSeeder.SeedTextsAsync(app.Services);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error/500");
@@ -100,6 +110,13 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Ảnh quản trị tải lên (banner trang chủ...) nằm ở thư mục dùng chung giữa AdminSite và Api: /shared/...
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(SharedStorage.ResolveRoot(app.Configuration, app.Environment)),
+    RequestPath = SharedStorage.RequestPath
+});
 
 // Chỉ MVC: lỗi hiển thị trang Razor /Error/{code}.
 app.UseStatusCodePagesWithReExecute("/Error/{0}");

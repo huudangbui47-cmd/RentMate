@@ -8,6 +8,11 @@ namespace RentMate.Service.DTOs.Rentals
 
         public string ItemName { get; set; } = string.Empty;
 
+        // Ảnh chính và danh mục của đồ, app hiện ảnh nhỏ trong danh sách đơn
+        public string? ItemImageUrl { get; set; }
+
+        public string CategoryName { get; set; } = string.Empty;
+
         public string RenterId { get; set; } = string.Empty;
 
         public string RenterName { get; set; } = string.Empty;
@@ -82,5 +87,10 @@ namespace RentMate.Service.DTOs.Rentals
         public int ShiftedDays { get; set; }
 
         public decimal LateDeliveryRefund { get; set; }
+
+        // Ưu đãi thuê dài ngày đã trừ vào TotalPrice
+        public int DiscountPercent { get; set; }
+
+        public decimal DiscountAmount { get; set; }
     }
 }

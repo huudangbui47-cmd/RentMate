@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../services/item_service.dart';
 import '../services/wallet_service.dart';
+import '../theme.dart';
 import '../widgets/ui.dart';
+import '../widgets/kit.dart';
 import '../l10n/l10n.dart';
 import '../services/config_service.dart';
 
@@ -34,7 +36,10 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     final ok = await confirmDialog(
       context,
       title: tr('Rút {0}?', [formatVnd(amount)]),
-      message: tr('Tiền sẽ chuyển về {0} {1} ({2}). Số tiền này bị khóa trong ví cho tới khi Admin chuyển khoản xong.', [w.bankName, w.maskedAccountNumber, w.bankAccountName]),
+      message: tr(
+        'Tiền sẽ chuyển về {0} {1} ({2}). Số tiền này bị khóa trong ví cho tới khi Admin chuyển khoản xong.',
+        [w.bankName, w.maskedAccountNumber, w.bankAccountName],
+      ),
       confirmText: tr('Rút tiền'),
     );
     if (!ok) return;
@@ -55,48 +60,87 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   Widget build(BuildContext context) {
     final w = widget.wallet;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('Rút tiền'))),
+      appBar: RcAppBar(title: Text(tr('Rút tiền'))),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: Column(
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    InfoRow(tr('Số dư khả dụng'), formatVnd(w.availableBalance), bold: true),
-                    InfoRow(tr('Rút về'), '${w.bankName} ${w.maskedAccountNumber}'),
-                    InfoRow(tr('Chủ tài khoản'), w.bankAccountName ?? ''),
-                  ],
-                ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                children: [
+                  RcCard(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        OutlineBox(
+                          child: Row(
+                            children: [
+                              const IconCircle(Icons.account_balance_outlined, size: 48),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${w.bankName} · ${w.maskedAccountNumber}',
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      w.bankAccountName ?? '',
+                                      style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        InfoRow(tr('Số dư khả dụng'), formatVnd(w.availableBalance), bold: true),
+                        const SizedBox(height: 16),
+                        LabeledField(
+                          label: tr('Số tiền muốn rút'),
+                          child: TextFormField(
+                            controller: _amount,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [MoneyInputFormatter()],
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              suffixIcon: TextButton(
+                                onPressed: () => setState(() => _amount.text = moneyText(w.availableBalance)),
+                                child: Text(tr('Tất cả')),
+                              ),
+                            ),
+                            validator: (v) {
+                              final n = parseMoney(v);
+                              if (n == null) return tr('Nhập số tiền');
+                              if (n < AppConfig.minWalletAmount || n > AppConfig.maxWalletAmount) {
+                                return tr('Từ {0} đến {1}', [
+                                  formatVnd(AppConfig.minWalletAmount),
+                                  formatVnd(AppConfig.maxWalletAmount),
+                                ]);
+                              }
+                              if (n > w.availableBalance) return tr('Vượt quá số dư khả dụng');
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _amount,
-              keyboardType: TextInputType.number,
-              inputFormatters: [MoneyInputFormatter()],
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-              decoration: InputDecoration(
-                labelText: tr('Số tiền muốn rút'),
-                suffixText: tr('đ'),
-                suffixIcon: TextButton(
-                  onPressed: () => setState(() => _amount.text = moneyText(w.availableBalance)),
-                  child: Text(tr('Tất cả')),
-                ),
+            BottomActionBar(
+              child: SizedBox(
+                width: double.infinity,
+                child: BusyButton(busy: _busy, onPressed: _submit, label: tr('Gửi yêu cầu rút')),
               ),
-              validator: (v) {
-                final n = parseMoney(v);
-                if (n == null) return tr('Nhập số tiền');
-                if (n < AppConfig.minWalletAmount || n > AppConfig.maxWalletAmount) return tr('Từ {0} đến {1}', [formatVnd(AppConfig.minWalletAmount), formatVnd(AppConfig.maxWalletAmount)]);
-                if (n > w.availableBalance) return tr('Vượt quá số dư khả dụng');
-                return null;
-              },
             ),
-            const SizedBox(height: 24),
-            BusyButton(busy: _busy, onPressed: _submit, label: tr('Gửi yêu cầu rút')),
           ],
         ),
       ),
@@ -122,8 +166,16 @@ class _BankInfoScreenState extends State<BankInfoScreen> {
   bool _busy = false;
 
   static const _popularBanks = [
-    'Vietcombank', 'VietinBank', 'BIDV', 'Agribank', 'Techcombank',
-    'MB Bank', 'ACB', 'VPBank', 'TPBank', 'Sacombank',
+    'Vietcombank',
+    'VietinBank',
+    'BIDV',
+    'Agribank',
+    'Techcombank',
+    'MB Bank',
+    'ACB',
+    'VPBank',
+    'TPBank',
+    'Sacombank',
   ];
 
   @override
@@ -148,10 +200,9 @@ class _BankInfoScreenState extends State<BankInfoScreen> {
       if (widget.thenWithdraw) {
         final wallet = await WalletService().getSummary();
         if (!mounted) return;
-        Navigator.of(context).pushReplacement<bool, bool>(
-          MaterialPageRoute(builder: (_) => WithdrawScreen(wallet: wallet)),
-          result: true,
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement<bool, bool>(MaterialPageRoute(builder: (_) => WithdrawScreen(wallet: wallet)), result: true);
       } else {
         Navigator.of(context).pop(true);
       }
@@ -165,46 +216,77 @@ class _BankInfoScreenState extends State<BankInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('Tài khoản ngân hàng'))),
+      appBar: RcAppBar(title: Text(tr('Tài khoản ngân hàng'))),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: Column(
           children: [
-            NoticeBox(tr('Tiền rút sẽ được chuyển vào tài khoản này. Họ tên chủ tài khoản phải đúng như trên thẻ.')),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _bank,
-              decoration: InputDecoration(
-                labelText: tr('Ngân hàng'),
-                hintText: tr('Ví dụ: Vietcombank'),
-                suffixIcon: PopupMenuButton<String>(
-                  tooltip: tr('Chọn ngân hàng'),
-                  icon: const Icon(Icons.arrow_drop_down),
-                  onSelected: (v) => setState(() => _bank.text = v),
-                  itemBuilder: (_) => [for (final b in _popularBanks) PopupMenuItem(value: b, child: Text(b))],
-                ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                children: [
+                  RcCard(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        NoticeBox(
+                          tr('Tiền rút sẽ được chuyển vào tài khoản này. Họ tên chủ tài khoản phải đúng như trên thẻ.'),
+                        ),
+                        const SizedBox(height: 24),
+                        LabeledField(
+                          label: tr('Ngân hàng'),
+                          child: TextFormField(
+                            controller: _bank,
+                            decoration: InputDecoration(
+                              hintText: tr('Ví dụ: Vietcombank'),
+                              suffixIcon: PopupMenuButton<String>(
+                                tooltip: tr('Chọn ngân hàng'),
+                                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                                onSelected: (v) => setState(() => _bank.text = v),
+                                itemBuilder: (_) => [
+                                  for (final b in _popularBanks) PopupMenuItem(value: b, child: Text(b)),
+                                ],
+                              ),
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập tên ngân hàng') : null,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        LabeledField(
+                          label: tr('Số tài khoản'),
+                          child: TextFormField(
+                            controller: _number,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            validator: (v) =>
+                                RegExp(r'^\d{6,20}$').hasMatch(v ?? '') ? null : tr('Số tài khoản gồm 6–20 chữ số'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        LabeledField(
+                          label: tr('Họ tên chủ tài khoản'),
+                          child: TextFormField(
+                            controller: _name,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: const InputDecoration(hintText: 'NGUYEN VAN A'),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập họ tên chủ tài khoản') : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập tên ngân hàng') : null,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _number,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(labelText: tr('Số tài khoản')),
-              validator: (v) =>
-                  RegExp(r'^\d{6,20}$').hasMatch(v ?? '') ? null : tr('Số tài khoản gồm 6–20 chữ số'),
+            BottomActionBar(
+              child: SizedBox(
+                width: double.infinity,
+                child: BusyButton(busy: _busy, onPressed: _save, label: tr('Lưu')),
+              ),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _name,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(labelText: tr('Họ tên chủ tài khoản'), hintText: 'NGUYEN VAN A'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập họ tên chủ tài khoản') : null,
-            ),
-            const SizedBox(height: 24),
-            BusyButton(busy: _busy, onPressed: _save, label: tr('Lưu')),
           ],
         ),
       ),

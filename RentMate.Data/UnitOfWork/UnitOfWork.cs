@@ -32,6 +32,8 @@ namespace RentMate.Data.UnitOfWork
         public IRepository<AppLanguage> AppLanguages { get; }
         public IRepository<TextResource> TextResources { get; }
         public IRepository<TextTranslation> TextTranslations { get; }
+        public IRepository<Banner> Banners { get; }
+        public IRepository<Favorite> Favorites { get; }
 
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -56,6 +58,8 @@ namespace RentMate.Data.UnitOfWork
             AppLanguages = new Repository<AppLanguage>(context);
             TextResources = new Repository<TextResource>(context);
             TextTranslations = new Repository<TextTranslation>(context);
+            Banners = new Repository<Banner>(context);
+            Favorites = new Repository<Favorite>(context);
         }
 
         public async Task<int> SaveChangesAsync()

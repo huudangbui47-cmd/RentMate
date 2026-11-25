@@ -2,26 +2,33 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../theme.dart';
 import '../widgets/ui.dart';
+import '../widgets/kit.dart';
 import '../l10n/l10n.dart';
 
 /// Chuông thông báo có số chưa đọc, đặt ở AppBar các tab chính.
+/// bordered = true: nút tròn có viền như đầu trang chủ của mẫu.
 class NotificationBell extends StatelessWidget {
-  const NotificationBell({super.key});
+  final bool bordered;
+  const NotificationBell({super.key, this.bordered = false});
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: NotificationCenter.instance.unread,
-      builder: (context, count, _) => IconButton(
-        tooltip: tr('Thông báo'),
-        onPressed: () => NotificationsScreen.open(),
-        icon: Badge(
+      builder: (context, count, _) {
+        final icon = Badge(
           isLabelVisible: count > 0,
+          backgroundColor: AppColors.error,
           label: Text(count > 99 ? '99+' : '$count'),
-          child: const Icon(Icons.notifications_outlined),
-        ),
-      ),
+          child: const Icon(Icons.notifications_none_rounded),
+        );
+        if (bordered) {
+          return CircleIconButton(tooltip: tr('Thông báo'), onPressed: NotificationsScreen.open, icon: icon);
+        }
+        return IconButton(tooltip: tr('Thông báo'), onPressed: NotificationsScreen.open, icon: icon);
+      },
     );
   }
 }
@@ -52,7 +59,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _reload() async {
-    setState(() { _future = _load(); });
+    setState(() {
+      _future = _load();
+    });
     await _future;
   }
 
@@ -87,10 +96,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: RcAppBar(
         title: Text(tr('Thông báo')),
         actions: [
-          TextButton(onPressed: _markAll, child: Text(tr('Đọc hết'))),
+          IconButton(onPressed: _markAll, tooltip: tr('Đọc hết'), icon: const Icon(Icons.done_all_rounded, size: 24)),
         ],
       ),
       body: FutureBuilder<List<AppNotification>>(
@@ -102,18 +111,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: list.isEmpty
-                ? ListView(children: [
-                    EmptyView(
-                      icon: Icons.notifications_none_rounded,
-                      title: tr('Chưa có thông báo'),
-                      subtitle: tr('Khi đơn thuê, ví hoặc đồ của bạn có thay đổi, thông báo sẽ hiện ở đây.'),
-                    ),
-                  ])
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: list.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (_, i) => _tile(list[i]),
+                ? ListView(
+                    children: [
+                      EmptyView(
+                        icon: Icons.notifications_none_rounded,
+                        title: tr('Chưa có thông báo'),
+                        subtitle: tr('Khi đơn thuê, ví hoặc đồ của bạn có thay đổi, thông báo sẽ hiện ở đây.'),
+                      ),
+                    ],
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                    children: [
+                      // Mỗi nhóm ngày là một khối trắng có nhãn xám như "Preferences" / "Account" của mẫu
+                      for (final group in _groups(list)) ...[
+                        RcCard(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(group.key, style: kText(13, FontWeight.w300, color: AppColors.muted)),
+                              for (var i = 0; i < group.value.length; i++)
+                                _tile(group.value[i], last: i == group.value.length - 1),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
           );
         },
@@ -121,28 +146,77 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _tile(AppNotification n) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: n.isRead ? Colors.transparent : scheme.primary.withValues(alpha: 0.06),
-      child: ListTile(
-        onTap: () => _open(n),
-        leading: CircleAvatar(
-          backgroundColor: scheme.primaryContainer,
-          child: Icon(n.icon, color: scheme.primary),
-        ),
-        title: Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 2),
-            Text(n.message),
-            const SizedBox(height: 4),
-            Text(_timeAgo(n.createdAt), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-          ],
-        ),
-        trailing: n.isRead ? null : CircleAvatar(radius: 5, backgroundColor: scheme.primary),
-        isThreeLine: true,
+  /// Nhóm theo ngày như mẫu: Hôm nay / Hôm qua / Trước đó.
+  List<MapEntry<String, List<AppNotification>>> _groups(List<AppNotification> list) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final groups = <String, List<AppNotification>>{};
+    for (final n in list) {
+      final l = n.createdAt.toLocal();
+      final day = DateTime(l.year, l.month, l.day);
+      final key = day == today
+          ? tr('Hôm nay')
+          : day == today.subtract(const Duration(days: 1))
+          ? tr('Hôm qua')
+          : tr('Trước đó');
+      groups.putIfAbsent(key, () => []).add(n);
+    }
+    return groups.entries.toList();
+  }
+
+  Widget _tile(AppNotification n, {bool last = false}) {
+    return InkWell(
+      onTap: () => _open(n),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Badge(
+              isLabelVisible: !n.isRead,
+              smallSize: 9,
+              backgroundColor: AppColors.error,
+              alignment: const AlignmentDirectional(0.45, -0.55),
+              child: RcIconCircle(n.icon, size: 40),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: last
+                  ? null
+                  : const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppColors.divider)),
+                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${n.title} ',
+                          style: TextStyle(
+                            color: AppColors.ink,
+                            fontWeight: n.isRead ? FontWeight.w400 : FontWeight.w500,
+                          ),
+                        ),
+                        TextSpan(
+                          text: n.message,
+                          style: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w300),
+                        ),
+                      ],
+                    ),
+                    style: const TextStyle(fontSize: 14, height: 1.45),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(_timeAgo(n.createdAt), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

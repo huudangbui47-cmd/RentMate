@@ -8,6 +8,7 @@ namespace RentMate.Core.Interfaces.Persistence
         IRepository<Category> Categories { get; }
         IRepository<Item> Items { get; }
         IRepository<ItemImage> ItemImages { get; }
+        IRepository<Favorite> Favorites { get; }
 
         IRepository<Rental> Rentals { get; }
         IRepository<Payment> Payments { get; }
@@ -24,6 +25,7 @@ namespace RentMate.Core.Interfaces.Persistence
         IRepository<AppLanguage> AppLanguages { get; }
         IRepository<TextResource> TextResources { get; }
         IRepository<TextTranslation> TextTranslations { get; }
+        IRepository<Banner> Banners { get; }
 
         Task<int> SaveChangesAsync();
 

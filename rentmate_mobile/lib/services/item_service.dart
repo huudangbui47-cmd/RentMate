@@ -16,10 +16,10 @@ class Category {
   final String? icon;
 
   Category.fromJson(Map<String, dynamic> j)
-      : id = j['categoryId'] as int,
-        name = (j['categoryName'] ?? '') as String,
-        parentId = j['parentCategoryId'] as int?,
-        icon = j['icon'] as String? {
+    : id = j['categoryId'] as int,
+      name = (j['categoryName'] ?? '') as String,
+      parentId = j['parentCategoryId'] as int?,
+      icon = j['icon'] as String? {
     if (icon != null) categoryIconKeys[name.toLowerCase()] = icon!;
   }
 }
@@ -39,9 +39,9 @@ class ItemImage {
   final bool isPrimary;
 
   ItemImage.fromJson(Map<String, dynamic> j)
-      : id = j['imageId'] as int,
-        url = imageFullUrl(j['imageUrl'] as String),
-        isPrimary = (j['isPrimary'] ?? false) as bool;
+    : id = j['imageId'] as int,
+      url = imageFullUrl(j['imageUrl'] as String),
+      isPrimary = (j['isPrimary'] ?? false) as bool;
 }
 
 class Item {
@@ -55,6 +55,8 @@ class Item {
   final String? rejectionReason;
   final String? province; // tỉnh/thành nơi nhận đồ, null với đồ đăng trước khi có tính năng này
   final String? area; // phường/xã hoặc khu vực, không bắt buộc
+  final int discountPercent; // ưu đãi thuê dài ngày, 0 = không có
+  final int discountMinDays; // áp dụng khi thuê từ số ngày này
   final int categoryId;
   final String categoryName;
   final String ownerId;
@@ -66,33 +68,44 @@ class Item {
   final List<ItemImage> images; // ảnh chính đứng đầu
 
   Item.fromJson(Map<String, dynamic> j)
-      : id = j['itemId'] as int,
-        name = (j['itemName'] ?? '') as String,
-        description = (j['description'] ?? '') as String,
-        pricePerDay = (j['pricePerDay'] ?? 0) as num,
-        depositAmount = (j['depositAmount'] ?? 0) as num,
-        condition = (j['condition'] ?? '') as String,
-        status = (j['status'] ?? '') as String,
-        rejectionReason = j['rejectionReason'] as String?,
-        province = j['province'] as String?,
-        area = j['area'] as String?,
-        categoryId = j['categoryId'] as int,
-        categoryName = (j['categoryName'] ?? '') as String,
-        ownerId = (j['ownerId'] ?? '') as String,
-        ownerName = (j['ownerName'] ?? '') as String,
-        ownerAvatarUrl = j['ownerAvatarUrl'] == null ? null : imageFullUrl(j['ownerAvatarUrl'] as String),
-        createdAt = DateTime.parse(j['createdAt'] as String),
-        rentCount = (j['rentCount'] ?? 0) as int,
-        imageUrl = j['imageUrl'] == null ? null : imageFullUrl(j['imageUrl'] as String),
-        images = ((j['images'] ?? []) as List)
-            .map((e) => ItemImage.fromJson(e as Map<String, dynamic>))
-            .toList();
+    : id = j['itemId'] as int,
+      name = (j['itemName'] ?? '') as String,
+      description = (j['description'] ?? '') as String,
+      pricePerDay = (j['pricePerDay'] ?? 0) as num,
+      depositAmount = (j['depositAmount'] ?? 0) as num,
+      condition = (j['condition'] ?? '') as String,
+      status = (j['status'] ?? '') as String,
+      rejectionReason = j['rejectionReason'] as String?,
+      province = j['province'] as String?,
+      area = j['area'] as String?,
+      discountPercent = (j['discountPercent'] ?? 0) as int,
+      discountMinDays = (j['discountMinDays'] ?? 0) as int,
+      categoryId = j['categoryId'] as int,
+      categoryName = (j['categoryName'] ?? '') as String,
+      ownerId = (j['ownerId'] ?? '') as String,
+      ownerName = (j['ownerName'] ?? '') as String,
+      ownerAvatarUrl = j['ownerAvatarUrl'] == null ? null : imageFullUrl(j['ownerAvatarUrl'] as String),
+      createdAt = DateTime.parse(j['createdAt'] as String),
+      rentCount = (j['rentCount'] ?? 0) as int,
+      imageUrl = j['imageUrl'] == null ? null : imageFullUrl(j['imageUrl'] as String),
+      images = ((j['images'] ?? []) as List).map((e) => ItemImage.fromJson(e as Map<String, dynamic>)).toList();
+}
+
+/// Ưu đãi thuê dài ngày: tính giống RentalService ở server (làm tròn tới đồng).
+extension ItemDeal on Item {
+  bool get hasDeal => discountPercent > 0;
+
+  /// Số tiền được giảm khi thuê [days] ngày (0 nếu chưa đủ số ngày)
+  num discountFor(int days) =>
+      hasDeal && days >= discountMinDays ? (pricePerDay * days * discountPercent / 100).round() : 0;
+
+  /// Tiền thuê [days] ngày sau ưu đãi
+  num rentFor(int days) => pricePerDay * days - discountFor(days);
 }
 
 extension ItemLocation on Item {
   /// "Phường Bến Thành, TP. Hồ Chí Minh" hoặc null nếu chưa có nơi nhận đồ.
-  String? get locationText =>
-      province == null ? null : ((area ?? '').isEmpty ? province : '$area, $province');
+  String? get locationText => province == null ? null : ((area ?? '').isEmpty ? province : '$area, $province');
 }
 
 class ItemService {
@@ -112,10 +125,7 @@ class ItemService {
 
   /// Đồ của tôi, mọi trạng thái (kể cả chờ duyệt / bị từ chối).
   Future<List<Item>> getMyItems() async {
-    final res = await http.get(
-      Uri.parse('$apiBaseUrl/api/Items/my'),
-      headers: await AuthService().authHeaders(),
-    );
+    final res = await http.get(Uri.parse('$apiBaseUrl/api/Items/my'), headers: await AuthService().authHeaders());
     checkResponse(res);
     return _parseList(res.body);
   }
@@ -134,9 +144,7 @@ class ItemService {
   Future<List<Category>> getCategories() async {
     final res = await http.get(Uri.parse('$apiBaseUrl/api/Categories'));
     if (res.statusCode != 200) throw Exception(tr('Không tải được danh mục ({0})', [res.statusCode]));
-    return (jsonDecode(res.body) as List)
-        .map((e) => Category.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return (jsonDecode(res.body) as List).map((e) => Category.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// id == null: đăng đồ mới (POST); có id: sửa đồ (PUT). Cả hai đều phải chờ duyệt lại.
@@ -151,6 +159,8 @@ class ItemService {
     required String condition,
     required String province,
     String? area,
+    int discountPercent = 0,
+    int discountMinDays = 0,
   }) async {
     final body = jsonEncode({
       'itemName': name,
@@ -161,6 +171,8 @@ class ItemService {
       'condition': conditionValues[condition],
       'province': province,
       'area': area,
+      'discountPercent': discountPercent,
+      'discountMinDays': discountMinDays,
     });
     final headers = await AuthService().authHeaders();
     final res = id == null
@@ -200,16 +212,12 @@ class ItemService {
   }
 
   Future<void> deleteItem(int id) async {
-    final res = await http.delete(
-      Uri.parse('$apiBaseUrl/api/Items/$id'),
-      headers: await AuthService().authHeaders(),
-    );
+    final res = await http.delete(Uri.parse('$apiBaseUrl/api/Items/$id'), headers: await AuthService().authHeaders());
     checkResponse(res);
   }
 
-  List<Item> _parseList(String body) => (jsonDecode(body) as List)
-      .map((e) => Item.fromJson(e as Map<String, dynamic>))
-      .toList();
+  List<Item> _parseList(String body) =>
+      (jsonDecode(body) as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
 }
 
 // 250000 -> "250.000 đ"

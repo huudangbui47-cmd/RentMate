@@ -41,6 +41,7 @@ dependencies:
   google_fonts: ^8.2.1
   flutter_localizations:
     sdk: flutter
+  flutter_svg: ^2.5.0
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Icon xuất từ Figma mẫu Tesla Car Rental (assets/icons)
+  assets:
+    - assets/icons/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -355,3 +355,12 @@
     padding: 10px 12px;
     font-size: 0.92rem;
 }
+
+/* Trang Banner trang chủ: ảnh thu nhỏ trong bảng */
+.rm-banner-thumb {
+    width: 160px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #f2f3f5;
+}

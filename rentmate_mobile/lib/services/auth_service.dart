@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/l10n.dart';
+import 'favorite_service.dart';
 
 // Máy ảo Android gọi máy tính qua 10.0.2.2. Đổi số cổng thành cổng "http"
 // trong RentMate.Api/Properties/launchSettings.json.
@@ -57,12 +58,7 @@ class AuthService {
     final res = await http.post(
       Uri.parse('$apiBaseUrl/api/Auth/register'),
       headers: _json,
-      body: jsonEncode({
-        'fullName': fullName,
-        'email': email,
-        'phoneNumber': phoneNumber,
-        'password': password,
-      }),
+      body: jsonEncode({'fullName': fullName, 'email': email, 'phoneNumber': phoneNumber, 'password': password}),
     );
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception(apiErrorMessage(res));
@@ -80,11 +76,7 @@ class AuthService {
     return apiErrorMessage(res);
   }
 
-  Future<void> resetPassword({
-    required String email,
-    required String code,
-    required String newPassword,
-  }) async {
+  Future<void> resetPassword({required String email, required String code, required String newPassword}) async {
     final res = await http.post(
       Uri.parse('$apiBaseUrl/api/Auth/reset-password'),
       headers: _json,
@@ -93,17 +85,13 @@ class AuthService {
     if (res.statusCode != 200) throw Exception(apiErrorMessage(res));
   }
 
-  Future<String?> getToken() async =>
-      (await SharedPreferences.getInstance()).getString(_tokenKey);
+  Future<String?> getToken() async => (await SharedPreferences.getInstance()).getString(_tokenKey);
 
-  Future<String?> getFullName() async =>
-      (await SharedPreferences.getInstance()).getString(_nameKey);
+  Future<String?> getFullName() async => (await SharedPreferences.getInstance()).getString(_nameKey);
 
-  Future<String?> getUserId() async =>
-      (await SharedPreferences.getInstance()).getString(_userIdKey);
+  Future<String?> getUserId() async => (await SharedPreferences.getInstance()).getString(_userIdKey);
 
-  Future<String?> getEmail() async =>
-      (await SharedPreferences.getInstance()).getString(_emailKey);
+  Future<String?> getEmail() async => (await SharedPreferences.getInstance()).getString(_emailKey);
 
   // Header cho các API cần đăng nhập ([Authorize]).
   Future<Map<String, String>> authHeaders() async {
@@ -123,6 +111,7 @@ class AuthService {
     for (final key in [_tokenKey, _nameKey, _userIdKey, _emailKey]) {
       await prefs.remove(key);
     }
+    FavoriteCenter.clear();
   }
 }
 

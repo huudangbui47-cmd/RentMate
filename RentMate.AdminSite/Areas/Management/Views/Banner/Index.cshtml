@@ -1,0 +1,96 @@
+@model List<BannerViewModel>
+
+@{
+    ViewData["Title"] = "Banner trang chủ";
+}
+
+<div class="page-heading">
+    <h3>Banner trang chủ</h3>
+    <p class="text-muted mb-0">Ảnh chạy lần lượt ở đầu Trang chủ của app (tự chuyển ảnh sau vài giây). Nên dùng ảnh ngang, rộng ít nhất 1200px, JPG hoặc PNG tối đa 5MB. App phủ một lớp tối lên ảnh để chữ trắng dễ đọc.</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="Create" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label" for="bannerImage">Ảnh banner</label>
+                <input id="bannerImage" type="file" name="image" accept=".jpg,.jpeg,.png" class="form-control" required />
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="bannerTitle">Ghi chú (không hiện trên app)</label>
+                <input id="bannerTitle" type="text" name="title" maxlength="100" class="form-control" placeholder="Vd. Ảnh mùa du lịch hè" />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100 admin-btn-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                    Thêm
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card admin-table-card">
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 70px">Thứ tự</th>
+                    <th>Ảnh</th>
+                    <th>Ghi chú</th>
+                    <th>Ngày thêm</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có banner. App sẽ dùng nền tối mặc định.</td></tr>
+                }
+                @for (int i = 0; i < Model.Count; i++)
+                {
+                    var item = Model[i];
+                    string toggleTitle = item.IsActive ? "Ẩn banner khỏi app" : "Hiện banner trên app";
+                    <tr>
+                        <td class="text-center">@(i + 1)</td>
+                        <td><img src="@item.ImageUrl" alt="Banner @(i + 1)" class="rm-banner-thumb" loading="lazy" /></td>
+                        <td class="text-muted">@item.Title</td>
+                        <td>@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            <span class="admin-badge @(item.IsActive ? "admin-badge-success" : "admin-badge-muted")">@item.StatusText</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="admin-row-actions">
+                                <form asp-action="Move" asp-route-id="@item.Id" method="post" class="rm-row-action-form">
+                                    <input type="hidden" name="up" value="true" />
+                                    <button type="submit" class="rm-icon-button" title="Đưa lên trước" aria-label="Đưa lên trước" disabled="@(i == 0)">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+                                    </button>
+                                </form>
+                                <form asp-action="Move" asp-route-id="@item.Id" method="post" class="rm-row-action-form">
+                                    <input type="hidden" name="up" value="false" />
+                                    <button type="submit" class="rm-icon-button" title="Đưa xuống sau" aria-label="Đưa xuống sau" disabled="@(i == Model.Count - 1)">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                                    </button>
+                                </form>
+                                <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="rm-row-action-form">
+                                    <input type="hidden" name="isActive" value="@(item.IsActive ? "false" : "true")" />
+                                    <button type="submit" class="rm-icon-button @(item.IsActive ? "" : "rm-icon-locked")" title="@toggleTitle" aria-label="@toggleTitle">
+                                        <partial name="_LockIcon" model="item.IsActive" />
+                                    </button>
+                                </form>
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="rm-row-action-form"
+                                      onsubmit="return confirm('Xóa banner này? Ảnh sẽ bị xóa hẳn.');">
+                                    <button type="submit" class="rm-icon-button rm-icon-danger" title="Xóa banner" aria-label="Xóa banner">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

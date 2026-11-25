@@ -16,37 +16,37 @@ class AppNotification {
   final DateTime createdAt; // UTC
 
   AppNotification.fromJson(Map<String, dynamic> j)
-      : id = j['notificationId'] as int,
-        title = (j['title'] ?? '') as String,
-        message = (j['message'] ?? '') as String,
-        type = (j['type'] ?? '') as String,
-        isRead = (j['isRead'] ?? false) as bool,
-        // Server trả giờ UTC nhưng có thể thiếu chữ "Z"
-        createdAt = _parseUtc(j['createdAt'] as String);
+    : id = j['notificationId'] as int,
+      title = (j['title'] ?? '') as String,
+      message = (j['message'] ?? '') as String,
+      type = (j['type'] ?? '') as String,
+      isRead = (j['isRead'] ?? false) as bool,
+      // Server trả giờ UTC nhưng có thể thiếu chữ "Z"
+      createdAt = _parseUtc(j['createdAt'] as String);
 
   static DateTime _parseUtc(String s) {
     final d = DateTime.parse(s);
     return d.isUtc ? d : DateTime.utc(d.year, d.month, d.day, d.hour, d.minute, d.second);
   }
 
-  /// Tab trong MainShell cần mở khi chạm vào thông báo: 1 Đơn thuê, 2 Đồ của tôi, 3 Ví.
+  /// Tab trong MainShell cần mở khi chạm vào thông báo: 1 Chuyến thuê, 4 Cho thuê (đồ của tôi), 5 mở màn hình Ví.
   int? get targetTab => switch (type) {
-        'RentalRequest' || 'RentalApproved' || 'RentalRejected' || 'Payment' || 'ReturnReminder' || 'System' => 1,
-        'Item' => 2,
-        'Wallet' => 3,
-        _ => null,
-      };
+    'RentalRequest' || 'RentalApproved' || 'RentalRejected' || 'Payment' || 'ReturnReminder' || 'System' => 1,
+    'Item' => 4,
+    'Wallet' => 5,
+    _ => null,
+  };
 
   IconData get icon => switch (type) {
-        'RentalRequest' => Icons.mark_email_unread_outlined,
-        'RentalApproved' => Icons.check_circle_outline,
-        'RentalRejected' => Icons.cancel_outlined,
-        'Payment' => Icons.payments_outlined,
-        'ReturnReminder' => Icons.assignment_return_outlined,
-        'Item' => Icons.inventory_2_outlined,
-        'Wallet' => Icons.account_balance_wallet_outlined,
-        _ => Icons.notifications_outlined,
-      };
+    'RentalRequest' => Icons.mark_email_unread_outlined,
+    'RentalApproved' => Icons.check_circle_outline,
+    'RentalRejected' => Icons.cancel_outlined,
+    'Payment' => Icons.payments_outlined,
+    'ReturnReminder' => Icons.assignment_return_outlined,
+    'Item' => Icons.inventory_2_outlined,
+    'Wallet' => Icons.account_balance_wallet_outlined,
+    _ => Icons.notifications_outlined,
+  };
 }
 
 class NotificationService {
@@ -147,27 +147,31 @@ class NotificationCenter {
     if (messenger == null) return;
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 6),
-        content: Row(
-          children: [
-            Icon(single?.icon ?? Icons.notifications_active_outlined, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(single?.title ?? tr('Bạn có {0} thông báo mới', [newCount]),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  if (single != null) Text(single.message, maxLines: 2, overflow: TextOverflow.ellipsis),
-                ],
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          content: Row(
+            children: [
+              Icon(single?.icon ?? Icons.notifications_active_outlined, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      single?.title ?? tr('Bạn có {0} thông báo mới', [newCount]),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    if (single != null) Text(single.message, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          action: SnackBarAction(label: 'Xem', onPressed: () => openList?.call()),
         ),
-        action: SnackBarAction(label: 'Xem', onPressed: () => openList?.call()),
-      ));
+      );
   }
 }

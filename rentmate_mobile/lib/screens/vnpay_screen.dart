@@ -3,6 +3,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../services/payment_service.dart';
 import '../widgets/ui.dart';
+import '../widgets/kit.dart';
 import '../l10n/l10n.dart';
 
 /// Mở trang thanh toán VNPay ngay trong app. Khi VNPay chuyển về trang kết quả của RentMate
@@ -28,16 +29,22 @@ class _VnPayScreenState extends State<VnPayScreen> {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageStarted: (_) => setState(() { _loading = true; }),
-        onPageFinished: (url) => setState(() {
-          _loading = false;
-          if (url.contains(PaymentService.returnPath)) _finished = true;
-        }),
-        onWebResourceError: (e) {
-          if (mounted && e.isForMainFrame == true) showSnack(context, tr('Không tải được trang thanh toán: {0}', [e.description]), error: true);
-        },
-      ))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (_) => setState(() {
+            _loading = true;
+          }),
+          onPageFinished: (url) => setState(() {
+            _loading = false;
+            if (url.contains(PaymentService.returnPath)) _finished = true;
+          }),
+          onWebResourceError: (e) {
+            if (mounted && e.isForMainFrame == true) {
+              showSnack(context, tr('Không tải được trang thanh toán: {0}', [e.description]), error: true);
+            }
+          },
+        ),
+      )
       ..loadRequest(Uri.parse(widget.paymentUrl));
   }
 
@@ -49,13 +56,14 @@ class _VnPayScreenState extends State<VnPayScreen> {
         if (!didPop) Navigator.of(context).pop(_finished);
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: RcAppBar(
           title: Text(tr('Thanh toán VNPay')),
           actions: [
-            if (_finished)
-              TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text(tr('Xong'))),
+            if (_finished) TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text(tr('Xong'))),
           ],
-          bottom: _loading ? const PreferredSize(preferredSize: Size.fromHeight(3), child: LinearProgressIndicator()) : null,
+          bottom: _loading
+              ? const PreferredSize(preferredSize: Size.fromHeight(3), child: LinearProgressIndicator())
+              : null,
         ),
         body: WebViewWidget(controller: _controller),
       ),

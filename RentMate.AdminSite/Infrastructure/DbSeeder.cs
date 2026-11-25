@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using RentMate.Core.Models;
+using RentMate.Service.Interfaces;
 
 namespace RentMate.AdminSite.Infrastructure
 {
@@ -22,6 +23,17 @@ namespace RentMate.AdminSite.Infrastructure
                     await roleManager.CreateAsync(new IdentityRole(roleName));
                 }
             }
+        }
+
+        // Câu chữ của app (và bản tiếng Anh có sẵn) cho trang Ngôn ngữ: chỉ thêm câu còn thiếu,
+        // không ghi đè bản dịch admin đã sửa. Cập nhật code app có câu mới thì lần chạy sau tự bổ sung.
+        public static async Task SeedTextsAsync(IServiceProvider services)
+        {
+            using var scope = services.CreateScope();
+
+            var localizationService = scope.ServiceProvider.GetRequiredService<ILocalizationService>();
+
+            await localizationService.ImportDefaultsAsync(null, "Hệ thống");
         }
 
         public static async Task SeedAdminAsync(IServiceProvider services, IConfiguration configuration)

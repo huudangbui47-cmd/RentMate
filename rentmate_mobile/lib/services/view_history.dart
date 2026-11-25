@@ -26,7 +26,7 @@ class ViewHistory {
     await prefs.setString(
       _key(userId),
       jsonEncode([
-        for (final r in list) {'i': r.itemId, 'c': r.categoryId, 't': r.viewedAt.millisecondsSinceEpoch}
+        for (final r in list) {'i': r.itemId, 'c': r.categoryId, 't': r.viewedAt.millisecondsSinceEpoch},
       ]),
     );
   }
@@ -41,7 +41,7 @@ class ViewHistory {
     try {
       return [
         for (final e in jsonDecode(raw) as List)
-          ItemViewRecord(e['i'] as int, e['c'] as int, DateTime.fromMillisecondsSinceEpoch(e['t'] as int))
+          ItemViewRecord(e['i'] as int, e['c'] as int, DateTime.fromMillisecondsSinceEpoch(e['t'] as int)),
       ];
     } catch (_) {
       return []; // dữ liệu hỏng thì bỏ qua, ghi lại từ đầu

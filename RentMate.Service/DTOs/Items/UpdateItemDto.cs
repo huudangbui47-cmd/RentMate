@@ -19,5 +19,10 @@ namespace RentMate.Service.DTOs.Items
 
         // Phường/xã hoặc khu vực, không bắt buộc
         public string? Area { get; set; }
+
+        // Ưu đãi thuê dài ngày: 0 = không giảm
+        public int DiscountPercent { get; set; }
+
+        public int DiscountMinDays { get; set; }
     }
 }

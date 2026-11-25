@@ -38,6 +38,9 @@ namespace RentMate.Core.ViewModels
 
         public string StatusText => IsActive ? "Đang hiện trên app" : "Đang ẩn";
 
+        // "Tiếng Trung"... với ngôn ngữ trong danh sách có sẵn
+        public string? VietnameseName => LanguagePresetOption.Find(Code)?.VietnameseName;
+
         public DateTime UpdatedAt { get; set; }
     }
 }

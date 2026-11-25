@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../services/item_service.dart';
+import '../theme.dart';
 import '../widgets/ui.dart';
-import 'notifications_screen.dart';
+import '../widgets/kit.dart';
 import 'item_detail_screen.dart';
 import 'item_form_screen.dart';
 import '../l10n/l10n.dart';
@@ -18,15 +19,17 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
   late Future<List<Item>> _future = ItemService().getMyItems();
 
   Future<void> _reload() async {
-    setState(() { _future = ItemService().getMyItems(); });
+    setState(() {
+      _future = ItemService().getMyItems();
+    });
     await _future;
   }
 
   Future<void> _openForm([Item? item]) async {
     // Màn hình sửa đồ trả về câu thông báo (đã lưu luôn / đang chờ duyệt lại)
-    final message = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => ItemFormScreen(item: item)),
-    );
+    final message = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => ItemFormScreen(item: item)));
     if (message != null) {
       if (mounted) showSnack(context, message);
       await _reload();
@@ -54,11 +57,15 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr('Đồ của tôi')), actions: const [NotificationBell()]),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(),
-        icon: const Icon(Icons.add),
-        label: Text(tr('Đăng đồ')),
+      appBar: RcAppBar(
+        title: Text(tr('Đồ của tôi')),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded, size: 28),
+            tooltip: tr('Đăng đồ'),
+            onPressed: () => _openForm(),
+          ),
+        ],
       ),
       body: FutureBuilder<List<Item>>(
         future: _future,
@@ -71,32 +78,49 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: items.isEmpty
-                ? ListView(children: [
-                    EmptyView(
-                      icon: Icons.add_business_outlined,
-                      title: tr('Bạn chưa đăng đồ nào'),
-                      subtitle: tr('Cho thuê đồ ít dùng để kiếm thêm thu nhập.'),
-                      action: FilledButton.icon(
-                        onPressed: () => _openForm(),
-                        icon: const Icon(Icons.add),
-                        label: Text(tr('Đăng đồ đầu tiên')),
-                      ),
-                    ),
-                  ])
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                ? ListView(
                     children: [
+                      EmptyView(
+                        icon: Icons.add_business_outlined,
+                        title: tr('Bạn chưa đăng đồ nào'),
+                        subtitle: tr('Cho thuê đồ ít dùng để kiếm thêm thu nhập.'),
+                        action: FilledButton.icon(
+                          onPressed: () => _openForm(),
+                          icon: const Icon(Icons.add),
+                          label: Text(tr('Đăng đồ đầu tiên')),
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                    children: [
+                      // Nút đen viên thuốc thay nút nổi, như nút "Search" của mẫu
+                      FilledButton.icon(
+                        onPressed: () => _openForm(),
+                        icon: const Icon(Icons.add_rounded),
+                        label: Text(tr('Đăng đồ')),
+                      ),
+                      const SizedBox(height: 12),
                       if (rejected > 0) ...[
-                        NoticeBox(tr('{0} món bị từ chối. Xem lý do bên dưới, sửa lại rồi lưu để được duyệt lại.', [rejected]),
-                            icon: Icons.error_outline, color: statusColor('Rejected')),
+                        NoticeBox(
+                          tr('{0} món bị từ chối. Xem lý do bên dưới, sửa lại rồi lưu để được duyệt lại.', [rejected]),
+                          icon: Icons.error_outline,
+                          color: statusColor('Rejected'),
+                        ),
                         const SizedBox(height: 8),
                       ],
                       if (pending > 0) ...[
-                        NoticeBox(tr('{0} món đang chờ quản lý duyệt. Đồ sẽ hiện trên trang Khám phá sau khi được duyệt.', [pending]),
-                            icon: Icons.hourglass_top_rounded, color: statusColor('PendingApproval')),
+                        NoticeBox(
+                          tr('{0} món đang chờ quản lý duyệt. Đồ sẽ hiện trên trang Khám phá sau khi được duyệt.', [
+                            pending,
+                          ]),
+                          icon: Icons.hourglass_top_rounded,
+                          color: statusColor('PendingApproval'),
+                        ),
                         const SizedBox(height: 8),
                       ],
-                      for (final item in items) ...[_card(item), const SizedBox(height: 12)],
+                      for (final item in items) _card(item),
                     ],
                   ),
           );
@@ -105,63 +129,58 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
     );
   }
 
+  // Khối trắng bo tròn: nhãn trạng thái, ảnh vuông hiện trọn, tên, giá, nút ba chấm
   Widget _card(Item item) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final rented = item.status == 'Rented';
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        // Đồ đang có người thuê thì không sửa được, chỉ xem
-        onTap: () => rented
-            ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id)))
-            : _openForm(item),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: 64),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                        const SizedBox(height: 2),
-                        Text(tr('{0}/ngày · {1}', [formatVnd(item.pricePerDay), item.categoryName]),
-                            style: TextStyle(color: muted, fontSize: 13)),
-                        const SizedBox(height: 6),
-                        StatusBadge(itemStatusLabels[item.status] ?? item.status, statusColor(item.status)),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (v) => v == 'edit' ? _openForm(item) : _delete(item),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(value: 'edit', enabled: !rented, child: Text(tr('Sửa'))),
-                      PopupMenuItem(value: 'delete', enabled: !rented, child: Text(tr('Xóa'))),
-                    ],
-                  ),
-                ],
-              ),
-              if (item.status == 'Rejected' && (item.rejectionReason ?? '').isNotEmpty) ...[
-                const SizedBox(height: 10),
-                NoticeBox(tr('Lý do từ chối: {0}', [item.rejectionReason]), icon: Icons.feedback_outlined, color: statusColor('Rejected')),
+    return RcCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ItemRow(
+            // Đồ đang có người thuê thì không sửa được, chỉ xem
+            onTap: () => rented
+                ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id)))
+                : _openForm(item),
+            divider: false,
+            thumb: ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: 84, radius: 14),
+            title: item.name,
+            subtitle: Text(tr(item.categoryName), style: kSub12),
+            bottom: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PriceText(formatVnd(item.pricePerDay), unit: tr(' /ngày'), fontSize: 16),
+                const SizedBox(height: 6),
+                StatusBadge(itemStatusLabels[item.status] ?? item.status, statusColor(item.status)),
               ],
-              if (item.status == 'Unavailable') ...[
-                const SizedBox(height: 10),
-                NoticeBox(tr('Quản lý đã tạm ngưng đồ này. Liên hệ RentMate nếu cần hỗ trợ.'),
-                    icon: Icons.pause_circle_outline, color: statusColor('Unavailable')),
+            ),
+            trailing: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, color: AppColors.ink),
+              onSelected: (v) => v == 'edit' ? _openForm(item) : _delete(item),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'edit', enabled: !rented, child: Text(tr('Sửa'))),
+                PopupMenuItem(value: 'delete', enabled: !rented, child: Text(tr('Xóa'))),
               ],
-            ],
+            ),
           ),
-        ),
+          if (item.status == 'Rejected' && (item.rejectionReason ?? '').isNotEmpty) ...[
+            const SizedBox(height: 4),
+            NoticeBox(
+              tr('Lý do từ chối: {0}', [item.rejectionReason]),
+              icon: Icons.feedback_outlined,
+              color: statusColor('Rejected'),
+            ),
+          ],
+          if (item.status == 'Unavailable') ...[
+            const SizedBox(height: 4),
+            NoticeBox(
+              tr('Quản lý đã tạm ngưng đồ này. Liên hệ RentMate nếu cần hỗ trợ.'),
+              icon: Icons.pause_circle_outline,
+              color: statusColor('Unavailable'),
+            ),
+          ],
+        ],
       ),
     );
   }

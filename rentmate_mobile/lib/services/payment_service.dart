@@ -9,9 +9,9 @@ class VnPayPayment {
   final String code;
   final num amount;
   VnPayPayment.fromJson(Map<String, dynamic> j)
-      : paymentUrl = j['paymentUrl'] as String,
-        code = (j['code'] ?? '') as String,
-        amount = (j['amount'] ?? 0) as num;
+    : paymentUrl = j['paymentUrl'] as String,
+      code = (j['code'] ?? '') as String,
+      amount = (j['amount'] ?? 0) as num;
 }
 
 /// Nạp ví qua cổng VNPay (sandbox).
@@ -21,7 +21,10 @@ class PaymentService {
 
   Future<bool> isVnPayEnabled() async {
     try {
-      final res = await http.get(Uri.parse('$apiBaseUrl/api/payments/vnpay/enabled'), headers: await AuthService().authHeaders());
+      final res = await http.get(
+        Uri.parse('$apiBaseUrl/api/payments/vnpay/enabled'),
+        headers: await AuthService().authHeaders(),
+      );
       checkResponse(res);
       return (jsonDecode(res.body) as Map<String, dynamic>)['enabled'] == true;
     } catch (_) {
