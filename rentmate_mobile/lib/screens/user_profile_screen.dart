@@ -4,6 +4,7 @@ import '../services/account_service.dart';
 import '../services/item_service.dart';
 import '../widgets/ui.dart';
 import 'item_detail_screen.dart';
+import '../l10n/l10n.dart';
 
 /// Hồ sơ công khai của chủ đồ: ảnh đại diện, tên, ngày tham gia và các món đang cho thuê.
 class UserProfileScreen extends StatefulWidget {
@@ -31,7 +32,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Hồ sơ')),
+      appBar: AppBar(title: Text(tr('Hồ sơ'))),
       body: FutureBuilder<(PublicProfile, List<Item>)>(
         future: _future,
         builder: (context, snap) {
@@ -54,24 +55,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               const SizedBox(height: 2),
               Center(
-                child: Text('Thành viên từ ${fmtDate(profile.createdAt)}',
+                child: Text(tr('Thành viên từ {0}', [fmtDate(profile.createdAt)]),
                     style: TextStyle(color: scheme.onSurfaceVariant)),
               ),
               const SizedBox(height: 24),
-              Text('Đồ đang cho thuê (${items.length})',
+              Text(tr('Đồ đang cho thuê ({0})', [items.length]),
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 8),
               if (items.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text('Chưa có đồ nào đang cho thuê.', style: TextStyle(color: scheme.onSurfaceVariant)),
+                  child: Text(tr('Chưa có đồ nào đang cho thuê.'), style: TextStyle(color: scheme.onSurfaceVariant)),
                 ),
               for (final item in items)
                 Card(
                   child: ListTile(
                     leading: ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: 56, radius: 10),
                     title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text('${formatVnd(item.pricePerDay)} /ngày'),
+                    subtitle: Text(tr('{0} /ngày', [formatVnd(item.pricePerDay)])),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id)),

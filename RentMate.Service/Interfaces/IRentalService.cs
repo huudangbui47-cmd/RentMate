@@ -1,6 +1,7 @@
 using RentMate.Core.Enums;
 using RentMate.Core.ViewModels;
 using RentMate.Service.DTOs.Rentals;
+using RentMate.Service.DTOs.Shipping;
 
 namespace RentMate.Service.Interfaces
 {
@@ -54,7 +55,12 @@ namespace RentMate.Service.Interfaces
 
         Task<RentalDetailsViewModel?> GetDetailsAsync(int id);
         Task<bool> PayAsync(int rentalId, string renterId);
-        Task<bool> CancelAsync(int rentalId, string userId);
+        Task<bool> CancelAsync(int rentalId, string userId, string? reason = null);
+
+        // Giao hàng GHN: chủ đồ tạo vận đơn; hai bên xem dòng thời gian giao nhận
+        Task<bool> CreateShipmentAsync(int rentalId, string ownerId, int weightGram);
+
+        Task<ShippingTrackingDto?> GetShippingAsync(int rentalId, string userId);
 
         // Đồ bị xóa/ẩn/tạm ngưng: từ chối hoặc hủy các đơn chưa giao, hoàn tiền đơn đã thanh toán, báo người thuê.
         // Chưa SaveChanges: hàm gọi tự lưu cùng lúc với việc đổi trạng thái đồ.

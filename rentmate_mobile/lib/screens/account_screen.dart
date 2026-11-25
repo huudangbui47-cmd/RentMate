@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/account_service.dart';
@@ -6,6 +7,10 @@ import '../services/auth_service.dart';
 import '../widgets/ui.dart';
 import 'notifications_screen.dart';
 import 'login_screen.dart';
+import '../l10n/l10n.dart';
+import '../services/config_service.dart';
+import '../widgets/language_picker.dart';
+import 'main_shell.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -33,12 +38,12 @@ class _AccountScreenState extends State<AccountScreen> {
             if (p.avatarUrl != null)
               ListTile(
                 leading: const Icon(Icons.visibility_outlined),
-                title: const Text('Xem ảnh đại diện'),
+                title: Text(tr('Xem ảnh đại diện')),
                 onTap: () => Navigator.pop(ctx, 'view'),
               ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Đổi ảnh đại diện'),
+              title: Text(tr('Đổi ảnh đại diện')),
               onTap: () => Navigator.pop(ctx, 'change'),
             ),
           ],
@@ -62,7 +67,7 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await AccountService().uploadAvatar(file);
       if (!mounted) return;
-      showSnack(context, 'Đã đổi ảnh đại diện');
+      showSnack(context, tr('Đã đổi ảnh đại diện'));
       await _reload();
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -72,7 +77,7 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Future<void> _logout() async {
-    if (!await confirmDialog(context, title: 'Đăng xuất?', message: 'Bạn sẽ cần đăng nhập lại để dùng RentMate.', confirmText: 'Đăng xuất')) {
+    if (!await confirmDialog(context, title: tr('Đăng xuất?'), message: tr('Bạn sẽ cần đăng nhập lại để dùng RentMate.'), confirmText: tr('Đăng xuất'))) {
       return;
     }
     await AuthService().logout();
@@ -86,7 +91,7 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tài khoản'), actions: const [NotificationBell()]),
+      appBar: AppBar(title: Text(tr('Tài khoản')), actions: const [NotificationBell()]),
       body: FutureBuilder<Profile>(
         future: _future,
         builder: (context, snap) {
@@ -145,7 +150,7 @@ class _AccountScreenState extends State<AccountScreen> {
                               Text(p.fullName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 2),
                               Text(p.email, style: TextStyle(color: scheme.onSurfaceVariant)),
-                              Text('Thành viên từ ${fmtDate(p.createdAt)}',
+                              Text(tr('Thành viên từ {0}', [fmtDate(p.createdAt)]),
                                   style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                             ],
                           ),
@@ -160,7 +165,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     children: [
                       ListTile(
                         leading: const Icon(Icons.badge_outlined),
-                        title: const Text('Thông tin cá nhân'),
+                        title: Text(tr('Thông tin cá nhân')),
                         subtitle: Text([p.phoneNumber, if (p.address.isNotEmpty) p.address].join(' · ')),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () async {
@@ -173,26 +178,49 @@ class _AccountScreenState extends State<AccountScreen> {
                       const Divider(height: 1, indent: 56),
                       ListTile(
                         leading: const Icon(Icons.lock_outline),
-                        title: const Text('Đổi mật khẩu'),
+                        title: Text(tr('Đổi mật khẩu')),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
                         ),
                       ),
+                      const Divider(height: 1, indent: 56),
+                      ListTile(
+                        leading: const Icon(Icons.translate),
+                        title: Text(tr('Ngôn ngữ')),
+                        subtitle: Text(currentAppLanguage.name),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => showLanguagePicker(context, rebuild: () => const MainShell(initialIndex: 4)),
+                      ),
                     ],
                   ),
                 ),
+                if (AppConfig.supportPhone != null || AppConfig.supportEmail != null) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.support_agent),
+                      title: Text(tr('Liên hệ hỗ trợ')),
+                      subtitle: Text([AppConfig.supportPhone, AppConfig.supportEmail].whereType<String>().join(' · ')),
+                      onTap: () {
+                        final text = AppConfig.supportPhone ?? AppConfig.supportEmail!;
+                        Clipboard.setData(ClipboardData(text: text));
+                        showSnack(context, tr('Đã chép {0}', [text]));
+                      },
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Card(
                   child: ListTile(
                     leading: Icon(Icons.logout, color: scheme.error),
-                    title: Text('Đăng xuất', style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600)),
+                    title: Text(tr('Đăng xuất'), style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600)),
                     onTap: _logout,
                   ),
                 ),
                 const SizedBox(height: 24),
                 Center(
-                  child: Text('RentMate · Thuê đồ dễ dàng', style: TextStyle(color: scheme.outline, fontSize: 12)),
+                  child: Text(tr('RentMate · Thuê đồ dễ dàng'), style: TextStyle(color: scheme.outline, fontSize: 12)),
                 ),
               ],
             ),
@@ -236,7 +264,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         address: _address.text.trim(),
       );
       if (!mounted) return;
-      showSnack(context, 'Đã lưu thông tin');
+      showSnack(context, tr('Đã lưu thông tin'));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -248,7 +276,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Thông tin cá nhân')),
+      appBar: AppBar(title: Text(tr('Thông tin cá nhân'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -257,37 +285,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             TextFormField(
               initialValue: widget.profile.email,
               enabled: false,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Email',
                 prefixIcon: Icon(Icons.email_outlined),
-                helperText: 'Email dùng để đăng nhập, muốn đổi hãy liên hệ RentMate.',
+                helperText: tr('Email dùng để đăng nhập, muốn đổi hãy liên hệ RentMate.'),
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Họ tên', prefixIcon: Icon(Icons.person_outline)),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập họ tên' : null,
+              decoration: InputDecoration(labelText: tr('Họ tên'), prefixIcon: Icon(Icons.person_outline)),
+              validator: (v) => (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập họ tên') : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _phone,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Số điện thoại', prefixIcon: Icon(Icons.phone_outlined)),
+              decoration: InputDecoration(labelText: tr('Số điện thoại'), prefixIcon: Icon(Icons.phone_outlined)),
               validator: phoneError,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _address,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Địa chỉ (không bắt buộc)',
+              decoration: InputDecoration(
+                labelText: tr('Địa chỉ (không bắt buộc)'),
                 prefixIcon: Icon(Icons.location_on_outlined),
-                hintText: 'Nơi thuận tiện để giao nhận đồ',
+                hintText: tr('Nơi thuận tiện để giao nhận đồ'),
               ),
             ),
             const SizedBox(height: 24),
-            BusyButton(busy: _busy, onPressed: _save, label: 'Lưu thay đổi'),
+            BusyButton(busy: _busy, onPressed: _save, label: tr('Lưu thay đổi')),
           ],
         ),
       ),
@@ -324,7 +352,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     try {
       await AccountService().changePassword(_current.text, _new.text);
       if (!mounted) return;
-      showSnack(context, 'Đã đổi mật khẩu. Các máy khác đang đăng nhập sẽ bị đăng xuất.');
+      showSnack(context, tr('Đã đổi mật khẩu. Các máy khác đang đăng nhập sẽ bị đăng xuất.'));
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -345,7 +373,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đổi mật khẩu')),
+      appBar: AppBar(title: Text(tr('Đổi mật khẩu'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -354,18 +382,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             TextFormField(
               controller: _current,
               obscureText: _hide,
-              decoration: _deco('Mật khẩu hiện tại'),
-              validator: (v) => (v == null || v.isEmpty) ? 'Vui lòng nhập mật khẩu hiện tại' : null,
+              decoration: _deco(tr('Mật khẩu hiện tại')),
+              validator: (v) => (v == null || v.isEmpty) ? tr('Vui lòng nhập mật khẩu hiện tại') : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _new,
               obscureText: _hide,
-              decoration: _deco('Mật khẩu mới').copyWith(
-                helperText: 'Ít nhất 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt',
+              decoration: _deco(tr('Mật khẩu mới')).copyWith(
+                helperText: tr('Ít nhất 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt'),
               ),
               validator: (v) {
-                if (v == _current.text) return 'Mật khẩu mới phải khác mật khẩu hiện tại';
+                if (v == _current.text) return tr('Mật khẩu mới phải khác mật khẩu hiện tại');
                 return passwordError(v);
               },
             ),
@@ -373,11 +401,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             TextFormField(
               controller: _confirm,
               obscureText: _hide,
-              decoration: _deco('Nhập lại mật khẩu mới'),
-              validator: (v) => v != _new.text ? 'Mật khẩu nhập lại không khớp' : null,
+              decoration: _deco(tr('Nhập lại mật khẩu mới')),
+              validator: (v) => v != _new.text ? tr('Mật khẩu nhập lại không khớp') : null,
             ),
             const SizedBox(height: 24),
-            BusyButton(busy: _busy, onPressed: _save, label: 'Đổi mật khẩu'),
+            BusyButton(busy: _busy, onPressed: _save, label: tr('Đổi mật khẩu')),
           ],
         ),
       ),

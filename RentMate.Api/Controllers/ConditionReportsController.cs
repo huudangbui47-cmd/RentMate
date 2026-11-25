@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RentMate.Api.Infrastructure.Storage;
-using RentMate.Core.Enums;
 using RentMate.Service.DTOs.ConditionReports;
 using RentMate.Service.Interfaces;
 using RentMate.Service.Services;
@@ -55,8 +54,9 @@ namespace RentMate.Api.Controllers
             if (files == null || files.Count == 0)
                 return BadRequest("Cần chụp ít nhất 1 ảnh món đồ.");
 
-            if (files.Count > ConditionReportService.MaxImages)
-                return BadRequest($"Mỗi biên bản tối đa {ConditionReportService.MaxImages} ảnh.");
+            // Số ảnh tối đa theo cài đặt do service kiểm tra; ở đây chỉ chặn số lượng vượt mức cài đặt cho phép (12) trước khi lưu file
+            if (files.Count > 12)
+                return BadRequest("Mỗi biên bản tối đa 12 ảnh.");
 
             foreach (var file in files)
             {
@@ -81,22 +81,13 @@ namespace RentMate.Api.Controllers
                     savedUrls.Add(await _fileStorageService.SaveAsync(file, "uploads/reports"));
                 }
 
-                // Biên bản lúc nhận lại: đọc ảnh lúc giao để AI so sánh
-                var beforeImages = new List<ReportImageFile>();
-
-                if (dto.ReportType == ConditionReportType.AfterRental)
-                {
-                    foreach (var url in await _conditionReportService.GetBeforeImageUrlsAsync(rentalId))
-                    {
-                        var content = await _fileStorageService.ReadAsync(url);
-
-                        if (content != null)
-                            beforeImages.Add(new ReportImageFile(content, MediaTypeOf(url)));
-                    }
-                }
+                // Đọc ảnh biên bản trước và ảnh tin đăng để AI so sánh (đúng món, hư hỏng mới)
+                var (referenceUrls, listingUrls) =
+                    await _conditionReportService.GetReferenceImageUrlsAsync(rentalId, dto.ReportType);
 
                 var report = await _conditionReportService.CreateAsync(
-                    rentalId, dto, GetUserId(), savedUrls, images, beforeImages);
+                    rentalId, dto, GetUserId(), savedUrls, images,
+                    await ReadImagesAsync(referenceUrls), await ReadImagesAsync(listingUrls));
 
                 return Ok(report);
             }
@@ -110,6 +101,21 @@ namespace RentMate.Api.Controllers
                 DeleteFiles(savedUrls);
                 return BadRequest(ex.Message);
             }
+        }
+
+        private async Task<List<ReportImageFile>> ReadImagesAsync(List<string> urls)
+        {
+            var result = new List<ReportImageFile>();
+
+            foreach (var url in urls)
+            {
+                var content = await _fileStorageService.ReadAsync(url);
+
+                if (content != null)
+                    result.Add(new ReportImageFile(content, MediaTypeOf(url)));
+            }
+
+            return result;
         }
 
         private static string MediaTypeOf(string fileName) =>

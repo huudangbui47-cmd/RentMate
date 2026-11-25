@@ -31,6 +31,8 @@ namespace RentMate.Service.DTOs.ConditionReports
 
         public bool? AiNewDamageFound { get; set; }
 
+        public bool? AiSameItem { get; set; }
+
         public decimal? AiSuggestedDeduction { get; set; }
     }
 }

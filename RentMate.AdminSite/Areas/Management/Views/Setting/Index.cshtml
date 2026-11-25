@@ -1,0 +1,71 @@
+@model List<SystemSettingViewModel>
+
+@{
+    ViewData["Title"] = "Cài đặt hệ thống";
+    var vi = System.Globalization.CultureInfo.GetCultureInfo("vi-VN");
+
+    string ShowNumber(string value) =>
+        decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var n)
+            ? n.ToString("#,0.##", vi)
+            : value;
+}
+
+<div class="page-heading">
+    <h3 class="mb-1">Cài đặt hệ thống</h3>
+    <p class="text-muted mb-0">Các con số và thông tin dưới đây áp dụng cho app và trang quản trị ngay sau khi lưu (tối đa 30 giây), không cần sửa code.</p>
+</div>
+
+<form asp-action="Save" method="post">
+    @foreach (var group in Model.GroupBy(s => s.Group))
+    {
+        <div class="card mb-4">
+            <div class="card-header pb-0">
+                <h5 class="mb-0">@group.Key</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    @foreach (var setting in group)
+                    {
+                        string id = "setting_" + setting.Key.Replace(".", "_");
+                        <div class="col-md-6">
+                            <label for="@id" class="form-label fw-semibold">@setting.Label</label>
+                            <div class="input-group">
+                                @if (setting.IsNumber)
+                                {
+                                    <input type="number" id="@id" name="setting.@setting.Key" value="@setting.Value" class="form-control"
+                                           min="@setting.Min" max="@setting.Max" step="@(setting.Unit == "%" ? "0.1" : "1")" required />
+                                }
+                                else
+                                {
+                                    <input type="text" id="@id" name="setting.@setting.Key" value="@setting.Value" class="form-control" autocomplete="off" />
+                                }
+                                @if (!string.IsNullOrEmpty(setting.Unit))
+                                {
+                                    <span class="input-group-text">@setting.Unit</span>
+                                }
+                            </div>
+                            <div class="form-text">
+                                @if (!string.IsNullOrEmpty(setting.Description))
+                                {
+                                    <span>@setting.Description</span><br />
+                                }
+                                @if (setting.IsNumber)
+                                {
+                                    <span>Từ @ShowNumber(setting.Min!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)) đến @ShowNumber(setting.Max!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)) @setting.Unit · mặc định @ShowNumber(setting.DefaultValue) @setting.Unit.</span>
+                                }
+                                @if (setting.UpdatedAt.HasValue)
+                                {
+                                    <span> Sửa lần cuối @setting.UpdatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm").</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="d-flex justify-content-end mb-4">
+        <button type="submit" class="btn btn-primary" onclick="return confirm('Lưu cài đặt? Thay đổi áp dụng ngay cho mọi người dùng.');">Lưu cài đặt</button>
+    </div>
+</form>

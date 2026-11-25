@@ -14,6 +14,9 @@ namespace RentMate.Core.Models
 
         public decimal TotalPrice { get; set; }
 
+        // Tỉ lệ phí nền tảng lúc đặt đơn (0.05 = 5%). Admin đổi phí sau đó thì đơn cũ vẫn giữ tỉ lệ cũ.
+        public decimal PlatformFeeRate { get; set; } = 0.05m;
+
         public string? RequestNote { get; set; }
 
         public RentalStatus Status { get; set; }
@@ -43,6 +46,41 @@ namespace RentMate.Core.Models
         public DateTime? DisputedAt { get; set; }
 
         public string? ResolutionNote { get; set; }
+
+        // Lý do hủy (vd. người thuê từ chối nhận vì giao sai món)
+        public string? CancelReason { get; set; }
+
+        // Giao nhận: gặp trực tiếp hoặc giao qua GHN
+        public DeliveryMethod DeliveryMethod { get; set; } = DeliveryMethod.Meetup;
+
+        public string? ShipToName { get; set; }
+
+        public string? ShipToPhone { get; set; }
+
+        // Số nhà, tên đường
+        public string? ShipToAddress { get; set; }
+
+        // Mã quận/phường theo danh mục của GHN
+        public int? ShipToDistrictId { get; set; }
+
+        public string? ShipToWardCode { get; set; }
+
+        // "Phường X, Quận Y, Tỉnh Z" để hiển thị
+        public string? ShipToAreaText { get; set; }
+
+        public string? ShippingOrderCode { get; set; }
+
+        public decimal? ShippingFee { get; set; }
+
+        public DateTime? ShippingCreatedAt { get; set; }
+
+        public DateTime? ExpectedDeliveryAt { get; set; }
+
+        // Đồ đến tay trễ hơn ngày bắt đầu: số ngày đã lùi hạn trả,
+        // hoặc tiền thuê hoàn lại khi không lùi được (vướng lịch người thuê sau)
+        public int ShiftedDays { get; set; }
+
+        public decimal LateDeliveryRefund { get; set; }
 
         // Foreign Keys
         public int ItemId { get; set; }

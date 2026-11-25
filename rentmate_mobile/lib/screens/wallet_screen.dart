@@ -6,6 +6,7 @@ import '../widgets/ui.dart';
 import 'notifications_screen.dart';
 import 'deposit_screen.dart';
 import 'withdraw_screen.dart';
+import '../l10n/l10n.dart';
 
 class WalletScreen extends StatefulWidget {
   /// true khi mở riêng (từ màn hình khác) thay vì là tab trong thanh điều hướng.
@@ -39,7 +40,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ví RentMate'),
+        title: Text(tr('Ví RentMate')),
         automaticallyImplyLeading: widget.standalone,
         actions: [if (!widget.standalone) const NotificationBell()],
       ),
@@ -58,13 +59,13 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 12),
                 _bankCard(wallet),
                 const SizedBox(height: 20),
-                const Text('Lịch sử giao dịch', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                Text(tr('Lịch sử giao dịch'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 const SizedBox(height: 8),
                 if (history.isEmpty)
-                  const EmptyView(
+                  EmptyView(
                     icon: Icons.receipt_outlined,
-                    title: 'Chưa có giao dịch',
-                    subtitle: 'Nạp tiền để thanh toán đơn thuê nhanh chóng.',
+                    title: tr('Chưa có giao dịch'),
+                    subtitle: tr('Nạp tiền để thanh toán đơn thuê nhanh chóng.'),
                   )
                 else
                   Card(
@@ -91,7 +92,7 @@ class _WalletScreenState extends State<WalletScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
-          colors: [Color(0xFF0E9F8E), Color(0xFF0B7A6E)],
+          colors: [Color(0xFF1F4D3A), Color(0xFF12301F)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -99,13 +100,13 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Số dư khả dụng', style: TextStyle(color: Colors.white70)),
+          Text(tr('Số dư khả dụng'), style: TextStyle(color: Colors.white70)),
           const SizedBox(height: 4),
           Text(formatVnd(w.availableBalance),
               style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
           if (w.pendingWithdrawAmount > 0) ...[
             const SizedBox(height: 4),
-            Text('Đang chờ rút: ${formatVnd(w.pendingWithdrawAmount)}', style: const TextStyle(color: Colors.white70)),
+            Text(tr('Đang chờ rút: {0}', [formatVnd(w.pendingWithdrawAmount)]), style: const TextStyle(color: Colors.white70)),
           ],
           const SizedBox(height: 16),
           Row(
@@ -115,7 +116,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF0B7A6E)),
                   onPressed: () => _open(const DepositScreen()),
                   icon: const Icon(Icons.add_circle_outline),
-                  label: const Text('Nạp tiền'),
+                  label: Text(tr('Nạp tiền')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -127,7 +128,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   onPressed: () => _open(w.hasBankInfo ? WithdrawScreen(wallet: w) : const BankInfoScreen(thenWithdraw: true)),
                   icon: const Icon(Icons.arrow_circle_up_outlined),
-                  label: const Text('Rút tiền'),
+                  label: Text(tr('Rút tiền')),
                 ),
               ),
             ],
@@ -141,11 +142,11 @@ class _WalletScreenState extends State<WalletScreen> {
     return Card(
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.account_balance_outlined)),
-        title: Text(w.hasBankInfo ? '${w.bankName} · ${w.maskedAccountNumber}' : 'Chưa có tài khoản ngân hàng'),
-        subtitle: Text(w.hasBankInfo ? w.bankAccountName ?? '' : 'Cần thêm để rút tiền về ngân hàng'),
+        title: Text(w.hasBankInfo ? '${w.bankName} · ${w.maskedAccountNumber}' : tr('Chưa có tài khoản ngân hàng')),
+        subtitle: Text(w.hasBankInfo ? w.bankAccountName ?? '' : tr('Cần thêm để rút tiền về ngân hàng')),
         trailing: TextButton(
           onPressed: () => _open(const BankInfoScreen()),
-          child: Text(w.hasBankInfo ? 'Sửa' : 'Thêm'),
+          child: Text(w.hasBankInfo ? tr('Sửa') : tr('Thêm')),
         ),
       ),
     );
@@ -171,19 +172,19 @@ class _WalletScreenState extends State<WalletScreen> {
         children: [
           Text([
             fmtDateTime(t.createdAt),
-            if (t.code != null) 'Mã ${t.code}',
-            if (t.rentalId != null) 'Đơn #${t.rentalId}',
+            if (t.code != null) tr('Mã {0}', [t.code]),
+            if (t.rentalId != null) tr('Đơn #{0}', [t.rentalId]),
           ].join(' · ')),
           if (t.status != 'Completed')
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: StatusBadge(
-                pendingDeposit ? 'Chờ duyệt · bấm để xem cách chuyển khoản' : walletStatusLabels[t.status] ?? t.status,
+                pendingDeposit ? tr('Chờ duyệt · bấm để xem cách chuyển khoản') : walletStatusLabels[t.status] ?? t.status,
                 statusColor(t.status == 'Pending' ? 'Pending' : 'Rejected'),
               ),
             ),
           if (rejected && (t.note ?? '').isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 4), child: Text('Lý do: ${t.note}')),
+            Padding(padding: const EdgeInsets.only(top: 4), child: Text(tr('Lý do: {0}', [t.note]))),
         ],
       ),
       isThreeLine: t.status != 'Completed',

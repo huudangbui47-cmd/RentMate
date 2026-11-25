@@ -1,0 +1,167 @@
+@using System.Text.Json
+@model List<LanguageViewModel>
+
+@{
+    ViewData["Title"] = "Ngôn ngữ";
+    int totalTexts = Model.FirstOrDefault()?.TotalTexts ?? 0;
+}
+
+<div class="page-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h3 class="mb-1">Ngôn ngữ của app</h3>
+            <p class="text-muted mb-0">Thêm ngôn ngữ và sửa bản dịch tại đây; app tự tải bản mới khi mở, không cần cập nhật app.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <form asp-action="ImportDefaults" method="post">
+                <button type="submit" class="btn btn-outline-primary" title="Thêm câu chữ mới của app và bản tiếng Anh có sẵn; không ghi đè bản dịch đã sửa">Nạp câu chữ gốc của app</button>
+            </form>
+            <button type="button" class="btn btn-primary admin-btn-icon" data-bs-toggle="modal" data-bs-target="#languageCreateModal">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                Thêm ngôn ngữ
+            </button>
+        </div>
+    </div>
+</div>
+
+@if (totalTexts == 0)
+{
+    <div class="alert alert-light-warning">
+        Chưa có câu chữ nào. Bấm <strong>Nạp câu chữ gốc của app</strong> để thêm toàn bộ câu chữ của app kèm bản tiếng Anh có sẵn.
+        Khi app có câu mới (sau khi cập nhật code), bấm lại nút này để bổ sung.
+    </div>
+}
+
+<div class="card admin-table-card">
+    <div class="table-responsive admin-table-responsive">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Ngôn ngữ</th>
+                    <th style="min-width: 220px">Đã dịch</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="me-1">🇻🇳</span><span class="fw-semibold">Tiếng Việt</span> <span class="text-muted small">(vi)</span></td>
+                    <td class="text-muted">Ngôn ngữ gốc: @totalTexts câu</td>
+                    <td><span class="admin-badge admin-badge-success">Luôn hiện</span></td>
+                    <td></td>
+                </tr>
+                @foreach (var language in Model)
+                {
+                    string editValues = JsonSerializer.Serialize(new { language.Id, language.Name, language.Flag, language.SortOrder });
+                    <tr>
+                        <td>
+                            <span class="me-1">@language.Flag</span><span class="fw-semibold">@language.Name</span>
+                            <span class="text-muted small">(@language.Code)</span>
+                        </td>
+                        <td>
+                            <div class="progress mb-1" style="height: 8px">
+                                <div class="progress-bar @(language.Percent == 100 ? "bg-success" : "")" role="progressbar" style="width: @language.Percent%" aria-valuenow="@language.Percent" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <span class="small text-muted">
+                                @language.TranslatedCount / @language.TotalTexts câu (@language.Percent%)
+                                @if (language.MachineCount > 0)
+                                {
+                                    <span> · @language.MachineCount câu AI dịch chưa xem lại</span>
+                                }
+                            </span>
+                        </td>
+                        <td>
+                            <span class="admin-badge @(language.IsActive ? "admin-badge-success" : "admin-badge-muted")">@language.StatusText</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="admin-row-actions">
+                                <a asp-action="Translations" asp-route-id="@language.Id" class="btn admin-row-primary">Dịch</a>
+                                <button type="button" class="btn btn-light-secondary btn-sm" data-edit-modal="#languageEditModal" data-edit-values="@editValues">Sửa</button>
+                                <form asp-action="ToggleActive" asp-route-id="@language.Id" method="post" class="rm-row-action-form"
+                                      onsubmit="return confirm('@(language.IsActive ? "Ẩn ngôn ngữ này khỏi app? Người đang dùng sẽ quay về tiếng Việt." : "Hiện ngôn ngữ này trên app? Câu chưa dịch sẽ hiện bằng tiếng Việt.")');">
+                                    <input type="hidden" name="isActive" value="@(language.IsActive ? "false" : "true")" />
+                                    <button type="submit" class="btn btn-sm @(language.IsActive ? "btn-outline-secondary" : "btn-outline-success")">@(language.IsActive ? "Ẩn" : "Hiện trên app")</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="languageCreateModal" tabindex="-1" aria-labelledby="languageCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="Create" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="languageCreateModalLabel">Thêm ngôn ngữ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-4">
+                            <label for="languageCode" class="form-label">Mã</label>
+                            <input type="text" id="languageCode" name="Code" maxlength="3" class="form-control" placeholder="zh" required autocomplete="off" />
+                        </div>
+                        <div class="col-8">
+                            <label for="languageName" class="form-label">Tên hiển thị</label>
+                            <input type="text" id="languageName" name="Name" maxlength="50" class="form-control" placeholder="中文" required autocomplete="off" />
+                        </div>
+                        <div class="col-6">
+                            <label for="languageFlag" class="form-label">Cờ (emoji)</label>
+                            <input type="text" id="languageFlag" name="Flag" maxlength="16" class="form-control" placeholder="🇨🇳" autocomplete="off" />
+                        </div>
+                        <div class="col-6">
+                            <label for="languageSort" class="form-label">Thứ tự hiển thị</label>
+                            <input type="number" id="languageSort" name="SortOrder" min="0" max="999" value="@(Model.Count + 1)" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="form-text mt-3">
+                        Mã theo chuẩn ISO 639-1: en (Anh), zh (Trung), ja (Nhật), ko (Hàn), fr (Pháp), th (Thái)...
+                        Tên viết bằng chính ngôn ngữ đó để người dùng nhận ra. Ngôn ngữ mới được ẩn cho tới khi bạn dịch xong và bấm "Hiện trên app".
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary">Thêm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="languageEditModal" tabindex="-1" aria-labelledby="languageEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="Edit" method="post" data-edit-form>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="languageEditModalLabel">Sửa ngôn ngữ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="Id" />
+                    <div class="mb-3">
+                        <label for="languageEditName" class="form-label">Tên hiển thị</label>
+                        <input type="text" id="languageEditName" name="Name" maxlength="50" class="form-control" autocomplete="off" />
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label for="languageEditFlag" class="form-label">Cờ (emoji)</label>
+                            <input type="text" id="languageEditFlag" name="Flag" maxlength="16" class="form-control" autocomplete="off" />
+                        </div>
+                        <div class="col-6">
+                            <label for="languageEditSort" class="form-label">Thứ tự hiển thị</label>
+                            <input type="number" id="languageEditSort" name="SortOrder" min="0" max="999" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

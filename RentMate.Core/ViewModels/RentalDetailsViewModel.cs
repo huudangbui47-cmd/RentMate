@@ -37,6 +37,16 @@ namespace RentMate.Core.ViewModels
         public DateTime? DisputedAt { get; set; }
         public string? ResolutionNote { get; set; }
 
+        public string? CancelReason { get; set; }
+        public DeliveryMethod DeliveryMethod { get; set; }
+        public string? ShipToText { get; set; }
+        public string? ShippingOrderCode { get; set; }
+        public decimal? ShippingFee { get; set; }
+        public int ShiftedDays { get; set; }
+        public decimal LateDeliveryRefund { get; set; }
+
+        public string DeliveryMethodText => DeliveryMethod == DeliveryMethod.Ghn ? "Giao hàng GHN" : "Gặp trực tiếp";
+
         public bool HasDamageClaim => DamageClaimedAt.HasValue;
 
         public List<PaymentViewModel> Payments { get; set; } = new();

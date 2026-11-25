@@ -27,6 +27,18 @@
         <div class="form-text">Chọn danh mục cha nếu muốn tạo danh mục con, ví dụ Điện thoại thuộc Đồ điện tử.</div>
     </div>
 
+    <div class="col-md-6">
+        <label asp-for="Icon" class="form-label"></label>
+        <select asp-for="Icon" class="form-select">
+            <option value="">Tự đoán theo tên danh mục</option>
+            @foreach (var option in CategoryIconOption.All)
+            {
+                <option value="@option.Key">@option.Label</option>
+            }
+        </select>
+        <div class="form-text">Icon hiện ở thanh danh mục trên app.</div>
+    </div>
+
     <div class="col-12">
         <label asp-for="Description" class="form-label"></label>
         <textarea asp-for="Description" class="form-control" rows="3"></textarea>

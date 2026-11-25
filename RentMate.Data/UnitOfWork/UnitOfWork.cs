@@ -28,6 +28,11 @@ namespace RentMate.Data.UnitOfWork
 
         public IRepository<WalletTransaction> WalletTransactions { get; }
 
+        public IRepository<SystemSetting> SystemSettings { get; }
+        public IRepository<AppLanguage> AppLanguages { get; }
+        public IRepository<TextResource> TextResources { get; }
+        public IRepository<TextTranslation> TextTranslations { get; }
+
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
@@ -46,6 +51,11 @@ namespace RentMate.Data.UnitOfWork
             AuditLogs = new Repository<AuditLog>(context);
 
             WalletTransactions = new Repository<WalletTransaction>(context);
+
+            SystemSettings = new Repository<SystemSetting>(context);
+            AppLanguages = new Repository<AppLanguage>(context);
+            TextResources = new Repository<TextResource>(context);
+            TextTranslations = new Repository<TextTranslation>(context);
         }
 
         public async Task<int> SaveChangesAsync()

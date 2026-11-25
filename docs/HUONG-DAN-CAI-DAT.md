@@ -49,13 +49,28 @@ Hai file này không có trên GitHub nên phải tự tạo.
   "Ai": {
     "ApiKey": "",
     "Model": "claude-opus-5-5"
+  },
+  "VnPay": {
+    "TmnCode": "",
+    "HashSecret": "",
+    "ReturnUrl": "http://10.0.2.2:5076/api/payments/vnpay-return"
+  },
+  "Ghn": {
+    "Token": "",
+    "ShopId": 0
   }
 }
 ```
 
+- `VnPay`: nạp ví qua cổng VNPay **sandbox** (tiền ảo). Đăng ký miễn phí ở https://sandbox.vnpayment.vn/devreg/, VNPay gửi `TmnCode` và `HashSecret` qua email. Thẻ test: ngân hàng **NCB**, số thẻ `9704198526191432198`, tên `NGUYEN VAN A`, ngày phát hành `07/15`, OTP `123456`. Để trống thì app chỉ có nạp bằng chuyển khoản thủ công.
+  - `ReturnUrl` là địa chỉ VNPay chuyển về sau khi thanh toán; máy ảo Android giữ nguyên `10.0.2.2`, điện thoại thật thì đổi thành IP LAN của máy chạy Api (vd. `http://192.168.1.10:5076/...`).
+- `Ghn`: giao hàng qua Giao Hàng Nhanh, môi trường thử. Đăng ký tài khoản ở https://5sao.ghn.dev, tạo một cửa hàng (địa chỉ cửa hàng = nơi shipper đến lấy hàng), rồi lấy **Token** (mục Chủ cửa hàng → Xem) và **ShopId**. Để trống thì app chỉ có "Gặp trực tiếp".
+  - Ở môi trường thử, vận đơn tạo được nhưng **không có shipper thật**, trạng thái thường đứng ở "Chờ lấy hàng". Người thuê vẫn bấm "Đã nhận đồ" bình thường để đi tiếp.
+- `AdminSite` cũng cần mục `Ghn` (giống Api) để hủy vận đơn khi đơn bị hủy; không có thì bỏ qua.
+
 - `Ai`: AI (Claude) xem ảnh biên bản lúc giao/nhận lại, ghi khuyết điểm và gợi ý mức trừ cọc. Lấy khóa ở https://console.anthropic.com → API Keys (cần nạp credit). Để trống `ApiKey` thì biên bản vẫn lưu bình thường, chỉ không có phần nhận xét AI. Mỗi lần so sánh tốn khoảng vài nghìn đồng.
 - `Smtp` của Api dùng để gửi mã 6 số khi khách quên mật khẩu trên app, điền giống AdminSite (xem bên dưới).
-- `Wallet` là tài khoản ngân hàng nhận tiền nạp ví. Để trống vẫn chạy được (app không hiện mã QR, Admin duyệt nạp thủ công). Muốn có QR: `BankId` là mã ngân hàng theo VietQR, ví dụ `VCB`, `MB`, `TCB`; `AccountName` viết in hoa không dấu.
+- `Wallet` là tài khoản ngân hàng nhận tiền nạp ví. **Nên nhập ở trang quản trị → Cài đặt hệ thống** thay vì ở đây; mục này chỉ còn dùng khi trang Cài đặt để trống. Muốn có QR: `BankId` là mã ngân hàng theo VietQR, ví dụ `VCB`, `MB`, `TCB`; `AccountName` viết in hoa không dấu.
 
 `RentMate.AdminSite/appsettings.Development.json`
 ```json
@@ -75,9 +90,19 @@ Hai file này không có trên GitHub nên phải tự tạo.
     "Username": "",
     "Password": "",
     "FromName": "RentMate"
+  },
+  "Ai": {
+    "ApiKey": "",
+    "Model": "claude-opus-5-5"
+  },
+  "Ghn": {
+    "Token": "",
+    "ShopId": 0
   }
 }
 ```
+
+- `Ai` ở AdminSite dùng cho nút "Dịch bằng AI" trên trang Ngôn ngữ (cùng khóa với Api). Để trống thì vẫn dịch tay được.
 
 Ảnh đồ cho thuê do khách tải lên được lưu trên Api (`RentMate.Api/wwwroot/uploads/items`). AdminSite mặc định lấy ảnh từ `https://localhost:7130`; nếu Api chạy ở địa chỉ khác thì thêm `"ApiBaseUrl": "https://dia-chi-api"` vào file trên.
 
@@ -143,3 +168,12 @@ File nằm trong `docs/postman/`:
 
 Hai bước phải làm trên trang quản trị: **duyệt đồ** (sau "Đăng đồ mới") và **duyệt nạp tiền** (sau "Tạo yêu cầu nạp").
 Request tải ảnh: tab **Body** → chọn file cho key `files`.
+
+
+## Những thứ quản trị viên tự chỉnh, không cần sửa code
+
+- **Cài đặt hệ thống** (chỉ Admin): phí nền tảng %, hạn mức nạp/rút, số ngày thuê tối đa, đặt trước tối đa, hạn thanh toán, hạn kiểm tra đồ, hạn phản hồi bồi thường, số ảnh tối đa, tài khoản nhận tiền nạp ví, số điện thoại/email hỗ trợ. Lưu xong app áp dụng trong vòng 30 giây (app lấy lại khi mở). Đổi phí chỉ áp dụng cho đơn đặt sau đó.
+- **Danh mục**: chọn icon hiện trên app cho từng danh mục.
+- **Ngôn ngữ**: lần đầu bấm **Nạp câu chữ gốc của app** (thêm toàn bộ câu chữ và bản tiếng Anh). Thêm ngôn ngữ mới (vd. `zh` 中文), bấm **Dịch bằng AI** để có bản nháp, sửa lại rồi bật **Hiện trên app**. App tự tải bản dịch mới khi mở.
+  - Khi code app có câu mới, bấm lại **Nạp câu chữ gốc của app** để bổ sung (không ghi đè bản dịch đã sửa).
+  - Muốn dịch một thông báo lỗi từ máy chủ: **Thêm câu** với đúng nguyên văn tiếng Việt rồi dịch như câu khác.

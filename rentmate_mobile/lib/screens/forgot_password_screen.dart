@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
 import '../widgets/ui.dart';
+import '../l10n/l10n.dart';
 
 /// Quên mật khẩu: bước 1 nhập email nhận mã 6 số, bước 2 nhập mã + mật khẩu mới.
 class ForgotPasswordScreen extends StatefulWidget {
@@ -57,7 +58,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         newPassword: _password.text,
       );
       if (!mounted) return;
-      showSnack(context, 'Đặt lại mật khẩu thành công. Hãy đăng nhập bằng mật khẩu mới.');
+      showSnack(context, tr('Đặt lại mật khẩu thành công. Hãy đăng nhập bằng mật khẩu mới.'));
       Navigator.of(context).pop(_email.text.trim());
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -69,7 +70,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Quên mật khẩu')),
+      appBar: AppBar(title: Text(tr('Quên mật khẩu'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -80,8 +81,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 Text(
                   _codeSent
-                      ? 'Mã 6 số đã được gửi tới email của bạn (có hiệu lực khoảng 10 phút).'
-                      : 'Nhập email đã đăng ký, RentMate sẽ gửi mã xác nhận gồm 6 chữ số.',
+                      ? tr('Mã 6 số đã được gửi tới email của bạn (có hiệu lực khoảng 10 phút).')
+                      : tr('Nhập email đã đăng ký, RentMate sẽ gửi mã xác nhận gồm 6 chữ số.'),
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 16),
@@ -90,10 +91,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   enabled: !_codeSent,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
-                  validator: (v) => (v == null || !v.contains('@')) ? 'Email không hợp lệ' : null,
+                  validator: (v) => (v == null || !v.contains('@')) ? tr('Email không hợp lệ') : null,
                 ),
                 const SizedBox(height: 16),
-                if (!_codeSent) BusyButton(busy: _busy, onPressed: _sendCode, label: 'Gửi mã xác nhận'),
+                if (!_codeSent) BusyButton(busy: _busy, onPressed: _sendCode, label: tr('Gửi mã xác nhận')),
               ],
             ),
           ),
@@ -109,17 +110,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     maxLength: 6,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     style: const TextStyle(fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.w700),
-                    decoration: const InputDecoration(labelText: 'Mã xác nhận', counterText: ''),
-                    validator: (v) => RegExp(r'^\d{6}$').hasMatch(v ?? '') ? null : 'Mã gồm 6 chữ số',
+                    decoration: InputDecoration(labelText: tr('Mã xác nhận'), counterText: ''),
+                    validator: (v) => RegExp(r'^\d{6}$').hasMatch(v ?? '') ? null : tr('Mã gồm 6 chữ số'),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _password,
                     obscureText: _hide,
                     decoration: InputDecoration(
-                      labelText: 'Mật khẩu mới',
+                      labelText: tr('Mật khẩu mới'),
                       prefixIcon: const Icon(Icons.lock_outline),
-                      helperText: 'Ít nhất 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt',
+                      helperText: tr('Ít nhất 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt'),
                       suffixIcon: IconButton(
                         icon: Icon(_hide ? Icons.visibility : Icons.visibility_off),
                         onPressed: () => setState(() => _hide = !_hide),
@@ -131,15 +132,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   TextFormField(
                     controller: _confirm,
                     obscureText: _hide,
-                    decoration: const InputDecoration(labelText: 'Nhập lại mật khẩu mới', prefixIcon: Icon(Icons.lock_outline)),
-                    validator: (v) => v != _password.text ? 'Mật khẩu nhập lại không khớp' : null,
+                    decoration: InputDecoration(labelText: tr('Nhập lại mật khẩu mới'), prefixIcon: Icon(Icons.lock_outline)),
+                    validator: (v) => v != _password.text ? tr('Mật khẩu nhập lại không khớp') : null,
                   ),
                   const SizedBox(height: 24),
-                  BusyButton(busy: _busy, onPressed: _reset, label: 'Đặt lại mật khẩu'),
+                  BusyButton(busy: _busy, onPressed: _reset, label: tr('Đặt lại mật khẩu')),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: _busy ? null : () => setState(() => _codeSent = false),
-                    child: const Text('Không nhận được mã? Gửi lại'),
+                    child: Text(tr('Không nhận được mã? Gửi lại')),
                   ),
                 ],
               ),

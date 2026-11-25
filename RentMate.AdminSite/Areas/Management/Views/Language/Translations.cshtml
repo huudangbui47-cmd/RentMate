@@ -1,0 +1,177 @@
+@model TranslationListViewModel
+
+@{
+    ViewData["Title"] = "Dịch " + Model.LanguageName;
+    bool autoTranslate = ViewData["AutoTranslateEnabled"] as bool? == true;
+}
+
+<div class="page-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <a asp-action="Index" class="small">← Ngôn ngữ</a>
+            <h3 class="mb-1">Dịch sang @Model.LanguageName <span class="text-muted fs-6">(@Model.LanguageCode)</span></h3>
+            <p class="text-muted mb-0">
+                Còn @Model.MissingCount câu chưa dịch@(Model.MachineCount > 0 ? $", {Model.MachineCount} câu AI dịch chưa xem lại" : "").
+                Câu chưa dịch hiện bằng tiếng Việt trên app.
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            @if (autoTranslate && Model.MissingCount > 0)
+            {
+                <form asp-action="AutoTranslate" asp-route-id="@Model.LanguageId" method="post"
+                      onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').innerText = 'AI đang dịch, có thể mất 1-2 phút...'; return true;">
+                    <button type="submit" class="btn btn-outline-primary">Dịch bằng AI (tối đa 150 câu chưa dịch)</button>
+                </form>
+            }
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#textCreateModal">Thêm câu</button>
+        </div>
+    </div>
+</div>
+
+@if (!autoTranslate)
+{
+    <div class="alert alert-light-secondary small">
+        Muốn AI dịch nháp các câu chưa dịch, thêm mục <code>"Ai": { "ApiKey": "..." }</code> vào appsettings của AdminSite (giống Api) rồi chạy lại trang quản trị.
+    </div>
+}
+
+<form method="get" asp-action="Translations" class="admin-toolbar">
+    <input type="hidden" name="id" value="@Model.LanguageId" />
+    <div class="admin-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input type="search" name="searchTerm" value="@Model.SearchTerm" class="form-control" placeholder="Tìm trong câu gốc hoặc bản dịch..." autocomplete="off" />
+    </div>
+    <div class="admin-filterbar">
+        <select name="filter" class="form-select">
+            <option value="">Tất cả câu</option>
+            <option value="missing" selected="@(Model.Filter == "missing")">Chưa dịch (@Model.MissingCount)</option>
+            <option value="machine" selected="@(Model.Filter == "machine")">AI dịch, chưa xem lại (@Model.MachineCount)</option>
+        </select>
+        <button type="submit" class="btn btn-outline-primary">Lọc</button>
+        @if (!string.IsNullOrWhiteSpace(Model.SearchTerm) || !string.IsNullOrEmpty(Model.Filter))
+        {
+            <a asp-action="Translations" asp-route-id="@Model.LanguageId" class="admin-clear-link">Xóa lọc</a>
+        }
+    </div>
+</form>
+
+<form asp-action="SaveTranslations" method="post">
+    <input type="hidden" name="id" value="@Model.LanguageId" />
+    <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+    <input type="hidden" name="filter" value="@Model.Filter" />
+    <input type="hidden" name="page" value="@Model.Page" />
+
+    <div class="card admin-table-card">
+        <div class="table-responsive admin-table-responsive">
+            <table class="table admin-table align-top">
+                <thead>
+                    <tr>
+                        <th style="width: 42%">Câu gốc (tiếng Việt)</th>
+                        <th>Bản dịch</th>
+                        <th class="text-end" style="width: 1%"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr><td colspan="3" class="text-center text-muted py-4">Không có câu nào.</td></tr>
+                    }
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        var item = Model.Items[i];
+                        string badge = string.IsNullOrEmpty(item.Value) ? "admin-badge-warning" : item.IsMachineTranslated ? "admin-badge-info" : "admin-badge-success";
+                        <tr>
+                            <td>
+                                <div style="white-space: pre-line">@item.Key</div>
+                                @if (!string.IsNullOrEmpty(item.Note))
+                                {
+                                    <div class="small text-muted mt-1">@item.Note</div>
+                                }
+                                <span class="admin-badge @badge mt-2">@item.StatusText</span>
+                            </td>
+                            <td>
+                                <input type="hidden" name="items[@i].TextResourceId" value="@item.TextResourceId" />
+                                @* AI dịch: gửi giá trị gốc rỗng để bấm Lưu là coi như đã xem lại *@
+                                <input type="hidden" name="items[@i].OriginalValue" value="@(item.IsMachineTranslated ? "" : item.Value)" />
+                                <textarea name="items[@i].Value" class="form-control" rows="@(item.Key.Length > 80 ? 3 : 2)" maxlength="2000">@item.Value</textarea>
+                            </td>
+                            <td class="text-end">
+                                <button type="submit" form="deleteText@(item.TextResourceId)" class="rm-icon-button rm-icon-danger" title="Xóa câu này (mọi ngôn ngữ)" aria-label="Xóa câu này">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+        <div class="small text-muted">Giữ nguyên {0}, {1}... (chỗ app điền số liệu). Xóa trắng ô để bỏ bản dịch. Lưu trước khi sang trang khác.</div>
+        <button type="submit" class="btn btn-primary">Lưu trang này</button>
+    </div>
+</form>
+
+@foreach (var item in Model.Items)
+{
+    <form id="deleteText@(item.TextResourceId)" asp-action="DeleteText" method="post" class="d-none"
+          onsubmit="return confirm('Xóa câu này khỏi mọi ngôn ngữ? Chỉ xóa khi app không còn dùng câu này.');">
+        <input type="hidden" name="id" value="@Model.LanguageId" />
+        <input type="hidden" name="textId" value="@item.TextResourceId" />
+        <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+        <input type="hidden" name="filter" value="@Model.Filter" />
+        <input type="hidden" name="page" value="@Model.Page" />
+    </form>
+}
+
+@if (Model.TotalPages > 1)
+{
+    int from = Math.Max(1, Model.Page - 4), to = Math.Min(Model.TotalPages, Model.Page + 4);
+    <nav aria-label="Phân trang" class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+        @if (from > 1)
+        {
+            <a asp-action="Translations" asp-route-id="@Model.LanguageId" asp-route-page="1" asp-route-searchTerm="@Model.SearchTerm" asp-route-filter="@Model.Filter" class="btn btn-outline-primary">1</a>
+            <span class="align-self-center">…</span>
+        }
+        @for (int i = from; i <= to; i++)
+        {
+            <a asp-action="Translations" asp-route-id="@Model.LanguageId" asp-route-page="@i" asp-route-searchTerm="@Model.SearchTerm" asp-route-filter="@Model.Filter"
+               class="btn @(Model.Page == i ? "btn-primary" : "btn-outline-primary")" aria-current="@(Model.Page == i ? "page" : null)">@i</a>
+        }
+        @if (to < Model.TotalPages)
+        {
+            <span class="align-self-center">…</span>
+            <a asp-action="Translations" asp-route-id="@Model.LanguageId" asp-route-page="@Model.TotalPages" asp-route-searchTerm="@Model.SearchTerm" asp-route-filter="@Model.Filter" class="btn btn-outline-primary">@Model.TotalPages</a>
+        }
+    </nav>
+}
+
+<div class="modal fade" id="textCreateModal" tabindex="-1" aria-labelledby="textCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="CreateText" method="post">
+                <input type="hidden" name="id" value="@Model.LanguageId" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="textCreateModalLabel">Thêm câu cần dịch</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="textKey" class="form-label">Câu tiếng Việt</label>
+                        <textarea id="textKey" name="key" rows="3" maxlength="450" class="form-control" required></textarea>
+                        <div class="form-text">Gõ đúng từng chữ, từng dấu câu như app đang hiện, vd. một thông báo lỗi từ máy chủ muốn dịch.</div>
+                    </div>
+                    <div>
+                        <label for="textNote" class="form-label">Ghi chú cho người dịch (không bắt buộc)</label>
+                        <input type="text" id="textNote" name="note" maxlength="500" class="form-control" autocomplete="off" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary">Thêm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

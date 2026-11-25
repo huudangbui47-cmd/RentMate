@@ -16,9 +16,11 @@ namespace RentMate.Service.Services
         private readonly INotificationService _notificationService;
 
         private readonly IRentalService _rentalService;
+        private readonly ISystemSettingService _settingService;
 
-        public ItemService(IUnitOfWork unitOfWork, IAuditLogService auditLogService, INotificationService notificationService, IRentalService rentalService)
+        public ItemService(IUnitOfWork unitOfWork, IAuditLogService auditLogService, INotificationService notificationService, IRentalService rentalService, ISystemSettingService settingService)
         {
+            _settingService = settingService;
             _unitOfWork = unitOfWork;
             _auditLogService = auditLogService;
             _notificationService = notificationService;
@@ -69,8 +71,6 @@ namespace RentMate.Service.Services
                 })
                 .ToList()
         };
-
-        public const int MaxImagesPerItem = 8;
 
         // =========================
         // GET ALL (trang chủ app)
@@ -269,8 +269,11 @@ namespace RentMate.Service.Services
                 .Select(img => img.IsPrimary)
                 .ToListAsync();
 
-            if (current.Count + imageUrls.Count > MaxImagesPerItem)
-                throw new ArgumentException($"Mỗi món đồ tối đa {MaxImagesPerItem} ảnh (hiện đã có {current.Count} ảnh).");
+            // Số ảnh tối đa theo cài đặt hệ thống
+            int maxImages = (await _settingService.GetAsync()).MaxItemImages;
+
+            if (current.Count + imageUrls.Count > maxImages)
+                throw new ArgumentException($"Mỗi món đồ tối đa {maxImages} ảnh (hiện đã có {current.Count} ảnh).");
 
             bool hasPrimary = current.Any(isPrimary => isPrimary);
 
@@ -567,6 +570,9 @@ namespace RentMate.Service.Services
 
             item.Status = ItemStatus.Rejected;
             item.RejectionReason = reason;
+
+            // Đồ đã từng cho thuê rồi bị sửa và từ chối: đóng các đơn chưa giao, hoàn tiền đơn đã thanh toán
+            await _rentalService.CloseOpenRentalsAsync(item.Id, item.ItemName, "đồ không được duyệt lại sau khi chủ đồ sửa");
 
             await _auditLogService.RecordAsync("RejectItem", "Item", item.Id.ToString(),
                 $"Từ chối đồ '{item.ItemName}'. Lý do: {reason}", ipAddress, actorUserId);

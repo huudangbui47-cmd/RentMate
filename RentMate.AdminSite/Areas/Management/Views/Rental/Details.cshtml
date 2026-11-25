@@ -64,6 +64,35 @@
 
                     <dt class="col-sm-4">Ghi chú</dt>
                     <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.RequestNote) ? "—" : Model.RequestNote)</dd>
+
+                    <dt class="col-sm-4">Giao nhận</dt>
+                    <dd class="col-sm-8">
+                        @Model.DeliveryMethodText
+                        @if (Model.ShippingOrderCode != null)
+                        {
+                            <span class="text-muted">· mã vận đơn @Model.ShippingOrderCode@(Model.ShippingFee.HasValue ? $" · phí {Model.ShippingFee.Value:N0} đ" : "")</span>
+                        }
+                        @if (Model.ShipToText != null)
+                        {
+                            <div class="text-muted small">@Model.ShipToText</div>
+                        }
+                    </dd>
+
+                    @if (Model.ShiftedDays > 0 || Model.LateDeliveryRefund > 0)
+                    {
+                        <dt class="col-sm-4">Nhận đồ trễ</dt>
+                        <dd class="col-sm-8">
+                            @(Model.ShiftedDays > 0
+                                ? $"Lùi hạn trả {Model.ShiftedDays} ngày"
+                                : $"Hoàn {Model.LateDeliveryRefund:N0} đ tiền thuê (vướng lịch thuê sau)")
+                        </dd>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Model.CancelReason))
+                    {
+                        <dt class="col-sm-4">Lý do hủy</dt>
+                        <dd class="col-sm-8">@Model.CancelReason</dd>
+                    }
                 </dl>
             </div>
         </div>
@@ -220,6 +249,10 @@
                         {
                             <div class="rm-ai-box mt-2">
                                 <div class="fw-semibold mb-1">AI nhận xét @(report.AiConditionText != null ? $"· gợi ý tình trạng: {report.AiConditionText}" : "")</div>
+                                @if (report.AiSameItem == false)
+                                {
+                                    <div class="text-danger fw-semibold mb-1">⚠ AI thấy đồ trong ảnh có thể khác món đã đăng / đã giao</div>
+                                }
                                 <p class="mb-1">@report.AiSummary</p>
                                 @if (report.AiDamageList.Count > 0)
                                 {

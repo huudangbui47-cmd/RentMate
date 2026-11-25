@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../services/account_service.dart';
 import '../services/item_service.dart';
 import '../services/rental_service.dart';
+import '../services/shipping_service.dart';
 import '../services/wallet_service.dart';
 import '../widgets/ui.dart';
+import '../l10n/l10n.dart';
+import '../services/config_service.dart';
 
 class RentalScreen extends StatefulWidget {
   final Item item;
@@ -15,9 +19,22 @@ class RentalScreen extends StatefulWidget {
 
 class _RentalScreenState extends State<RentalScreen> {
   final _note = TextEditingController();
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _street = TextEditingController();
   DateTimeRange? _range;
   bool _loading = false;
   WalletSummary? _wallet;
+
+  // Giao nhận
+  bool _shippingEnabled = false;
+  bool _ship = false;
+  List<AddressOption> _provinces = [];
+  List<AddressOption> _districts = [];
+  List<AddressOption> _wards = [];
+  AddressOption? _province;
+  AddressOption? _district;
+  AddressOption? _ward;
 
   @override
   void initState() {
@@ -26,16 +43,24 @@ class _RentalScreenState extends State<RentalScreen> {
     WalletService().getSummary().then((w) {
       if (mounted) setState(() => _wallet = w);
     }).catchError((_) {});
+    ShippingService().isEnabled().then((on) {
+      if (mounted) setState(() => _shippingEnabled = on);
+    });
+    // Điền sẵn tên và số điện thoại của tài khoản
+    AccountService().getProfile().then((p) {
+      if (!mounted) return;
+      if (_name.text.isEmpty) _name.text = p.fullName;
+      if (_phone.text.isEmpty) _phone.text = p.phoneNumber;
+    }).catchError((_) {});
   }
 
   @override
   void dispose() {
-    _note.dispose();
+    for (final c in [_note, _name, _phone, _street]) {
+      c.dispose();
+    }
     super.dispose();
   }
-
-  static const _maxRentalDays = 30;
-  static const _maxDaysAhead = 90;
 
   // API tính cả ngày nhận lẫn ngày trả: thuê 12 → 14 = 3 ngày.
   int get _days => _range == null ? 0 : _range!.end.difference(_range!.start).inDays + 1;
@@ -46,27 +71,81 @@ class _RentalScreenState extends State<RentalScreen> {
       context: context,
       firstDate: today,
       // Khớp giới hạn của Api: bắt đầu trong 90 ngày tới, mỗi đơn tối đa 30 ngày
-      lastDate: today.add(const Duration(days: _maxDaysAhead + _maxRentalDays - 1)),
+      lastDate: today.add(Duration(days: AppConfig.maxDaysAhead + AppConfig.maxRentalDays - 1)),
       initialDateRange: _range,
-      helpText: 'Chọn ngày nhận và ngày trả',
+      helpText: tr('Chọn ngày nhận và ngày trả'),
       saveText: 'Xong',
     );
     if (picked != null) setState(() => _range = picked);
   }
 
+  Future<void> _chooseShip(bool ship) async {
+    setState(() { _ship = ship; });
+    if (ship && _provinces.isEmpty) {
+      try {
+        final list = await ShippingService().provinces();
+        if (mounted) setState(() { _provinces = list; });
+      } catch (e) {
+        if (mounted) showSnack(context, errorText(e), error: true);
+      }
+    }
+  }
+
+  Future<void> _pickProvince(AddressOption? p) async {
+    setState(() { _province = p; _district = null; _ward = null; _districts = []; _wards = []; });
+    if (p == null) return;
+    try {
+      final list = await ShippingService().districts(p.id);
+      if (mounted) setState(() { _districts = list; });
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e), error: true);
+    }
+  }
+
+  Future<void> _pickDistrict(AddressOption? d) async {
+    setState(() { _district = d; _ward = null; _wards = []; });
+    if (d == null) return;
+    try {
+      final list = await ShippingService().wards(d.id);
+      if (mounted) setState(() { _wards = list; });
+    } catch (e) {
+      if (mounted) showSnack(context, errorText(e), error: true);
+    }
+  }
+
   Future<void> _submit() async {
     if (_range == null) {
-      showSnack(context, 'Vui lòng chọn ngày thuê', error: true);
+      showSnack(context, tr('Vui lòng chọn ngày thuê'), error: true);
       return;
     }
     final today = DateUtils.dateOnly(DateTime.now());
-    if (_range!.start.isAfter(today.add(const Duration(days: _maxDaysAhead)))) {
-      showSnack(context, 'Chỉ đặt thuê trước tối đa $_maxDaysAhead ngày', error: true);
+    if (_range!.start.isAfter(today.add(Duration(days: AppConfig.maxDaysAhead)))) {
+      showSnack(context, tr('Chỉ đặt thuê trước tối đa {0} ngày', [AppConfig.maxDaysAhead]), error: true);
       return;
     }
-    if (_days > _maxRentalDays) {
-      showSnack(context, 'Mỗi đơn thuê tối đa $_maxRentalDays ngày', error: true);
+    if (_days > AppConfig.maxRentalDays) {
+      showSnack(context, tr('Mỗi đơn thuê tối đa {0} ngày', [AppConfig.maxRentalDays]), error: true);
       return;
+    }
+    ShipTo? shipTo;
+    if (_ship) {
+      final phone = _phone.text.trim();
+      if (_name.text.trim().isEmpty || _street.text.trim().isEmpty || _ward == null) {
+        showSnack(context, tr('Nhập đủ tên, số nhà/đường và chọn tỉnh, quận, phường'), error: true);
+        return;
+      }
+      if (!RegExp(r'^0\d{9,10}$').hasMatch(phone)) {
+        showSnack(context, tr('Số điện thoại người nhận không hợp lệ'), error: true);
+        return;
+      }
+      shipTo = ShipTo(
+        name: _name.text.trim(),
+        phone: phone,
+        address: _street.text.trim(),
+        districtId: int.parse(_district!.id),
+        wardCode: _ward!.id,
+        areaText: '${_ward!.name}, ${_district!.name}, ${_province!.name}',
+      );
     }
     setState(() => _loading = true);
     try {
@@ -75,6 +154,7 @@ class _RentalScreenState extends State<RentalScreen> {
         startDate: _range!.start,
         endDate: _range!.end,
         note: _note.text.trim(),
+        shipTo: shipTo,
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -93,7 +173,7 @@ class _RentalScreenState extends State<RentalScreen> {
     final total = rentTotal + item.depositAmount;
     final notEnough = _wallet != null && _range != null && _wallet!.availableBalance < total;
     return Scaffold(
-      appBar: AppBar(title: const Text('Đặt thuê')),
+      appBar: AppBar(title: Text(tr('Đặt thuê'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -102,31 +182,71 @@ class _RentalScreenState extends State<RentalScreen> {
               contentPadding: const EdgeInsets.all(12),
               leading: ItemThumb(categoryName: item.categoryName, imageUrl: item.imageUrl, size: 56),
               title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('${formatVnd(item.pricePerDay)} / ngày · cọc ${formatVnd(item.depositAmount)}'),
+              subtitle: Text(tr('{0} / ngày · cọc {1}', [formatVnd(item.pricePerDay), formatVnd(item.depositAmount)])),
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Thời gian thuê', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(tr('Thời gian thuê'), style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.date_range),
             label: Text(_range == null
-                ? 'Chọn ngày nhận – ngày trả'
-                : '${fmtDate(_range!.start)}  →  ${fmtDate(_range!.end)}  ($_days ngày)'),
+                ? tr('Chọn ngày nhận – ngày trả')
+                : tr('{0}  →  {1}  ({2} ngày)', [fmtDate(_range!.start), fmtDate(_range!.end), _days])),
             onPressed: _loading ? null : _pickDates,
           ),
           if (item.status == 'Rented') ...[
             const SizedBox(height: 8),
-            const NoticeBox('Đồ đang có người thuê. Hãy chọn khoảng ngày sau khi họ trả; chủ đồ sẽ xác nhận lịch.',
+            NoticeBox(tr('Đồ đang có người thuê. Hãy chọn khoảng ngày sau khi họ trả; chủ đồ sẽ xác nhận lịch.'),
                 color: Color(0xFFE08A00)),
+          ],
+          const SizedBox(height: 16),
+          Text(tr('Nhận đồ'), style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(value: false, icon: Icon(Icons.handshake_outlined), label: Text(tr('Gặp trực tiếp'))),
+              ButtonSegment(
+                value: true,
+                icon: const Icon(Icons.local_shipping_outlined),
+                label: Text(tr('Giao qua GHN')),
+                enabled: _shippingEnabled,
+              ),
+            ],
+            selected: {_ship},
+            onSelectionChanged: _loading ? null : (v) => _chooseShip(v.first),
+          ),
+          const SizedBox(height: 8),
+          if (!_shippingEnabled)
+            NoticeBox(tr('Giao hàng GHN chưa được bật, hai bên hẹn gặp để giao nhận.'))
+          else if (!_ship)
+            NoticeBox(tr('Hai bên hẹn gặp để giao nhận. Ngày thuê tính từ lúc bạn bấm "Đã nhận đồ".'))
+          else ...[
+            NoticeBox(tr('Chủ đồ gửi hàng qua GHN, RentMate trả phí ship. Ngày thuê tính từ lúc bạn nhận được hàng.')),
+            const SizedBox(height: 12),
+            TextField(controller: _name, decoration: InputDecoration(labelText: tr('Tên người nhận'))),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(labelText: tr('Số điện thoại')),
+            ),
+            const SizedBox(height: 12),
+            _dropdown(tr('Tỉnh / thành'), _provinces, _province, _pickProvince),
+            const SizedBox(height: 12),
+            _dropdown(tr('Quận / huyện'), _districts, _district, _pickDistrict),
+            const SizedBox(height: 12),
+            _dropdown(tr('Phường / xã'), _wards, _ward, (w) async => setState(() { _ward = w; })),
+            const SizedBox(height: 12),
+            TextField(controller: _street, decoration: InputDecoration(labelText: tr('Số nhà, tên đường'))),
           ],
           const SizedBox(height: 16),
           TextField(
             controller: _note,
             maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Lời nhắn cho chủ đồ (không bắt buộc)',
-              hintText: 'Ví dụ: Mình nhận đồ ở quận 1 được không?',
+            decoration: InputDecoration(
+              labelText: tr('Lời nhắn cho chủ đồ (không bắt buộc)'),
+              hintText: tr('Ví dụ: Mình nhận đồ ở quận 1 được không?'),
             ),
           ),
           if (_range != null) ...[
@@ -136,12 +256,12 @@ class _RentalScreenState extends State<RentalScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    InfoRow('Tiền thuê ($_days ngày)', formatVnd(rentTotal)),
-                    InfoRow('Tiền cọc (được hoàn lại)', formatVnd(item.depositAmount)),
+                    InfoRow(tr('Tiền thuê ({0} ngày)', [_days]), formatVnd(rentTotal)),
+                    InfoRow(tr('Tiền cọc (được hoàn lại)'), formatVnd(item.depositAmount)),
                     const Divider(height: 20),
-                    InfoRow('Cần thanh toán', formatVnd(total), bold: true, valueColor: scheme.primary),
+                    InfoRow(tr('Cần thanh toán'), formatVnd(total), bold: true, valueColor: scheme.primary),
                     if (_wallet != null)
-                      InfoRow('Số dư ví hiện tại', formatVnd(_wallet!.availableBalance),
+                      InfoRow(tr('Số dư ví hiện tại'), formatVnd(_wallet!.availableBalance),
                           valueColor: notEnough ? scheme.error : null),
                   ],
                 ),
@@ -150,15 +270,29 @@ class _RentalScreenState extends State<RentalScreen> {
             const SizedBox(height: 12),
             NoticeBox(
               notEnough
-                  ? 'Số dư ví chưa đủ. Bạn vẫn gửi yêu cầu được; sau khi chủ đồ duyệt, hãy nạp thêm tiền rồi thanh toán trong 24 giờ.'
-                  : 'Chưa trừ tiền lúc này. Sau khi chủ đồ duyệt, bạn thanh toán bằng ví trong 24 giờ.',
+                  ? tr('Số dư ví chưa đủ. Sau khi chủ đồ duyệt, bạn có thể thanh toán phần còn thiếu qua VNPay.')
+                  : tr('Chưa trừ tiền lúc này. Sau khi chủ đồ duyệt, bạn thanh toán bằng ví trong {0} giờ.', [AppConfig.paymentTimeoutHours]),
               color: notEnough ? const Color(0xFFE08A00) : const Color(0xFF2563EB),
             ),
           ],
           const SizedBox(height: 24),
-          BusyButton(busy: _loading, onPressed: _submit, label: 'Gửi yêu cầu thuê'),
+          BusyButton(busy: _loading, onPressed: _submit, label: tr('Gửi yêu cầu thuê')),
         ],
       ),
+    );
+  }
+
+  Widget _dropdown(String label, List<AddressOption> options, AddressOption? value,
+      Future<void> Function(AddressOption?) onChanged) {
+    return DropdownButtonFormField<String>(
+      key: ValueKey('$label-${options.length}-${value?.id}'),
+      initialValue: value?.id,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: label),
+      items: [for (final o in options) DropdownMenuItem(value: o.id, child: Text(o.name, overflow: TextOverflow.ellipsis))],
+      onChanged: options.isEmpty || _loading
+          ? null
+          : (id) => onChanged(options.firstWhere((o) => o.id == id)),
     );
   }
 }

@@ -49,10 +49,21 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"
 // AI xem ảnh biên bản (mục "Ai" trong appsettings, không có ApiKey thì bỏ qua phần AI)
 builder.Services.Configure<AiSettings>(builder.Configuration.GetSection("Ai"));
 
+// Nạp ví qua VNPay (mục "VnPay") và giao hàng GHN (mục "Ghn"); để trống thì app ẩn hai chức năng này
+builder.Services.Configure<VnPaySettings>(builder.Configuration.GetSection("VnPay"));
+builder.Services.Configure<GhnSettings>(builder.Configuration.GetSection("Ghn"));
+builder.Services.AddHttpClient<IShippingService, GhnShippingService>(client => client.Timeout = TimeSpan.FromSeconds(20));
+
 // =========================
 // 4. Repository / UnitOfWork + Services
 // =========================
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Cài đặt hệ thống đọc từ database, giữ trong bộ nhớ 30 giây
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
+builder.Services.AddScoped<ILocalizationService, LocalizationService>();
+builder.Services.AddScoped<ITranslationAiService, TranslationAiService>();
 
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -64,6 +75,7 @@ builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IRentalService, RentalService>();
 builder.Services.AddScoped<IConditionReportService, ConditionReportService>();
 builder.Services.AddScoped<IConditionAiService, ConditionAiService>();
+builder.Services.AddScoped<IVnPayService, VnPayService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
 // Có mục "Cloudinary" trong appsettings thì ảnh (đồ, avatar, biên bản) lưu lên Cloudinary;

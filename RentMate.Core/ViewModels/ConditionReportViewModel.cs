@@ -16,6 +16,7 @@ namespace RentMate.Core.ViewModels
         public string? AiDamages { get; set; }
         public ItemCondition? AiSuggestedCondition { get; set; }
         public bool? AiNewDamageFound { get; set; }
+        public bool? AiSameItem { get; set; }
         public decimal? AiSuggestedDeduction { get; set; }
 
         public List<string> AiDamageList => string.IsNullOrWhiteSpace(AiDamages)
@@ -34,8 +35,9 @@ namespace RentMate.Core.ViewModels
 
         public string ReportTypeText => ReportType switch
         {
-            ConditionReportType.BeforeRental => "Trước khi thuê",
-            ConditionReportType.AfterRental => "Sau khi trả",
+            ConditionReportType.BeforeRental => "Chủ đồ giao đồ",
+            ConditionReportType.AfterRental => "Chủ đồ nhận lại",
+            ConditionReportType.RenterReceived => "Người thuê nhận đồ",
             _ => "Không xác định"
         };
 

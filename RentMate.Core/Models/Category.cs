@@ -8,6 +8,9 @@ namespace RentMate.Core.Models
 
         public bool IsActive { get; set; } = true;
 
+        // Tên icon hiển thị trên app (smartphone, laptop, camera...), danh sách trong CategoryIcons
+        public string? Icon { get; set; }
+
         // Danh mục chỉ có 2 cấp: null là danh mục cha, có giá trị là danh mục con
         public int? ParentCategoryId { get; set; }
 

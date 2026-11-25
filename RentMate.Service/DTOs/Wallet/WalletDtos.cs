@@ -45,7 +45,8 @@ namespace RentMate.Service.DTOs.Wallet
 
     public class CreateDepositDto
     {
-        [Range(10_000, 50_000_000, ErrorMessage = "Số tiền nạp từ 10.000 đến 50.000.000 đ.")]
+        // Giới hạn số tiền theo cài đặt hệ thống, service kiểm tra
+        [Range(1, double.MaxValue, ErrorMessage = "Số tiền phải lớn hơn 0.")]
         public decimal Amount { get; set; }
     }
 
@@ -85,7 +86,8 @@ namespace RentMate.Service.DTOs.Wallet
 
     public class CreateWithdrawDto
     {
-        [Range(10_000, 50_000_000, ErrorMessage = "Số tiền rút từ 10.000 đến 50.000.000 đ.")]
+        // Giới hạn số tiền theo cài đặt hệ thống, service kiểm tra
+        [Range(1, double.MaxValue, ErrorMessage = "Số tiền phải lớn hơn 0.")]
         public decimal Amount { get; set; }
     }
 }

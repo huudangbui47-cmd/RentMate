@@ -14,7 +14,8 @@ namespace RentMate.Service.Interfaces
         // Số dư dùng được (đã trừ tiền đang chờ rút) – RentalService dùng khi thanh toán đơn
         Task<decimal> GetAvailableBalanceAsync(string userId);
 
-        Task<DepositRequestDto> CreateDepositAsync(string userId, decimal amount);
+        // note = "VNPay": nạp online, không tính vào giới hạn yêu cầu chờ duyệt; rentalId: nạp để trả đơn đó
+        Task<DepositRequestDto> CreateDepositAsync(string userId, decimal amount, int? rentalId = null, string? note = null);
 
         // Yêu cầu nạp đang chờ của chính người dùng (null nếu không có / đã xử lý)
         Task<DepositRequestDto?> GetPendingDepositAsync(string userId, int transactionId);

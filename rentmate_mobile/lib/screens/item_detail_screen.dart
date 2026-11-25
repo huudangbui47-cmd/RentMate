@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/item_service.dart';
+import '../services/notification_service.dart';
 import '../services/view_history.dart';
 import '../widgets/ui.dart';
 import 'guest_screen.dart';
 import 'rental_screen.dart';
 import 'user_profile_screen.dart';
+import '../l10n/l10n.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   final int itemId;
@@ -33,7 +35,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chi tiết đồ')),
+      appBar: AppBar(title: Text(tr('Chi tiết đồ'))),
       body: FutureBuilder<(Item, String?)>(
         future: _future,
         builder: (context, snap) {
@@ -73,8 +75,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 runSpacing: 8,
                 children: [
                   StatusBadge(item.categoryName, scheme.primary),
-                  StatusBadge('Tình trạng: ${conditionLabels[item.condition] ?? item.condition}', const Color(0xFF6B7280)),
-                  if (rented) StatusBadge('Đang có người thuê', statusColor('Rented')),
+                  StatusBadge(tr('Tình trạng: {0}', [conditionLabels[item.condition] ?? item.condition]), const Color(0xFF6B7280)),
+                  if (rented) StatusBadge(tr('Đang có người thuê'), statusColor('Rented')),
                   if (mine) StatusBadge(itemStatusLabels[item.status] ?? item.status, statusColor(item.status)),
                 ],
               ),
@@ -86,7 +88,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   text: formatVnd(item.pricePerDay),
                   style: TextStyle(fontSize: 22, color: scheme.primary, fontWeight: FontWeight.w800),
                 ),
-                TextSpan(text: ' / ngày', style: TextStyle(color: scheme.onSurfaceVariant)),
+                TextSpan(text: tr(' / ngày'), style: TextStyle(color: scheme.onSurfaceVariant)),
               ])),
               const SizedBox(height: 16),
               Card(
@@ -94,9 +96,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Column(
                     children: [
-                      InfoRow('Tiền cọc', formatVnd(item.depositAmount)),
-                      if (item.locationText != null) InfoRow('Nơi nhận đồ', item.locationText!),
-                      InfoRow('Đăng ngày', fmtDate(item.createdAt)),
+                      InfoRow(tr('Tiền cọc'), formatVnd(item.depositAmount)),
+                      if (item.locationText != null) InfoRow(tr('Nơi nhận đồ'), item.locationText!),
+                      InfoRow(tr('Đăng ngày'), fmtDate(item.createdAt)),
                     ],
                   ),
                 ),
@@ -106,13 +108,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 child: ListTile(
                   leading: UserAvatar(name: item.ownerName, url: item.ownerAvatarUrl),
                   title: Text(item.ownerName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(mine ? 'Đây là đồ của bạn' : 'Chủ đồ'),
+                  subtitle: Text(mine ? tr('Đây là đồ của bạn') : tr('Chủ đồ')),
                   trailing: mine ? null : const Icon(Icons.chevron_right),
                   onTap: mine
                       ? null
                       : () {
                           if (_guest) {
-                            requireLogin(context, 'xem hồ sơ chủ đồ');
+                            requireLogin(context, tr('xem hồ sơ chủ đồ'));
                             return;
                           }
                           Navigator.of(context).push(
@@ -122,13 +124,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Mô tả', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(tr('Mô tả'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 6),
-              Text(item.description.isEmpty ? '(Chủ đồ chưa viết mô tả)' : item.description,
+              Text(item.description.isEmpty ? tr('(Chủ đồ chưa viết mô tả)') : item.description,
                   style: const TextStyle(height: 1.45)),
               const SizedBox(height: 16),
-              const NoticeBox(
-                'Tiền cọc được giữ trong ví RentMate và hoàn lại đầy đủ khi bạn trả đồ đúng tình trạng.',
+              NoticeBox(
+                tr('Tiền cọc được giữ trong ví RentMate và hoàn lại đầy đủ khi bạn trả đồ đúng tình trạng.'),
                 icon: Icons.verified_user_outlined,
                 color: Color(0xFF16A34A),
               ),
@@ -148,21 +150,24 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               child: FilledButton.icon(
                 icon: const Icon(Icons.event_available_rounded),
                 label: Text(mine
-                    ? 'Đây là đồ của bạn'
+                    ? tr('Đây là đồ của bạn')
                     : rented
-                        ? 'Đặt lịch thuê ngày khác'
-                        : 'Đặt thuê'),
+                        ? tr('Đặt lịch thuê ngày khác')
+                        : tr('Đặt thuê')),
                 onPressed: canRent
                     ? () async {
                         if (_guest) {
-                          requireLogin(context, 'thuê đồ');
+                          requireLogin(context, tr('thuê đồ'));
                           return;
                         }
                         final ok = await Navigator.of(context).push<bool>(
                           MaterialPageRoute(builder: (_) => RentalScreen(item: item)),
                         );
                         if (ok == true && mounted) {
-                          showSnack(context, 'Đã gửi yêu cầu thuê. Theo dõi trong tab "Đơn thuê".');
+                          // Về màn hình chính, mở tab "Đơn thuê" để khách thấy đơn vừa đặt
+                          showSnack(context, tr('Đã gửi yêu cầu thuê, chờ chủ đồ duyệt.'));
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                          NotificationCenter.instance.openTab?.call(1);
                         }
                       }
                     : null,

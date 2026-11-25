@@ -4,7 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import 'auth_service.dart';
+import 'config_service.dart';
 import 'item_service.dart';
+import '../l10n/l10n.dart';
 
 class ConditionReport {
   final String reportType; // "BeforeRental" | "AfterRental"
@@ -18,6 +20,7 @@ class ConditionReport {
   final List<String> aiDamages;
   final String? aiSuggestedCondition;
   final bool? aiNewDamageFound;
+  final bool? aiSameItem;
   final num? aiSuggestedDeduction;
 
   ConditionReport.fromJson(Map<String, dynamic> j)
@@ -30,20 +33,22 @@ class ConditionReport {
         aiDamages = ((j['aiDamages'] ?? []) as List).cast<String>(),
         aiSuggestedCondition = j['aiSuggestedCondition'] as String?,
         aiNewDamageFound = j['aiNewDamageFound'] as bool?,
+        aiSameItem = j['aiSameItem'] as bool?,
         aiSuggestedDeduction = j['aiSuggestedDeduction'] as num?;
 
   bool get hasAi => aiSummary != null && aiSummary!.isNotEmpty;
 }
 
 // Theo enum ConditionReportType trong RentMate.Core.
-const reportTypeValues = {'BeforeRental': 1, 'AfterRental': 2};
-const reportTypeLabels = {
-  'BeforeRental': 'Biên bản lúc giao',
-  'AfterRental': 'Biên bản lúc nhận lại',
+const reportTypeValues = {'BeforeRental': 1, 'AfterRental': 2, 'RenterReceived': 3};
+Map<String, String> get reportTypeLabels => {
+  'BeforeRental': tr('Chủ đồ chụp lúc giao'),
+  'RenterReceived': tr('Người thuê chụp lúc nhận'),
+  'AfterRental': tr('Chủ đồ chụp lúc nhận lại'),
 };
 
-/// Khớp ConditionReportService.MaxImages trên Api.
-const maxReportImages = 6;
+/// Số ảnh tối đa mỗi biên bản, theo cài đặt hệ thống.
+int get maxReportImages => AppConfig.maxReportImages;
 
 class ConditionReportService {
   Uri _url(int rentalId) => Uri.parse('$apiBaseUrl/api/rentals/$rentalId/condition-reports');

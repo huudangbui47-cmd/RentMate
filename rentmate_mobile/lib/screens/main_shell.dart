@@ -9,6 +9,7 @@ import 'my_items_screen.dart';
 import 'my_rentals_screen.dart';
 import 'notifications_screen.dart';
 import 'wallet_screen.dart';
+import '../l10n/l10n.dart';
 
 /// Khung chính sau khi đăng nhập: thanh điều hướng dưới với 5 mục.
 /// Mỗi lần chuyển tab, tab đó tải lại dữ liệu mới.
@@ -65,15 +66,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (widget.guest) {
       return Scaffold(
         body: [const HomeScreen(), const GuestScreen()][_index],
-        bottomNavigationBar: NavigationBar(
+        bottomNavigationBar: _floating(NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
-          destinations: const [
+          destinations: [
             NavigationDestination(
-                icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: 'Khám phá'),
-            NavigationDestination(icon: Icon(Icons.login_rounded), label: 'Đăng nhập'),
+                icon: const Icon(Icons.storefront_outlined), selectedIcon: const Icon(Icons.storefront), label: tr('Khám phá')),
+            NavigationDestination(icon: const Icon(Icons.login_rounded), label: tr('Đăng nhập')),
           ],
-        ),
+        )),
       );
     }
     final tabs = [
@@ -85,24 +86,32 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     ];
     return Scaffold(
       body: tabs[_index],
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _floating(NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-              icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: 'Khám phá'),
+              icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: tr('Khám phá')),
           NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Đơn thuê'),
+              icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: tr('Đơn thuê')),
           NavigationDestination(
-              icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Đồ của tôi'),
+              icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: tr('Đồ của tôi')),
           NavigationDestination(
               icon: Icon(Icons.account_balance_wallet_outlined),
               selectedIcon: Icon(Icons.account_balance_wallet),
-              label: 'Ví'),
+              label: tr('Ví')),
           NavigationDestination(
-              icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Tài khoản'),
+              icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person), label: tr('Tài khoản')),
         ],
-      ),
+      )),
     );
   }
+
+  // Thanh điều hướng nổi: cách mép, bo tròn
+  Widget _floating(Widget bar) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: ClipRRect(borderRadius: BorderRadius.circular(30), child: bar),
+        ),
+      );
 }

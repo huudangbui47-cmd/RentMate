@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../widgets/ui.dart';
+import '../l10n/l10n.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -39,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _password.text,
       );
       if (!mounted) return;
-      showSnack(context, 'Đăng ký thành công, vui lòng đăng nhập.');
+      showSnack(context, tr('Đăng ký thành công, vui lòng đăng nhập.'));
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
@@ -56,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tạo tài khoản')),
+      appBar: AppBar(title: Text(tr('Tạo tài khoản'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -67,9 +68,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 TextFormField(
                   controller: _fullName,
-                  decoration: _deco('Họ tên', Icons.person_outline),
+                  decoration: _deco(tr('Họ tên'), Icons.person_outline),
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Vui lòng nhập họ tên' : null,
+                      (v == null || v.trim().isEmpty) ? tr('Vui lòng nhập họ tên') : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -77,8 +78,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                   decoration: _deco('Email', Icons.email_outlined),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
-                    if (!v.contains('@')) return 'Email không hợp lệ';
+                    if (v == null || v.trim().isEmpty) return tr('Vui lòng nhập email');
+                    if (!v.contains('@')) return tr('Email không hợp lệ');
                     return null;
                   },
                 ),
@@ -86,15 +87,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
-                  decoration: _deco('Số điện thoại', Icons.phone_outlined),
+                  decoration: _deco(tr('Số điện thoại'), Icons.phone_outlined),
                   validator: phoneError,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _password,
                   obscureText: true,
-                  decoration: _deco('Mật khẩu', Icons.lock_outline).copyWith(
-                    helperText: 'Ít nhất 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt',
+                  decoration: _deco(tr('Mật khẩu'), Icons.lock_outline).copyWith(
+                    helperText: tr('Ít nhất 6 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt'),
                   ),
                   validator: passwordError,
                 ),
@@ -102,9 +103,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _confirm,
                   obscureText: true,
-                  decoration: _deco('Nhập lại mật khẩu', Icons.lock_outline),
+                  decoration: _deco(tr('Nhập lại mật khẩu'), Icons.lock_outline),
                   validator: (v) =>
-                      v != _password.text ? 'Mật khẩu nhập lại không khớp' : null,
+                      v != _password.text ? tr('Mật khẩu nhập lại không khớp') : null,
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
@@ -113,7 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ? const SizedBox(
                           height: 20, width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Đăng ký'),
+                      : Text(tr('Đăng ký')),
                 ),
               ],
             ),
